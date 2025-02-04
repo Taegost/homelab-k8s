@@ -14,7 +14,7 @@ spec:
     helm:
       # These settings tell ArgoCD to deploy the Traefik chart from its official Helm repository.
       chart: traefik
-      repoURL: https://helm.traefik.io/traefik
+      repoURL: https://traefik.github.io/charts
       # Use the custom values defined in the file we created.
       valueFiles:
         - values.yaml
