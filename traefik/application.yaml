@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd   # This is where ArgoCD stores its Application resources.
+spec:
+  project: default
+  source:
+    # Specify your repository URL here (the same repo that ArgoCD is monitoring)
+    repoURL: "https://github.com/Taegost/homelab-k8s.git" 
+    targetRevision: HEAD
+    # The path within your repo where the Helm values file is located.
+    path: traefik
+    helm:
+      # These settings tell ArgoCD to deploy the Traefik chart from its official Helm repository.
+      chart: traefik
+      repoURL: https://helm.traefik.io/traefik
+      # Use the custom values defined in the file we created.
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

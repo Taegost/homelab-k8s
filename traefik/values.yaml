@@ -1,0 +1,17 @@
+deployment:
+  replicas: 1  # You can adjust the number of replicas as needed.
+ports:
+  web:
+    # “web” is the entrypoint for HTTP traffic.
+    # Traefik will serve HTTP on port 80 and expose it via NodePort 30080.
+    port: 80
+    nodePort: 30080
+  websecure:
+    # Although your external proxy handles TLS, this is here in case you need it.
+    port: 443
+    nodePort: 30443
+service:
+  type: NodePort
+# Enable the legacy Kubernetes Ingress provider (if you plan to also use standard Ingress objects)
+providers:
+  kubernetesIngress: {}
