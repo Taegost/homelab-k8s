@@ -10,14 +10,12 @@ ingressRoute:
 ports:
   web:
     # “web” is the entrypoint for HTTP traffic.
-    port: 80
-    nodePort: 30080
+    port: 30080
   websecure:
     # If you want Traefik to also support TLS termination (i.e. end-to-end TLS)
     # you can expose HTTPS on an alternate NodePort. In our example, TLS is done
     # at the external Traefik so this may be optional.
-    port: 443
-    nodePort: 30443
+    port: 30443
 service:
   type: LoadBalancer
 providers:
