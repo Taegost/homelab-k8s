@@ -11,6 +11,8 @@ ports:
   web:
     # “web” is the entrypoint for HTTP traffic.
     port: 30080
+    forwardedHeaders:
+      insecure: true
   websecure:
     # If you want Traefik to also support TLS termination (i.e. end-to-end TLS)
     # you can expose HTTPS on an alternate NodePort. In our example, TLS is done
