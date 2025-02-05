@@ -7,11 +7,11 @@ spec:
   entryPoints:
     - web
   routes:
-    - kind: Rule
-      match: "Host(`traefik-k8s.local`)"
-      services:
-        - kind: TraefikService
-          name: api@internal
+    # - kind: Rule
+    #   match: "Host(`traefik-k8s.local`)"
+    #   services:
+    #     - kind: TraefikService
+    #       name: api@internal
     - kind: Rule
       match: "Host(`traefik-k8s.home.diceninjagaming.com`)"
       services:
