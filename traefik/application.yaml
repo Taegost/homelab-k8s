@@ -13,9 +13,8 @@ spec:
     chart: traefik
     helm:
       valueFiles:
-        - $values/values.yaml
+        - $values/traefik/values.yaml
   - repoURL: https://github.com/Taegost/homelab-k8s.git
-    path: traefik
     targetRevision: HEAD
     ref: values
   project: default
