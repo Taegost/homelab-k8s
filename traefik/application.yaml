@@ -13,7 +13,7 @@ spec:
     chart: traefik
     helm:
       valueFiles:
-        - traefik-values.yaml
+        - values.yaml
   sources: []
   project: default
   syncPolicy:

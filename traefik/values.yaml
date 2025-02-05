@@ -1,17 +1,26 @@
+# traefik-values.yaml
+api:
+  dashboard: true
+  insecure: true
 deployment:
-  replicas: 1  # You can adjust the number of replicas as needed.
+  replicas: 1  # Start with one replica; you can scale as needed.
+ingressRoute:
+  dashboard:
+    enabled: true
 ports:
   web:
     # “web” is the entrypoint for HTTP traffic.
-    # Traefik will serve HTTP on port 80 and expose it via NodePort 30080.
+    # Here, we instruct Traefik to serve HTTP internally on port 80
+    # but expose it via NodePort 30080.
     port: 80
     nodePort: 30080
   websecure:
-    # Although your external proxy handles TLS, this is here in case you need it.
+    # If you want Traefik to also support TLS termination (i.e. end-to-end TLS)
+    # you can expose HTTPS on an alternate NodePort. In our example, TLS is done
+    # at the external Traefik so this may be optional.
     port: 443
     nodePort: 30443
 service:
   type: NodePort
-# Enable the legacy Kubernetes Ingress provider (if you plan to also use standard Ingress objects)
 providers:
   kubernetesIngress: {}
