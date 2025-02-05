@@ -6,15 +6,18 @@ spec:
   destination:
     namespace: traefik
     server: https://kubernetes.default.svc
-  source:
+  sources:
+  - repoURL: https://helm.traefik.io/traefik
     path: ''
-    repoURL: https://helm.traefik.io/traefik
     targetRevision: 34.*
     chart: traefik
     helm:
       valueFiles:
-        - values.yaml
-  sources: []
+        - $values/values.yaml
+  - repoURL: https://github.com/Taegost/homelab-k8s.git
+    path: traefik
+    targetRevision: HEAD
+    ref: values
   project: default
   syncPolicy:
     automated:
