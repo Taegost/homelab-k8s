@@ -8,7 +8,7 @@ spec:
     - web
   routes:
     - kind: Rule
-      match: Host(`traefik-k8s.local` || 'traefik-k8s.home.diceninjagaming.com')
+      match: Host(`traefik-k8s.local`) || Host('traefik-k8s.home.diceninjagaming.com')
       services:
         - kind: TraefikService
           name: api@internal
