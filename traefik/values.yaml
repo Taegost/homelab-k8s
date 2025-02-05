@@ -14,10 +14,12 @@ ports:
     forwardedHeaders:
       insecure: true
   websecure:
-    # If you want Traefik to also support TLS termination (i.e. end-to-end TLS)
-    # you can expose HTTPS on an alternate NodePort. In our example, TLS is done
-    # at the external Traefik so this may be optional.
     port: 30443
+    http:
+      redirections:
+        entryPoint:
+          to: http
+          scheme: http
 service:
   type: LoadBalancer
 providers:
