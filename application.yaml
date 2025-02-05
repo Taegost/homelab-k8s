@@ -12,6 +12,8 @@ spec:
     path: .
     repoURL: https://github.com/Taegost/homelab-k8s.git
     targetRevision: HEAD
+    directory:
+      recurse: true
   sources: []
   project: default
   syncPolicy:
