@@ -9,12 +9,10 @@ spec:
     namespace: traefik
     server: https://kubernetes.default.svc
   source:
-    path: ''
-    repoURL: https://github.com/traefik/traefik-helm-chart
-    targetRevision: ''
     helm:
       chart: traefik
       repoURL: https://helm.traefik.io/traefik
+      targetRevision: v34.*
       valueFiles:
         - values.yaml
     chart: traefik
