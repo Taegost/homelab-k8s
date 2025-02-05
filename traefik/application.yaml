@@ -10,7 +10,7 @@ spec:
     server: https://kubernetes.default.svc
   source:
     path: traefik
-    repoURL: https://github.com/traefik/traefik-helm-chart
+    repoURL: https://github.com/Taegost/homelab-k8s.git
     targetRevision: HEAD
     helm:
       chart: traefik
