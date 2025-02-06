@@ -9,7 +9,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: "Host(`argocd.home.diceninjagaming.com` || 'argocd.local')"
+      match: "Host(`argocd.home.diceninjagaming.com`) || Host('argocd.local')"
       priority: 10
       services:
         - name: argocd-server
