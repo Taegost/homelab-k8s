@@ -353,13 +353,13 @@ ingressRoute:
 # - name: traefik-logs
 #   mountPath: /var/log/traefik
 
-logs:
-  general:
+# logs:
+#   general:
 #     # -- Set [logs format](https://doc.traefik.io/traefik/observability/logs/#format)
 #     format:  # @schema enum:["common", "json", null]; type:[string, null]; default: "common"
 #     # By default, the level is set to INFO.
 #     # -- Alternative logging levels are TRACE, DEBUG, INFO, WARN, ERROR, FATAL, and PANIC.
-    level: "TRACE"  # @schema enum:[TRACE,DEBUG,INFO,WARN,ERROR,FATAL,PANIC]; default: "INFO"
+    # level: "TRACE"  # @schema enum:[TRACE,DEBUG,INFO,WARN,ERROR,FATAL,PANIC]; default: "INFO"
 #     # -- To write the logs into a log file, use the filePath option.
 #     filePath: ""
 #     # -- When set to true and format is common, it disables the colorized output.
@@ -606,7 +606,7 @@ additionalArguments:
   # - "--entryPoints.web.proxyProtocol.insecure"
   # - "--entryPoints.websecure.proxyProtocol.insecure"
 # #  - "--providers.kubernetesingress.ingressclass=traefik-internal"
-  - "--log.level=DEBUG"
+  # - "--log.level=DEBUG"
 
 # # -- Additional Environment variables to be passed to Traefik's binary
 # # @default -- See _values.yaml_
