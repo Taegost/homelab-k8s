@@ -6,7 +6,6 @@ metadata:
 spec:
   entryPoints:
     - web
-    - websecure
   routes:
     - kind: Rule
       match: "Host(`argocd.home.diceninjagaming.com`)"
@@ -15,7 +14,7 @@ spec:
         - name: argocd-server
           port: 80
     - kind: Rule
-      match: "Host('argocd.local')"
+      match: "Host(`argocd.local`)"
       priority: 10
       services:
         - name: argocd-server
