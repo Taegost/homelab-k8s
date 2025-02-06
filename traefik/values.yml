@@ -606,7 +606,7 @@ additionalArguments:
   - "--entryPoints.web.proxyProtocol.insecure"
   - "--entryPoints.websecure.proxyProtocol.insecure"
 # #  - "--providers.kubernetesingress.ingressclass=traefik-internal"
-# #  - "--log.level=DEBUG"
+  - "--log.level=DEBUG"
 
 # # -- Additional Environment variables to be passed to Traefik's binary
 # # @default -- See _values.yaml_
