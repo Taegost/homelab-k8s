@@ -7,15 +7,16 @@ spec:
     namespace: argocd
     server: https://kubernetes.default.svc
   sources:
-  - repoURL: https://argoproj.github.io/argo-helm
-    targetRevision: 7.8.2
-    chart: argocd
+  - repoURL: https://github.com/argoproj/argocd.git
+    path: manifests
+    targetRevision: stable
+    directory:
+      jsonnet: {}
+      include: install.yaml
     helm:
-      valueFiles:
-        - $values/argocd/values.yml
-  - repoURL: https://github.com/Taegost/homelab-k8s.git
-    targetRevision: HEAD
-    ref: values
+      configs:
+        params:
+          server.insecure: true
   project: default
   syncPolicy:
     automated:
