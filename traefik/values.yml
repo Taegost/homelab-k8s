@@ -1,7 +1,9 @@
-# traefik-values.yaml
 api:
   dashboard: true
   insecure: true
+args:
+  - --api.insecure
+  - --providers.kubernetesingress
 deployment:
   replicas: 1  # Start with one replica; you can scale as needed.
 ingressRoute:
@@ -20,7 +22,8 @@ ports:
         entryPoint:
           to: http
           scheme: http
-service:
-  type: LoadBalancer
 providers:
   kubernetesIngress: {}
+service:
+  type: LoadBalancer
+serviceAccountName: traefik-account
