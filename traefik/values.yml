@@ -662,12 +662,12 @@ ports:
     forwardedHeaders:
       # -- Trust forwarded headers information (X-Forwarded-*).
       trustedIPs:
-        - 192.168.5.251/24
+        - 192.168.5.0/24
       insecure: true
     proxyProtocol:
       # -- Enable the Proxy Protocol header parsing for the entry point
       trustedIPs:
-        - 192.168.5.251/24
+        - 192.168.5.0/24
       insecure: true
     # -- Set transport settings for the entrypoint; see also
     # https://doc.traefik.io/traefik/routing/entrypoints/#transport
