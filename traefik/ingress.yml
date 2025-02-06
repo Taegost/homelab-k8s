@@ -6,6 +6,9 @@ metadata:
 spec:
   entryPoints:
     - web
+  middlewares:
+    - name: default-headers
+      namespace: traefik
   routes:
     - kind: Rule
       match: "Host(`traefik-k8s.local`)"
