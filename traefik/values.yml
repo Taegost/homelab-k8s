@@ -603,8 +603,8 @@ logs:
 additionalArguments:
   - "--entryPoints.web.forwardedHeaders.insecure"
   - "--entrypoints.websecure.forwardedHeaders.insecure"
-  - "--entryPoints.web.proxyProtocol.insecure"
-  - "--entryPoints.websecure.proxyProtocol.insecure"
+  # - "--entryPoints.web.proxyProtocol.insecure"
+  # - "--entryPoints.websecure.proxyProtocol.insecure"
 # #  - "--providers.kubernetesingress.ingressclass=traefik-internal"
   - "--log.level=DEBUG"
 
@@ -664,11 +664,11 @@ ports:
       trustedIPs:
         - 192.168.5.0/24
       insecure: true
-    proxyProtocol:
-      # -- Enable the Proxy Protocol header parsing for the entry point
-      trustedIPs:
-        - 192.168.5.0/24
-      insecure: true
+    # proxyProtocol:
+    #   # -- Enable the Proxy Protocol header parsing for the entry point
+    #   trustedIPs:
+    #     - 192.168.5.0/24
+    #   insecure: true
     # -- Set transport settings for the entrypoint; see also
     # https://doc.traefik.io/traefik/routing/entrypoints/#transport
     # transport:
