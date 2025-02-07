@@ -6,9 +6,9 @@ metadata:
 spec:
   destination:
     namespace: gitops
-    server: {{ .Values.spec.destination.server }}
+    server: https://kubernetes.default.svc
   project: default
   source:
     path: gitops
-    repoURL: {{ .Values.spec.values_source.repoURL }}
-    targetRevision: {{ .Values.spec.values_source.targetRevision }}
+    repoURL: https://github.com/Taegost/homelab-k8s.git
+    targetRevision: HEAD
