@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd
-  namespace: argocd
+  name: gitops
+  namespace: gitops
 spec:
   destination:
-    namespace: argocd
+    namespace: gitops
     server: {{ .Values.spec.destination.server }}
   project: default
   source:
-    path: argocd
+    path: gitops
     repoURL: {{ .Values.spec.values_source.repoURL }}
     targetRevision: {{ .Values.spec.values_source.targetRevision }}
