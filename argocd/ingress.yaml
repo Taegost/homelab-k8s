@@ -14,8 +14,22 @@ spec:
         - name: argocd-server
           port: 80
     - kind: Rule
+      match: "Host(`argocd.home.diceninjagaming.com`) && Header(`Content-Type`, `application/grpc`)"
+      priority: 11
+      services:
+        - name: argocd-server
+          port: 80
+          scheme: h2c
+    - kind: Rule
       match: "Host(`argocd.local`)"
       priority: 10
       services:
         - name: argocd-server
           port: 80
+    - kind: Rule
+      match: "Host(`argocd.local`)  && Header(`Content-Type`, `application/grpc`)"
+      priority: 10
+      services:
+        - name: argocd-server
+          port: 80
+          scheme: h2c
