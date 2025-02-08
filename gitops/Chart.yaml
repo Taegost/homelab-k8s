@@ -1,6 +1,0 @@
-apiVersion: v2
-name: gitops
-description: "This is the root app-of-apps"
-type: application
-version: 0.1.0
-appVersion: "1.0"
