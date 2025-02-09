@@ -1,0 +1,9 @@
+apiVersion: builtin.helm.fluxcd.io/v1
+kind: HelmChartInflationGenerator
+metadata:
+  name: traefik
+  namespace: traefik
+chartName: traefik
+repoURL: https://helm.traefik.io/traefik
+targetRevision: "34.*"
+valuesFile: values.yaml
