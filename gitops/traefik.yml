@@ -12,7 +12,6 @@ spec:
     path: traefik
     repoURL: https://github.com/Taegost/homelab-k8s.git
     targetRevision: HEAD
-    type: kustomize
   syncPolicy:
     automated:
       prune: true
