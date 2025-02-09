@@ -1,15 +1,20 @@
+# This is the root app-of-apps
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: traefik
+  name: gitops
+  namespace: gitops
 spec:
   destination:
-    namespace: traefik
+    name: ''
+    namespace: gitops
     server: https://kubernetes.default.svc
   source:
-    path: traefik
+    path: .
     repoURL: https://github.com/Taegost/homelab-k8s.git
     targetRevision: HEAD
+    directory:
+      recurse: true
   sources: []
   project: default
   syncPolicy:
