@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: traefik
-  namespace: traefik
+  namespace: gitops
 spec:
   destination:
     namespace: traefik
