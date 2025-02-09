@@ -2,16 +2,16 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: traefik
-  namespace: gitops
 spec:
   destination:
     namespace: traefik
     server: https://kubernetes.default.svc
-  project: default
   source:
     path: traefik
     repoURL: https://github.com/Taegost/homelab-k8s.git
     targetRevision: HEAD
+  sources: []
+  project: default
   syncPolicy:
     automated:
       prune: true

@@ -1,4 +1,0 @@
-resources:
-  - namespace.yml
-  - ingress.yml
-  - helm-chart.yml
