@@ -11,4 +11,4 @@ spec:
   source:
     path: gitops
     repoURL: https://github.com/Taegost/homelab-k8s.git
-    targetRevision: HEAD
+    targetRevision: helm_app-of-apps

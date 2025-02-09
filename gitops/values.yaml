@@ -4,4 +4,4 @@ spec:
     server: https://kubernetes.default.svc
   values_source:
     repoURL: https://github.com/Taegost/homelab-k8s.git
-    targetRevision: HEAD
+    targetRevision: helm_app-of-apps
