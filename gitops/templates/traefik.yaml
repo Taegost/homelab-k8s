@@ -4,21 +4,10 @@ metadata:
   name: traefik
 spec:
   destination:
-    namespace: {{ .Values.spec.namespace }}
+    namespace: {{ .Values.spec.destination.server }}
     server: {{ .Values.spec.destination.server }}
   project: default
-  sources:
-  - repoURL: https://helm.traefik.io/traefik
-    path: ''
-    targetRevision: 34.*
-    chart: traefik
-    helm:
-      valueFiles:
-        - $values/traefik/values.yml
-  - repoURL: {{ .Values.spec.values_source.repoURL }}
+  source:
+    path: traefik
+    repoURL: {{ .Values.spec.values_source.repoURL }}
     targetRevision: {{ .Values.spec.values_source.targetRevision }}
-    ref: values
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
