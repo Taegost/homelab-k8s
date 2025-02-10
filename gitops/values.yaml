@@ -1,5 +1,6 @@
 spec:
   project: default
+  namespace: argocd
   destination:
     server: https://kubernetes.default.svc
   values_source:

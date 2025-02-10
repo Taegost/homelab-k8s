@@ -7,8 +7,13 @@ spec:
   destination:
     namespace: argocd
     server: https://kubernetes.default.svc
-  project: default
   source:
     path: gitops
     repoURL: https://github.com/Taegost/homelab-k8s.git
     targetRevision: helm_app-of-apps
+  sources: []
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
