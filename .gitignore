@@ -1,0 +1,36 @@
+# ------------------------------------------------------------------------------
+# Raw Kubernetes secrets
+# NEVER commit unencrypted secrets to this repository.
+# Use Sealed Secrets (kubeseal) for all sensitive values instead.
+# See docs/sealed-secrets.md for instructions.
+#
+# Naming convention:
+#   my-app-secret.yaml        <-- plaintext, BLOCKED by rules below
+#   my-app-sealedsecret.yaml  <-- kubeseal output, safe to commit, ALLOWED
+# ------------------------------------------------------------------------------
+
+# Block plaintext secret files
+*-secret.yaml
+*-secrets.yaml
+*.secret.yaml
+
+# Explicitly allow kubeseal output files (the '!' negates the block above)
+!*-sealedsecret.yaml
+!*-sealedsecrets.yaml
+
+# Kubeconfig files (contain cluster credentials)
+kubeconfig
+*.kubeconfig
+kubeconfig.yaml
+
+# Terraform state (if used alongside this repo)
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
