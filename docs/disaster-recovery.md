@@ -7,7 +7,7 @@ This document covers how to fully restore this cluster from scratch using only t
 ArgoCD manages all application state from this Git repository. As long as you have:
 
 1. This repository (public on GitHub — always available)
-2. The Sealed Secrets private key (stored securely in your password manager)
+2. The Sealed Secrets private key backup (`main.key`, stored in Bitwarden)
 3. A working k3s cluster with kube-vip installed
 
 ...you can restore the entire stack with no manual re-configuration.
@@ -26,58 +26,52 @@ Follow your standard cluster provisioning process. kube-vip is managed outside t
 
 ### Step 2 — Deploy the Sealed Secrets controller
 
-The controller must be deployed before the private key can be restored, because the key is stored as a Kubernetes `Secret` in the `sealed-secrets` namespace — which doesn't exist until the controller creates it.
+The controller must be deployed before the private key can be restored, because the controller is what creates the namespace and RBAC resources the key will live in.
 
 ```bash
-kubectl apply -f apps/sealed-secrets/
-kubectl rollout status deployment sealed-secrets -n sealed-secrets
+kubectl apply -f apps/sealed-secrets/sealed-secrets-controller.yaml
+kubectl rollout status deployment sealed-secrets-controller -n kube-system
 ```
 
 ### Step 3 — Restore the Sealed Secrets private key
 
-With the controller running, apply your backed-up private key. This must happen **before** ArgoCD syncs any `SealedSecret` resources, otherwise the controller will attempt to decrypt them with a newly generated key and fail permanently.
+With the controller running, apply your backed-up key. This must happen **before** ArgoCD syncs any `SealedSecret` resources — if the controller generates a new key before the backup is restored, it will be unable to decrypt any existing `SealedSecret` manifests.
 
 ```bash
-# Retrieve your backed-up key from Bitwarden and save it locally as:
-# sealed-secrets-master-key.yaml  (do NOT commit this file)
-
-kubectl apply -f sealed-secrets-master-key.yaml
+# Retrieve main.key from Bitwarden and save it locally (do NOT commit this file)
+kubectl apply -f main.key
 ```
 
-Then restart the controller so it loads the restored key instead of any auto-generated one:
+Then force the controller to restart so it loads the restored key rather than any auto-generated one:
 
 ```bash
-kubectl rollout restart deployment sealed-secrets -n sealed-secrets
-kubectl rollout status deployment sealed-secrets -n sealed-secrets
+# Deleting the pod is the recommended approach — the Deployment recreates it immediately
+kubectl delete pod -n kube-system -l name=sealed-secrets-controller
 ```
 
-Verify the key was loaded correctly — the controller logs should show it found an existing key rather than generating a new one:
+Verify the controller loaded the restored key rather than generating a new one:
 
 ```bash
-kubectl logs -n sealed-secrets -l app.kubernetes.io/name=sealed-secrets | grep -i key
-# Look for: "found existing key" — not "generating new key"
+kubectl logs -n kube-system -l name=sealed-secrets-controller | grep -i key
+# Look for: "registered private key" — not "new key written"
 ```
 
 Delete the local copy of the key file after confirming the restore succeeded:
 
 ```bash
-rm sealed-secrets-master-key.yaml
+rm main.key
 ```
 
 ### Step 4 — Re-run the remaining bootstrap steps
 
-Follow [`bootstrap/README.md`](../bootstrap/README.md) to deploy MetalLB, Traefik, and ArgoCD in order.
+Follow [`bootstrap/README.md`](../bootstrap/README.md) to deploy MetalLB, Traefik, and ArgoCD in order. Once ArgoCD is running, connect it to this GitHub repository — it will sync all applications automatically from the current state of the `main` branch.
 
-Once ArgoCD is running, connect it to this GitHub repository. ArgoCD will sync all applications automatically from the current state of the `main` branch.
+### Step 5 — Verify
 
-### Step 5 — Point ArgoCD at this repository and verify
-
-Once ArgoCD is running, connect it to this GitHub repository. ArgoCD will sync all applications automatically from the current state of the `main` branch. Check that all applications reach `Synced` / `Healthy` status in the ArgoCD UI.
-
-If any application fails to sync due to a `SealedSecret` decryption error, the most likely cause is that the private key restore in Step 3 did not complete correctly. Re-check the controller logs:
+Check that all applications reach `Synced` / `Healthy` status in the ArgoCD UI. If any application fails to sync due to a `SealedSecret` decryption error, the most likely cause is that the private key restore in Step 3 did not complete correctly. Re-check the controller logs:
 
 ```bash
-kubectl logs -n sealed-secrets -l app.kubernetes.io/name=sealed-secrets | grep -i key
+kubectl logs -n kube-system -l name=sealed-secrets-controller | grep -i key
 ```
 
 ---
@@ -94,6 +88,6 @@ NFS-backed volumes (used for large media libraries) are not replicated by Kubern
 
 | Item | Location |
 |------|---------|
-| Sealed Secrets private key | Bitwarden vault |
+| Sealed Secrets private key (`main.key`) | Bitwarden vault |
 | GitHub repository | https://github.com/Taegost/homelab-k8s |
-| Cluster node IPs | See docs/bootstrap.md |
+| Cluster node IPs | See [`bootstrap/README.md`](../bootstrap/README.md) |

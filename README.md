@@ -6,14 +6,16 @@ A production-style Kubernetes homelab built on [k3s](https://k3s.io/), managed v
 
 ## Table of Contents
 
-- [Architecture Overview](#architecture-overview)
-- [Core Stack](#core-stack)
-- [Repository Structure](#repository-structure)
-- [Bootstrap Order](#bootstrap-order)
-- [Secrets Management](#secrets-management)
-- [Adding a New Application](#adding-a-new-application)
-- [Disaster Recovery](#disaster-recovery)
-- [Prerequisites](#prerequisites)
+- [homelab-k8s](#homelab-k8s)
+  - [Table of Contents](#table-of-contents)
+  - [Architecture Overview](#architecture-overview)
+  - [Core Stack](#core-stack)
+  - [Repository Structure](#repository-structure)
+  - [Bootstrap Order](#bootstrap-order)
+  - [Secrets Management](#secrets-management)
+  - [Adding a New Application](#adding-a-new-application)
+  - [Disaster Recovery](#disaster-recovery)
+  - [Prerequisites](#prerequisites)
 
 ---
 
@@ -23,10 +25,10 @@ A production-style Kubernetes homelab built on [k3s](https://k3s.io/), managed v
                         ┌─────────────────────────────────────────┐
                         │              k3s Cluster                │
                         │                                         │
-                        │   ┌───────────┐    ┌───────────┐       │
-                        │   │  Node 001 │    │  Node 002 │  ...  │
-                        │   │ (cp+work) │    │ (cp+work) │       │
-                        │   └───────────┘    └───────────┘       │
+                        │   ┌───────────┐    ┌───────────┐        │
+                        │   │  Node 001 │    │  Node 002 │  ...   │
+                        │   │ (cp+work) │    │ (cp+work) │        │
+                        │   └───────────┘    └───────────┘        │
                         │                                         │
                         │   kube-vip (control plane VIP)          │
                         │   MetalLB  (LoadBalancer IPs)           │

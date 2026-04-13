@@ -76,7 +76,7 @@ spec:
             # Run `ip -o link show` on a node to find the correct name.
             # Common values: eth0, ens18, enp3s0
             - name: vip_interface
-              value: "ens18"         # <-- replace with your interface name
+              value: ""         # <-- leave blank to auto-detect the default interface, or set explicitly to override
             # ─────────────────────────────────────────────────────────────────
             - name: vip_arp
               value: "true"

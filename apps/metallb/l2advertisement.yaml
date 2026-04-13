@@ -1,0 +1,28 @@
+# MetalLB L2Advertisement
+#
+# Enables Layer 2 (ARP) mode for the default-pool. In L2 mode, MetalLB responds
+# to ARP requests on your local network for each allocated IP, associating it
+# with the MAC address of whichever node is currently the leader for that IP.
+#
+# Why L2 over BGP?
+#   L2 mode requires no special router configuration and works on any standard
+#   Ethernet network. BGP offers true load balancing across nodes but requires
+#   a BGP-capable router. For a homelab, L2 is the right choice.
+#
+# Important limitation: in L2 mode all traffic for a given IP flows through a
+# single node at a time. If that node goes down, MetalLB automatically fails
+# over to another node within a few seconds. This is failover, not load
+# balancing — but it is sufficient for homelab use.
+#
+# The ipAddressPools field explicitly references default-pool rather than being
+# left empty. Leaving it empty would advertise ALL pools via L2, which becomes
+# a problem if you later add a BGP pool — it would unexpectedly also be
+# advertised via L2.
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: default-pool-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - default-pool

@@ -27,13 +27,13 @@ ArgoCD cannot manage resources that don't exist yet. The bootstrap phase install
 
 Before applying any manifests, decide on your IP ranges. Three components need reserved IPs and they must not overlap with each other or your DHCP range:
 
-| Component | Type | Example | Notes |
-|-----------|------|---------|-------|
-| kube-vip | Single IP | 192.168.1.10 | The control plane VIP — must be reachable by all nodes and your local machine |
-| MetalLB | IP range | 192.168.1.11-20 |Pool of IPs MetalLB can assign to `LoadBalancer` services |
-| Traefik | Single IP | 192.168.1.11 |The first IP in your MetalLB pool, reserved for Traefik's ingress service |
+| Component | Type | Notes |
+|-----------|------|-------|
+| kube-vip | Single IP | The control plane VIP — must be reachable by all nodes and your local machine |
+| MetalLB | IP range | Pool of IPs MetalLB can assign to `LoadBalancer` services |
+| Traefik | Single IP | The first IP in your MetalLB pool, reserved for Traefik's ingress service |
 
-> **Tip:** A clean way to manage this is to carve a static block out of your local subnet (e.g. the top or bottom of the range) and split it: one IP for kube-vip, the rest as the MetalLB pool. Configure your router's DHCP server to exclude this entire block from dynamic assignment.
+> **Tip:** A clean way to manage this is to carve a static block out of your local subnet (e.g. the top of the range) and split it: one IP for kube-vip, the rest as the MetalLB pool. Configure your router's DHCP server to exclude this entire block from dynamic assignment.
 
 ### Local Tooling
 
@@ -112,28 +112,24 @@ See the [official kube-vip DaemonSet installation guide](https://kube-vip.io/doc
 Sealed Secrets must be deployed first so the controller is available to decrypt any `SealedSecret` resources applied by later steps.
 
 ```bash
-kubectl apply -f ../apps/sealed-secrets/
+kubectl apply -f ./apps/sealed-secrets/sealed-secrets-controller.yaml
 ```
 
 Wait for the controller to be ready:
 
 ```bash
-kubectl rollout status deployment sealed-secrets -n sealed-secrets
+kubectl rollout status deployment sealed-secrets-controller -n kube-system
 ```
 
-**Back up the private key immediately** — this is your only opportunity before other sealed secrets are created. See [docs/sealed-secrets.md](../docs/sealed-secrets.md#backing-up-the-private-key) for instructions. Store the key in Bitwarden before continuing.
-
-Fetch and commit the public key so it can be used to encrypt secrets locally:
+**Back up the private key immediately** and store it in a secure location (such as Bitwarden) before continuing. The backup file contains both the public and private keys — there is no need to back them up separately. See [docs/sealed-secrets.md](../docs/sealed-secrets.md#backing-up-the-private-key) for full details including key rotation.
 
 ```bash
-kubeseal --fetch-cert \
-  --controller-name=sealed-secrets \
-  --controller-namespace=sealed-secrets \
-  > pub-cert.pem
-
-git add pub-cert.pem
-git commit -m "chore: add sealed secrets public cert"
-git push
+kubectl get secret \
+  -n kube-system \
+  -l sealedsecrets.bitnami.com/sealed-secrets-key \
+  -o yaml > main.key
+# Store main.key securely, then delete the local copy
+rm main.key
 ```
 
 ---
@@ -142,14 +138,15 @@ git push
 
 MetalLB provides `LoadBalancer`-type service IPs from your local network. Traefik will request one in the next step.
 
-```bash
-kubectl apply -f ../apps/metallb/
-```
-
-Wait for MetalLB to be ready:
+The manifest and config files must be applied in order — the CRDs in the main manifest must exist before the `IPAddressPool` and `L2Advertisement` resources can be created.
 
 ```bash
+kubectl apply -f ./apps/metallb/metallb.yaml
 kubectl rollout status deployment controller -n metallb-system
+kubectl rollout status daemonset speaker -n metallb-system
+
+kubectl apply -f ./apps/metallb/ipaddresspool.yaml
+kubectl apply -f ./apps/metallb/l2advertisement.yaml
 ```
 
 ---

@@ -1,0 +1,20 @@
+# MetalLB IPAddressPool
+#
+# Defines the range of IP addresses MetalLB can assign to LoadBalancer services.
+#
+# ── Customisation ────────────────────────────────────────────────────────────
+# Change the addresses range to match your network. Requirements:
+#   - IPs must be on the same subnet as your nodes
+#   - Must not overlap with your router's DHCP range
+#   - Must not include the kube-vip VIP (which sits just outside this range)
+#   - The first IP in the range is reserved for Traefik — see ipaddresspool note
+#     below and apps/traefik/ for where that reservation is enforced
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.5.202-192.168.5.210
