@@ -52,13 +52,15 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 | [kube-vip](https://kube-vip.io/) | Control plane VIP (HA API server) | `kube-system` |
 | [MetalLB](https://metallb.universe.tf/) | LoadBalancer IP allocation (L2/ARP mode) | `metallb-system` |
 | [Traefik](https://traefik.io/) | Ingress controller, TLS termination | `traefik` |
+| [cert-manager](https://cert-manager.io/) | Automatic TLS via Let's Encrypt DNS-01 (Route53) | `cert-manager` |
 | [ArgoCD](https://argo-cd.readthedocs.io/) | GitOps — syncs this repo to the cluster | `argocd` |
 | [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) | Encrypted secrets safe for public repos | `sealed-secrets` |
 | [Longhorn](https://longhorn.io/) | Replicated persistent storage | `longhorn-system` |
 
 > **Why these choices?**
 > - **MetalLB over kube-vip for services**: kube-vip handles the _control plane_ VIP; MetalLB handles _LoadBalancer-type services_ (like Traefik's external IP). They serve different layers.
-> - **Traefik over NGINX**: Traefik has native Kubernetes CRD support (`IngressRoute`), built-in Let's Encrypt support (including DNS-01 via Route53), and a built-in dashboard. Because Traefik manages the full ACME lifecycle itself, cert-manager is not needed in this stack.
+> - **Traefik over NGINX**: Traefik has native Kubernetes CRD support (`IngressRoute`), a built-in dashboard, and excellent integration with cert-manager. It handles TLS termination using certificates managed by cert-manager.
+> - **cert-manager for TLS**: Traefik Community Edition cannot handle Let's Encrypt challenges across multiple replicas — the challenge response must reach the specific instance that initiated it, which is impossible to guarantee in an HA setup. cert-manager solves this cleanly by handling the full ACME lifecycle independently via DNS-01 challenges (no HTTP traffic required), storing certificates as Kubernetes Secrets that any number of Traefik replicas can read. Certificates live in the `cert-manager` namespace so they are decoupled from the ingress layer.
 > - **Sealed Secrets over External Secrets Operator**: ESO requires an external secret store (Vault, AWS SSM, etc.). Sealed Secrets keeps everything self-contained and is ideal for a public portfolio repo where you want to commit encrypted secrets directly.
 
 ---
@@ -95,18 +97,7 @@ Each app directory contains raw Kubernetes manifests and/or Helm `values.yaml` o
 
 ## Bootstrap Order
 
-The cluster components have hard dependencies on each other. They must be bootstrapped in this order:
-
-```
-1. kube-vip          ← Already installed. Managed outside this repo.
-2. Sealed Secrets    ← Must exist before any SealedSecret manifest is applied.
-3. MetalLB           ← Must exist before Traefik requests a LoadBalancer IP.
-4. Traefik           ← Must exist before any Ingress/IngressRoute is created.
-5. ArgoCD            ← Bootstrapped manually, then takes over managing itself.
-6. Everything else   ← ArgoCD syncs from this repo automatically.
-```
-
-Detailed step-by-step instructions for each phase are in [bootstrap/README.md](bootstrap/README.md).
+The cluster components have hard dependencies on each other and must be bootstrapped in a specific order. See [bootstrap/README.md](bootstrap/README.md) for the full step-by-step instructions.
 
 ---
 

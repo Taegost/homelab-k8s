@@ -1,0 +1,35 @@
+# Certificate — *.home.diceninjagaming.com
+#
+# Requests a wildcard certificate covering all subdomains of
+# home.diceninjagaming.com. A single wildcard certificate covers every
+# service on this subdomain (e.g. traefik-k8s, argocd, jellyfin, etc.)
+# without needing individual certificates per service.
+#
+# Wildcard certificates require DNS-01 challenge — HTTP-01 cannot be used.
+# This is handled automatically by the Route53 ClusterIssuer.
+#
+# The resulting TLS Secret is created in the cert-manager namespace.
+# Traefik accesses it via a TLSStore reference — see apps/traefik/.
+#
+# ── Testing workflow ─────────────────────────────────────────────────────────
+# 1. Start with issuerRef pointing at letsencrypt-staging
+# 2. Verify READY=True: kubectl get certificate -n cert-manager
+# 3. Check the issuer is "(STAGING) Let's Encrypt" in the cert details
+# 4. Change issuerRef to letsencrypt-prod and re-apply
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-home-diceninjagaming-com
+  namespace: cert-manager
+spec:
+  secretName: wildcard-home-diceninjagaming-com-tls
+  duration: 2160h      # 90 days — Let's Encrypt standard
+  renewBefore: 720h    # Renew 30 days before expiry
+  dnsNames:
+    - "*.home.diceninjagaming.com"
+  issuerRef:
+    # Start with staging, switch to letsencrypt-prod once verified
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

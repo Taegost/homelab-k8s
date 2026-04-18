@@ -10,6 +10,7 @@ ArgoCD cannot manage resources that don't exist yet. The bootstrap phase install
 
 - **kube-vip** must exist before the cluster is fully operational — it provides the control plane VIP that everything else connects through.
 - **Sealed Secrets** must exist before any `SealedSecret` resource is applied, so the controller is ready to decrypt them.
+- **cert-manager** must exist before Traefik so TLS certificates are ready when Traefik starts routing traffic.
 - **MetalLB** must exist before Traefik requests a `LoadBalancer` IP — without it, the service would remain in `<pending>` indefinitely.
 - **Traefik** must exist before any `Ingress` or `IngressRoute` resources are created, including ArgoCD's own UI ingress.
 - **ArgoCD** is the last to be bootstrapped manually, after which it immediately takes over managing all resources going forward.
@@ -112,7 +113,7 @@ See the [official kube-vip DaemonSet installation guide](https://kube-vip.io/doc
 Sealed Secrets must be deployed first so the controller is available to decrypt any `SealedSecret` resources applied by later steps.
 
 ```bash
-kubectl apply -f ./apps/sealed-secrets/sealed-secrets-controller.yaml
+kubectl apply -f apps/sealed-secrets/sealed-secrets-controller.yaml
 ```
 
 Wait for the controller to be ready:
@@ -121,67 +122,125 @@ Wait for the controller to be ready:
 kubectl rollout status deployment sealed-secrets-controller -n kube-system
 ```
 
-**Back up the private key immediately** and store it in a secure location (such as Bitwarden) before continuing. The backup file contains both the public and private keys — there is no need to back them up separately. See [docs/sealed-secrets.md](../docs/sealed-secrets.md#backing-up-the-private-key) for full details including key rotation.
+**Back up the private key immediately** and store it in Bitwarden before continuing. The backup file contains both the public and private keys — there is no need to back them up separately. See [docs/sealed-secrets.md](../docs/sealed-secrets.md#backing-up-the-private-key) for full details including key rotation.
 
 ```bash
 kubectl get secret \
   -n kube-system \
   -l sealedsecrets.bitnami.com/sealed-secrets-key \
   -o yaml > main.key
-# Store main.key securely, then delete the local copy
+# Store main.key in Bitwarden, then delete the local copy
 rm main.key
 ```
 
 ---
 
-### Step 2 — MetalLB
+### Step 2 — cert-manager
+
+cert-manager must be deployed before Traefik so that the TLS certificate infrastructure is in place when Traefik starts. The `--server-side` flag is required because cert-manager's CRDs exceed the annotation size limit for client-side apply.
+
+```bash
+kubectl apply -f apps/cert-manager/cert-manager.yaml --server-side
+kubectl rollout status deployment cert-manager -n cert-manager
+kubectl rollout status deployment cert-manager-webhook -n cert-manager
+```
+
+Next, apply the Route53 credentials, issuers, and certificates:
+
+```bash
+kubectl apply -f apps/cert-manager/route53-credentials-sealedsecret.yaml
+kubectl apply -f apps/cert-manager/clusterissuer-staging.yaml
+kubectl apply -f apps/cert-manager/clusterissuer-prod.yaml
+kubectl apply -f apps/cert-manager/certificate-dng-home-wildcard.yaml
+kubectl apply -f apps/cert-manager/certificate-dng-root-wildcard.yaml
+```
+
+> **Important:** Certificates initially reference the staging issuer. Verify both reach `Ready=True` before switching to production:
+> ```bash
+> kubectl get certificate -n cert-manager --watch
+> ```
+> Once confirmed, update each `Certificate`'s `issuerRef.name` from `letsencrypt-staging` to `letsencrypt-prod`, commit, and re-apply.
+
+---
+
+### Step 3 — MetalLB
 
 MetalLB provides `LoadBalancer`-type service IPs from your local network. Traefik will request one in the next step.
 
 The manifest and config files must be applied in order — the CRDs in the main manifest must exist before the `IPAddressPool` and `L2Advertisement` resources can be created.
 
 ```bash
-kubectl apply -f ./apps/metallb/metallb.yaml
+kubectl apply -f apps/metallb/metallb.yaml
 kubectl rollout status deployment controller -n metallb-system
 kubectl rollout status daemonset speaker -n metallb-system
 
-kubectl apply -f ./apps/metallb/ipaddresspool.yaml
-kubectl apply -f ./apps/metallb/l2advertisement.yaml
+kubectl apply -f apps/metallb/ipaddresspool.yaml
+kubectl apply -f apps/metallb/l2advertisement.yaml
 ```
 
 ---
 
-### Step 3 — Traefik
+### Step 4 — Traefik
 
-Traefik is the cluster's ingress controller. It will be assigned the first IP in the MetalLB pool (reserved for Traefik during IP planning) and will handle all external traffic into the cluster.
+Traefik is deployed via Helm. The `values.yaml` file in `apps/traefik/` is used
+both here and by ArgoCD after bootstrap, keeping configuration consistent.
+
+Before applying, seal the dashboard credentials:
 
 ```bash
-kubectl apply -f ../apps/traefik/
+# Generate htpasswd hash (you'll be prompted for the password)
+htpasswd -nb YOUR_USERNAME YOUR_PASSWORD
+
+# Fill the output into apps/traefik/dashboard-auth-secret.yaml, then seal it
+kubeseal --format yaml < apps/traefik/dashboard-auth-secret.yaml \
+  > apps/traefik/dashboard-auth-sealedsecret.yaml
+rm apps/traefik/dashboard-auth-secret.yaml
+git add apps/traefik/dashboard-auth-sealedsecret.yaml
+git commit -m "chore(traefik): add sealed dashboard credentials"
+git push
 ```
 
-Wait for Traefik to be ready:
+Then install Traefik and apply the supporting manifests:
 
 ```bash
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
+helm install traefik traefik/traefik \
+  --namespace traefik \
+  --create-namespace \
+  --version 39.0.8 \
+  --values apps/traefik/values.yaml
+
 kubectl rollout status deployment traefik -n traefik
+
+# Apply middlewares, TLSStore, dashboard route, and sealed auth secret
+kubectl apply -f apps/traefik/middleware-default-headers.yaml
+kubectl apply -f apps/traefik/middleware-internal-whitelist.yaml
+kubectl apply -f apps/traefik/middleware-secured.yaml
+kubectl apply -f apps/traefik/middleware-https-redirect.yaml
+kubectl apply -f apps/traefik/middleware-dashboard-auth.yaml
+kubectl apply -f apps/traefik/tlsstore.yaml
+kubectl apply -f apps/traefik/ingressroute-dashboard.yaml
 ```
 
 Verify Traefik received its external IP:
 
 ```bash
 kubectl get svc -n traefik
-# The EXTERNAL-IP column should show your reserved Traefik IP
+# EXTERNAL-IP should show your reserved Traefik IP
 ```
 
-At this point, your Traefik dashboard hostname should be reachable from your network (assuming DNS is pointed at your Traefik IP).
+The dashboard should be reachable at `https://traefik-k8s.home.diceninjagaming.com`
+(once DNS is pointed at your Traefik IP).
 
 ---
 
-### Step 4 — ArgoCD
+### Step 5 — ArgoCD
 
 ArgoCD is the GitOps controller that will manage all future deployments — including managing itself after this step.
 
 ```bash
-kubectl apply -f ../apps/argocd/
+kubectl apply -f apps/argocd/
 ```
 
 Wait for ArgoCD to be ready:
@@ -207,12 +266,12 @@ Log in to the ArgoCD UI at your ArgoCD hostname with username `admin` and the pa
 
 ---
 
-### Step 5 — Connect ArgoCD to This Repository
+### Step 6 — Connect ArgoCD to This Repository
 
 Apply the root `Application` manifest that activates the app-of-apps pattern:
 
 ```bash
-kubectl apply -f ../apps/argocd/app-of-apps.yaml
+kubectl apply -f apps/argocd/app-of-apps.yaml
 ```
 
 ArgoCD will now discover and sync all applications defined in this repository automatically. From this point forward, all changes are made by committing to the `main` branch — no more manual `kubectl apply` commands.
@@ -225,6 +284,8 @@ After completing all steps, confirm the following:
 
 - [ ] All nodes show `Ready` in `kubectl get nodes`
 - [ ] kube-vip VIP is reachable (try `curl -k https://<your-vip>:6443`)
+- [ ] cert-manager pods are running in `cert-manager`
+- [ ] Both wildcard certificates show `READY=True` in `kubectl get certificate -n cert-manager`
 - [ ] MetalLB controller pod is running in `metallb-system`
 - [ ] Traefik pods are running in `traefik` with your reserved external IP
 - [ ] ArgoCD UI is accessible at your ArgoCD hostname
