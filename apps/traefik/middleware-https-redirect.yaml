@@ -1,0 +1,20 @@
+# Middleware — https-redirect
+#
+# Redirects HTTP requests to HTTPS with a permanent (301) redirect.
+#
+# NOTE: In most cases you do not need to apply this middleware manually.
+# The web entrypoint (port 80) is already configured to redirect all
+# traffic to HTTPS globally — see the entrypoint configuration in values.yaml.
+#
+# This middleware exists for edge cases where a specific route needs an
+# explicit redirect independent of the entrypoint-level configuration,
+# such as when proxying to a backend that itself needs to know the scheme.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: traefik
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

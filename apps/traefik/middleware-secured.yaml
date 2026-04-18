@@ -1,0 +1,33 @@
+# Middleware — secured
+#
+# Chain middleware that applies both IP restriction and security headers
+# in a single reference. This is the standard middleware to use on any
+# route that should be internal-only with full security headers.
+#
+# Usage in an IngressRoute:
+#   middlewares:
+#     - name: secured
+#       namespace: traefik
+#
+# What it applies:
+#   1. internal-whitelist — blocks requests from outside internal subnets
+#   2. default-headers    — adds security headers to the response
+#
+# For routes that need authentication on top of this, chain it further:
+#   middlewares:
+#     - name: secured
+#       namespace: traefik
+#     - name: dashboard-auth     # or authentik, once migrated
+#       namespace: traefik
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: secured
+  namespace: traefik
+spec:
+  chain:
+    middlewares:
+      - name: internal-whitelist
+        namespace: traefik
+      - name: default-headers
+        namespace: traefik

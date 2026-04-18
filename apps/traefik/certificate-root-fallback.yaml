@@ -1,0 +1,41 @@
+# Certificate — *.diceninjagaming.com (traefik namespace)
+#
+# This certificate exists solely to provide a fallback TLS certificate for
+# the TLSStore default — it is not used for explicit IngressRoute references.
+# Those reference the equivalent certificates in the cert-manager namespace.
+#
+# *.diceninjagaming.com is used rather than *.home.diceninjagaming.com so
+# the fallback covers all subdomains regardless of which subdomain level
+# an unmatched request arrives on.
+#
+# Why a separate cert rather than sharing the cert-manager one?
+# Traefik's TLSStore can only reference secrets in its own namespace.
+# allowCrossNamespace applies to IngressRoute and Middleware references only,
+# not to TLSStore secret references.
+#
+# Duplicate certificate note:
+# Let's Encrypt rate-limits duplicate certificates (same domain set) to 5 per
+# week. This cert and its counterpart in the cert-manager namespace count as
+# duplicates. At a maximum of 3 total (Docker Traefik + prod cert-manager + this one),
+# the limit is not a concern. After migration completes, Docker Traefik is removed and
+# total drops to 2.
+#
+# Staggered expiry:
+# Duration is set to 83 days (vs 90 for the cert-manager namespace certs) so
+# that renewals are unlikely to land in the same week, further reducing any
+# chance of hitting the duplicate rate limit.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-diceninjagaming-com-fallback
+  namespace: traefik
+spec:
+  secretName: wildcard-diceninjagaming-com-tls
+  duration: 1992h      # 83 days — staggered from the cert-manager namespace cert (90 days)
+  renewBefore: 720h    # Renew 30 days before expiry
+  dnsNames:
+    - "*.diceninjagaming.com"
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

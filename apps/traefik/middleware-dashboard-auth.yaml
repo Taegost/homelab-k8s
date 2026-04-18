@@ -1,0 +1,19 @@
+# Middleware — dashboard-auth
+#
+# BasicAuth middleware that protects the Traefik dashboard with a username
+# and password. The credentials are stored in the dashboard-auth SealedSecret
+# above in htpasswd format.
+#
+# This middleware is intentionally separate from the `secured` chain so that
+# it can be applied in addition to it on the dashboard route only.
+#
+# TODO: Replace with Authentik forward auth middleware once Authentik is
+# deployed — see apps/traefik/middleware-authentik.yaml (migration phase).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: dashboard-auth
+  namespace: traefik
+spec:
+  basicAuth:
+    secret: dashboard-auth

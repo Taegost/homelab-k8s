@@ -149,10 +149,10 @@ Next, apply the Route53 credentials, issuers, and certificates:
 
 ```bash
 kubectl apply -f apps/cert-manager/route53-credentials-sealedsecret.yaml
-kubectl apply -f apps/cert-manager/clusterissuer-staging.yaml
-kubectl apply -f apps/cert-manager/clusterissuer-prod.yaml
-kubectl apply -f apps/cert-manager/certificate-dng-home-wildcard.yaml
-kubectl apply -f apps/cert-manager/certificate-dng-root-wildcard.yaml
+kubectl apply -f apps/cert-manager/clusterissuer-diceninjagaming-staging.yaml
+kubectl apply -f apps/cert-manager/clusterissuer-diceninjagaming-prod.yaml
+kubectl apply -f apps/cert-manager/certificate-dng-home-wildcard.yaml --server-side
+kubectl apply -f apps/cert-manager/certificate-dng-root-wildcard.yaml --server-side
 ```
 
 > **Important:** Certificates initially reference the staging issuer. Verify both reach `Ready=True` before switching to production:
@@ -188,16 +188,13 @@ both here and by ArgoCD after bootstrap, keeping configuration consistent.
 Before applying, seal the dashboard credentials:
 
 ```bash
-# Generate htpasswd hash (you'll be prompted for the password)
-htpasswd -nb YOUR_USERNAME YOUR_PASSWORD
+# Generate credentials using openssl
+echo "YOUR_USERNAME:$(openssl passwd -apr1 YOUR_PASSWORD)"
 
 # Fill the output into apps/traefik/dashboard-auth-secret.yaml, then seal it
 kubeseal --format yaml < apps/traefik/dashboard-auth-secret.yaml \
   > apps/traefik/dashboard-auth-sealedsecret.yaml
 rm apps/traefik/dashboard-auth-secret.yaml
-git add apps/traefik/dashboard-auth-sealedsecret.yaml
-git commit -m "chore(traefik): add sealed dashboard credentials"
-git push
 ```
 
 Then install Traefik and apply the supporting manifests:
@@ -205,20 +202,25 @@ Then install Traefik and apply the supporting manifests:
 ```bash
 helm repo add traefik https://traefik.github.io/charts
 helm repo update
+
+# Extract the chart version from values.yaml so there is a single source of truth.
+# If you have upgraded the chart version in values.yaml, this command picks it up automatically.
+TRAEFIK_VERSION=$(grep -A1 "chart: traefik" apps/traefik/argocd-app.yaml | grep "targetRevision:" | awk '{print $2}')
 helm install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
-  --version 39.0.8 \
+  --version $TRAEFIK_VERSION \
   --values apps/traefik/values.yaml
 
 kubectl rollout status deployment traefik -n traefik
 
-# Apply middlewares, TLSStore, dashboard route, and sealed auth secret
+kubectl apply -f apps/traefik/dashboard-auth-sealedsecret.yaml
 kubectl apply -f apps/traefik/middleware-default-headers.yaml
 kubectl apply -f apps/traefik/middleware-internal-whitelist.yaml
 kubectl apply -f apps/traefik/middleware-secured.yaml
 kubectl apply -f apps/traefik/middleware-https-redirect.yaml
 kubectl apply -f apps/traefik/middleware-dashboard-auth.yaml
+kubectl apply -f apps/traefik/certificate-root-fallback.yaml --server-side
 kubectl apply -f apps/traefik/tlsstore.yaml
 kubectl apply -f apps/traefik/ingressroute-dashboard.yaml
 ```

@@ -20,7 +20,7 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-staging
+  name: letsencrypt-diceninjagaming-staging
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
@@ -31,7 +31,7 @@ spec:
     privateKeySecretRef:
       # Stores the ACME account private key. This is separate from your
       # TLS certificates — it identifies your Let's Encrypt account.
-      name: letsencrypt-staging-account-key
+      name: letsencrypt-diceninjagaming-staging-account-key
     solvers:
       - dns01:
           route53:

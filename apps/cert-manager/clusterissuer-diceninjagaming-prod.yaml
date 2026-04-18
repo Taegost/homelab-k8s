@@ -8,7 +8,7 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-prod
+  name: letsencrypt-diceninjagaming-prod
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
@@ -17,7 +17,7 @@ spec:
     # for public repositories — it keeps your personal email private.
     email: certs@diceninjagaming.com
     privateKeySecretRef:
-      name: letsencrypt-prod-account-key
+      name: letsencrypt-diceninjagaming-prod-account-key
     solvers:
       - dns01:
           route53:

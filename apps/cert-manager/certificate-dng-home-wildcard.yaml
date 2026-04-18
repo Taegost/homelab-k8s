@@ -30,6 +30,6 @@ spec:
     - "*.home.diceninjagaming.com"
   issuerRef:
     # Start with staging, switch to letsencrypt-prod once verified
-    name: letsencrypt-prod
+    name: letsencrypt-diceninjagaming-prod
     kind: ClusterIssuer
     group: cert-manager.io

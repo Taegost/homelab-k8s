@@ -1,0 +1,41 @@
+# ArgoCD Application — Traefik
+#
+# After bootstrap, ArgoCD takes over management of Traefik using this
+# manifest. It points at the Helm chart with the same values.yaml used
+# during bootstrap, ensuring the configuration stays consistent.
+#
+# Sync wave -1: Traefik must be running before any IngressRoute resources
+# created by other applications can be served. It runs after cert-manager
+# (wave -2) and MetalLB (wave -2) are both ready.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    # Source 1: The Traefik Helm chart
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: 39.0.8
+      helm:
+        valueFiles:
+          - $values/apps/traefik/values.yaml
+    # Source 2: This repo, providing the values file and all supporting
+    # manifests (middlewares, IngressRoutes, TLSStore, etc.)
+    # The $values reference above maps to this source.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
