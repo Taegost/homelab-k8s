@@ -6,16 +6,14 @@ A production-style Kubernetes homelab built on [k3s](https://k3s.io/), managed v
 
 ## Table of Contents
 
-- [homelab-k8s](#homelab-k8s)
-  - [Table of Contents](#table-of-contents)
-  - [Architecture Overview](#architecture-overview)
-  - [Core Stack](#core-stack)
-  - [Repository Structure](#repository-structure)
-  - [Bootstrap Order](#bootstrap-order)
-  - [Secrets Management](#secrets-management)
-  - [Adding a New Application](#adding-a-new-application)
-  - [Disaster Recovery](#disaster-recovery)
-  - [Prerequisites](#prerequisites)
+- [Architecture Overview](#architecture-overview)
+- [Core Stack](#core-stack)
+- [Repository Structure](#repository-structure)
+- [Bootstrap Order](#bootstrap-order)
+- [Secrets Management](#secrets-management)
+- [Adding a New Application](#adding-a-new-application)
+- [Disaster Recovery](#disaster-recovery)
+- [Prerequisites](#prerequisites)
 
 ---
 
@@ -60,8 +58,10 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 > **Why these choices?**
 > - **MetalLB over kube-vip for services**: kube-vip handles the _control plane_ VIP; MetalLB handles _LoadBalancer-type services_ (like Traefik's external IP). They serve different layers.
 > - **Traefik over NGINX**: Traefik has native Kubernetes CRD support (`IngressRoute`), a built-in dashboard, and excellent integration with cert-manager. It handles TLS termination using certificates managed by cert-manager.
-> - **cert-manager for TLS**: Traefik Community Edition cannot handle Let's Encrypt challenges across multiple replicas — the challenge response must reach the specific instance that initiated it, which is impossible to guarantee in an HA setup. cert-manager solves this cleanly by handling the full ACME lifecycle independently via DNS-01 challenges (no HTTP traffic required), storing certificates as Kubernetes Secrets that any number of Traefik replicas can read. Certificates live in the `cert-manager` namespace so they are decoupled from the ingress layer.
+> - **cert-manager for TLS**: Traefik Community Edition cannot handle Let's Encrypt challenges across multiple replicas — the challenge response must reach the specific instance that initiated it, which is impossible to guarantee in an HA setup. cert-manager solves this cleanly by handling the full ACME lifecycle independently via DNS-01 challenges (no HTTP traffic required), storing certificates as Kubernetes Secrets that Traefik reads directly.
 > - **Sealed Secrets over External Secrets Operator**: ESO requires an external secret store (Vault, AWS SSM, etc.). Sealed Secrets keeps everything self-contained and is ideal for a public portfolio repo where you want to commit encrypted secrets directly.
+>
+> - **Certificate namespace strategy:** Wildcard certificates used by multiple services are issued into the `traefik` namespace.`IngressRoute` resources for those services will also live in the `traefik` namespace so they can reference the wildcard certificates directly. Per-app explicit certificates (e.g. for publicly exposed services) are issued into the app's own namespace alongside its `IngressRoute`, keeping that app fully self-contained. `cert-manager` itself lives in its own namespace and manages issuance for both patterns via `ClusterIssuer` resources.
 
 ---
 

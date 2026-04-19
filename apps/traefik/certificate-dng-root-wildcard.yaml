@@ -1,0 +1,29 @@
+# Certificate — *.diceninjagaming.com
+#
+# Issues the wildcard certificate for all services on the root domain.
+# The secret lands in the traefik namespace so IngressRoute resources in
+# this namespace can reference it directly without cross-namespace lookups.
+#
+# This certificate covers any service exposed at *.diceninjagaming.com
+# that uses the shared wildcard rather than a per-app explicit certificate.
+#
+# For per-app explicit certificates (e.g. publicly exposed services), define
+# a Certificate resource in the app's own namespace alongside its IngressRoute.
+#
+# Also used by the TLSStore as the cluster-wide fallback certificate —
+# see apps/traefik/tlsstore.yaml.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-diceninjagaming-com
+  namespace: traefik
+spec:
+  secretName: wildcard-diceninjagaming-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - "*.diceninjagaming.com"
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

@@ -145,21 +145,16 @@ kubectl rollout status deployment cert-manager -n cert-manager
 kubectl rollout status deployment cert-manager-webhook -n cert-manager
 ```
 
-Next, apply the Route53 credentials, issuers, and certificates:
+Next, apply the Route53 credentials and issuers:
 
 ```bash
 kubectl apply -f apps/cert-manager/route53-credentials-sealedsecret.yaml
 kubectl apply -f apps/cert-manager/clusterissuer-diceninjagaming-staging.yaml
 kubectl apply -f apps/cert-manager/clusterissuer-diceninjagaming-prod.yaml
-kubectl apply -f apps/cert-manager/certificate-dng-home-wildcard.yaml --server-side
-kubectl apply -f apps/cert-manager/certificate-dng-root-wildcard.yaml --server-side
 ```
 
-> **Important:** Certificates initially reference the staging issuer. Verify both reach `Ready=True` before switching to production:
-> ```bash
-> kubectl get certificate -n cert-manager --watch
-> ```
-> Once confirmed, update each `Certificate`'s `issuerRef.name` from `letsencrypt-staging` to `letsencrypt-prod`, commit, and re-apply.
+> **Note:** Wildcard certificates are managed in the `traefik` namespace rather than here.
+> They are applied as part of Step 4.
 
 ---
 
@@ -191,13 +186,13 @@ Before applying, seal the dashboard credentials:
 # Generate credentials using openssl
 echo "YOUR_USERNAME:$(openssl passwd -apr1 YOUR_PASSWORD)"
 
-# Fill the output into apps/traefik/dashboard-auth-secret.yaml, then seal it
+# Paste the output into apps/traefik/dashboard-auth-secret.yaml, then seal it
 kubeseal --format yaml < apps/traefik/dashboard-auth-secret.yaml \
   > apps/traefik/dashboard-auth-sealedsecret.yaml
 rm apps/traefik/dashboard-auth-secret.yaml
 ```
 
-Then install Traefik and apply the supporting manifests:
+Install Traefik and apply all supporting manifests:
 
 ```bash
 helm repo add traefik https://traefik.github.io/charts
@@ -220,20 +215,24 @@ kubectl apply -f apps/traefik/middleware-internal-whitelist.yaml
 kubectl apply -f apps/traefik/middleware-secured.yaml
 kubectl apply -f apps/traefik/middleware-https-redirect.yaml
 kubectl apply -f apps/traefik/middleware-dashboard-auth.yaml
-kubectl apply -f apps/traefik/certificate-root-fallback.yaml --server-side
+kubectl apply -f apps/traefik/certificate-dng-home-wildcard.yaml
+kubectl apply -f apps/traefik/certificate-dng-root-wildcard.yaml
 kubectl apply -f apps/traefik/tlsstore.yaml
 kubectl apply -f apps/traefik/ingressroute-dashboard.yaml
 ```
 
-Verify Traefik received its external IP:
+Verify Traefik received its external IP and the dashboard is reachable:
 
 ```bash
 kubectl get svc -n traefik
 # EXTERNAL-IP should show your reserved Traefik IP
+
+# Dashboard should be reachable at:
+# https://traefik-k8s.home.diceninjagaming.com
+# (once DNS is pointed at your Traefik IP)
 ```
 
-The dashboard should be reachable at `https://traefik-k8s.home.diceninjagaming.com`
-(once DNS is pointed at your Traefik IP).
+
 
 ---
 
