@@ -1,0 +1,48 @@
+# ClusterIssuer — Let's Encrypt Staging
+#
+# Use this issuer when first setting up or testing certificate issuance.
+# Staging certificates are NOT trusted by browsers but are functionally
+# identical to production certificates for testing purposes.
+#
+# Why test with staging first?
+# Let's Encrypt enforces strict rate limits on the production endpoint:
+#   - 5 failed validation attempts per hostname per hour
+#   - 50 certificates per registered domain per week
+# The staging endpoint has much higher limits and is designed for testing.
+# Always verify staging works before switching to production.
+#
+# How to use:
+#   1. Set the issuerRef in your Certificate resources to reference this issuer
+#   2. Verify the Certificate reaches Ready=True
+#   3. Check the cert is issued by "(STAGING) Let's Encrypt" — this confirms
+#      the full DNS-01 challenge flow is working
+#   4. Switch to clusterissuer-prod.yaml once confirmed working
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-diceninjagaming-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Let's Encrypt uses this for expiry notifications and account communications.
+    # Using a dedicated alias address rather than a personal email is recommended
+    # for public repositories — it keeps your personal email private.
+    email: certs@diceninjagaming.com
+    privateKeySecretRef:
+      # Stores the ACME account private key. This is separate from your
+      # TLS certificates — it identifies your Let's Encrypt account.
+      name: letsencrypt-diceninjagaming-staging-account-key
+    solvers:
+      - dns01:
+          route53:
+            # AWS region where Route53 is hosted. Route53 is a global
+            # service but requires a region to be specified — us-east-1
+            # is the standard choice for Route53 regardless of where
+            # your cluster is located.
+            region: us-east-1
+            accessKeyIDSecretRef:
+              name: route53-credentials
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials
+              key: secret-access-key

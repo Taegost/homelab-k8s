@@ -1,0 +1,35 @@
+# IngressRoute — Traefik Dashboard
+#
+# Exposes the Traefik dashboard at traefik-k8s.home.diceninjagaming.com.
+#
+# TODO: Rename to traefik.home.diceninjagaming.com once the Docker Traefik
+# instance has been fully decommissioned (see docs/migration-traefik-docker.md).
+#
+# Security: the `secured` middleware restricts access to internal subnets
+# only, and `dashboard-auth` requires username/password authentication.
+# Both are required — network restriction alone is not sufficient for a
+# management interface.
+#
+# The dashboard service name (@internal) is a Traefik built-in reference
+# that points to the dashboard API without needing a Kubernetes Service.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`traefik-k8s.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+        - name: dashboard-auth
+          namespace: traefik
+      services:
+        - name: api@internal
+          kind: TraefikService
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

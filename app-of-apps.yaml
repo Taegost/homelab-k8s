@@ -1,0 +1,66 @@
+# App of Apps — Root Application
+#
+# This is the single entry point that connects ArgoCD to this repository.
+# It is applied once during bootstrap (Step 6 of bootstrap/README.md) and
+# is intentionally NOT managed by ArgoCD itself — it is a bootstrap artifact,
+# similar to kube-vip.
+#
+# ── What it does ─────────────────────────────────────────────────────────────
+# Recursively scans the apps/ directory for any file named argocd-app.yaml
+# and creates an ArgoCD Application object for each one it finds. Those child
+# Applications then each manage their own directory independently.
+#
+# Adding a new application:
+#   1. Create apps/<app-name>/argocd-app.yaml
+#   2. Commit and push to main
+#   3. ArgoCD discovers it automatically on next sync — no manual apply needed
+#
+# Removing an application:
+#   1. Delete the apps/<app-name>/ directory
+#   2. Commit and push to main
+#   3. ArgoCD prunes the Application and all resources it managed
+#
+# ── Why it lives at the repo root ────────────────────────────────────────────
+# This file lives outside apps/ deliberately. It is not a child Application
+# and does not need to manage itself — its only job is to bootstrap the
+# discovery pattern. Keeping it at the root makes the entry point obvious to
+# anyone reading the repo, and separates the "what starts everything" concern
+# from the per-application configs under apps/.
+#
+# ── When to update this file ─────────────────────────────────────────────────
+# This file rarely needs changing. You would update it if you:
+#   - Rename or restructure the apps/ directory
+#   - Change the filename convention from argocd-app.yaml to something else
+#   - Change the target repository or branch
+#
+# ── How to update this file ──────────────────────────────────────────────────
+# Since ArgoCD does not manage this file, changes must be applied manually:
+#   1. Make your changes and commit to main
+#   2. Apply the updated manifest:
+#      kubectl apply -f app-of-apps.yaml
+#   3. Verify ArgoCD reflects the change correctly in the UI
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps
+    directory:
+      recurse: true
+      include: 'argocd-app.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

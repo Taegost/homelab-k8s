@@ -1,0 +1,26 @@
+# Middleware — internal-whitelist
+#
+# Restricts access to requests originating from internal subnets only.
+# Any request from an IP outside these ranges will receive a 403 Forbidden.
+#
+# Apply this middleware to any route that should not be publicly accessible.
+#
+# Note: ipWhiteList was renamed to ipAllowList in Traefik v3. The CRD field
+# name is now ipAllowList — using the old name will cause a validation error.
+#
+# Current allowed subnets:
+#   192.168.5.0/24 — Baremetal, VMs and LXCs (servers, infrastructure)
+#   192.168.6.0/24 — Main computers (workstations, laptops)
+#
+# To customise for your environment, replace these ranges with your own
+# internal subnets. Add additional VLAN subnets here as your network grows.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: internal-whitelist
+  namespace: traefik
+spec:
+  ipAllowList:
+    sourceRange:
+      - "192.168.5.0/24"
+      - "192.168.6.0/24"

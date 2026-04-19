@@ -1,0 +1,30 @@
+# ClusterIssuer — Let's Encrypt Production
+#
+# Use this issuer once you have confirmed the staging issuer works correctly.
+# Certificates issued here are trusted by all major browsers and operating
+# systems.
+#
+# Do not use this issuer for initial testing — see clusterissuer-staging.yaml.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-diceninjagaming-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Let's Encrypt uses this for expiry notifications and account communications.
+    # Using a dedicated alias address rather than a personal email is recommended
+    # for public repositories — it keeps your personal email private.
+    email: certs@diceninjagaming.com
+    privateKeySecretRef:
+      name: letsencrypt-diceninjagaming-prod-account-key
+    solvers:
+      - dns01:
+          route53:
+            region: us-east-1
+            accessKeyIDSecretRef:
+              name: route53-credentials
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials
+              key: secret-access-key

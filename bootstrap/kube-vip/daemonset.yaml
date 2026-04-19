@@ -1,0 +1,111 @@
+# kube-vip DaemonSet
+#
+# Runs kube-vip on every control plane node to provide a highly available
+# virtual IP (VIP) for the k3s API server. If a control plane node goes down,
+# kube-vip automatically moves the VIP to another healthy control plane node.
+#
+# ┌─────────────────────────────────────────────────────────────┐
+# │  BEFORE APPLYING — change the following two values:         │
+# │                                                             │
+# │  vip_address   — the virtual IP for your control plane      │
+# │  vip_interface — the network interface on your nodes        │
+# │                  (find it with: ip -o link show)            │
+# └─────────────────────────────────────────────────────────────┘
+#
+# Why a DaemonSet instead of a static pod?
+# kube-vip can run as either. The DaemonSet approach is preferred here because
+# it is self-healing (kubelet restarts it if it crashes) and integrates with
+# the Kubernetes API for leader election rather than relying on file-based
+# manifests per node.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-vip-ds
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-vip-ds
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-vip-ds
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-vip-ds
+    spec:
+      # Only run on control plane nodes — worker-only nodes do not participate
+      # in VIP leader election for the API server.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+      tolerations:
+        # Allow scheduling on control plane nodes even if they have the
+        # default control-plane taint applied.
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+      hostNetwork: true
+      # kube-vip needs host network access to bind to the VIP address directly
+      # on the node's network interface — this is why hostNetwork: true is required.
+      serviceAccountName: kube-vip
+      containers:
+        - name: kube-vip
+          # Pin to a specific version rather than 'latest' to ensure
+          # reproducible deployments. Update this intentionally.
+          image: ghcr.io/kube-vip/kube-vip:v0.8.7
+          imagePullPolicy: IfNotPresent
+          args:
+            - manager
+          env:
+            # ── CHANGE THIS ──────────────────────────────────────────────────
+            # The virtual IP that the control plane API server will be
+            # reachable on. Must be an unused IP on your local network,
+            # outside your DHCP range and outside the MetalLB pool.
+            - name: vip_address
+              value: "192.168.1.10"  # <-- replace with your VIP
+            # ── CHANGE THIS ──────────────────────────────────────────────────
+            # The network interface name on your control plane nodes.
+            # Run `ip -o link show` on a node to find the correct name.
+            # Common values: eth0, ens18, enp3s0
+            - name: vip_interface
+              value: ""         # <-- leave blank to auto-detect the default interface, or set explicitly to override
+            # ─────────────────────────────────────────────────────────────────
+            - name: vip_arp
+              value: "true"
+            - name: port
+              value: "6443"
+            - name: vip_cidr
+              value: "32"
+            - name: cp_enable
+              value: "true"
+            - name: cp_namespace
+              value: "kube-system"
+            - name: vip_ddns
+              value: "false"
+            - name: svc_enable
+              value: "false"
+            # Leader election via Kubernetes leases — requires the RBAC
+            # rules in rbac.yaml to be applied first.
+            - name: vip_leaderelection
+              value: "true"
+            - name: vip_leaseduration
+              value: "5"
+            - name: vip_renewdeadline
+              value: "3"
+            - name: vip_retryperiod
+              value: "1"
+          securityContext:
+            capabilities:
+              add:
+                # NET_ADMIN — required to add/remove the VIP from the interface
+                # NET_RAW   — required to send gratuitous ARP announcements
+                - NET_ADMIN
+                - NET_RAW

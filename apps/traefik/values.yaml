@@ -1,0 +1,107 @@
+# Traefik Helm Values
+# Version is defined in argocd-app.yaml targetRevision — update both together when upgrading.
+#
+# ── HA Configuration ─────────────────────────────────────────────────────────
+# Two replicas with preferred pod anti-affinity. "Preferred" rather than
+# "required" means scheduling won't fail if both replicas must land on the
+# same node (e.g. during a node failure), but Kubernetes will spread them
+# across nodes whenever possible. This gives HA without hard constraints
+# that could block recovery.
+deployment:
+  replicas: 2
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - traefik
+          topologyKey: kubernetes.io/hostname
+
+# ── Entrypoints ───────────────────────────────────────────────────────────────
+# web (port 80): accepts HTTP but immediately redirects to HTTPS.
+# This is handled at the entrypoint level rather than as a per-route middleware,
+# so every request through Traefik is upgraded to HTTPS with no exceptions.
+#
+# websecure (port 443): the primary entrypoint for all traffic.
+# TLS termination happens here using certificates from cert-manager.
+ports:
+  web:
+    port: 80
+    expose:
+      default: true
+    exposedPort: 80
+    protocol: TCP
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    port: 443
+    expose:
+      default: true
+    exposedPort: 443
+    # Without this forwardedHeaders section, Traefik won't trust the X-Forwarded-For header from
+    # the Kubernetes pod network, causing it to see the pod/node IP instead of the real client IP.
+    # This means IP-based middleware such as ipAllowList will evaluate against the wrong IP and
+    # block legitimate requests from allowed subnets.
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"    # Internal Kubernetes VPC range
+    protocol: TCP
+
+# ── Service ───────────────────────────────────────────────────────────────────
+# LoadBalancer type so MetalLB assigns the reserved Traefik IP.
+# The IP is the first address in the MetalLB pool — see apps/metallb/ipaddresspool.yaml.
+# loadBalancerIP pins Traefik to that specific address rather than taking
+# whatever MetalLB assigns next, which ensures DNS records stay valid.
+service:
+  type: LoadBalancer
+  spec:
+    loadBalancerIP: "192.168.5.202"
+    externalTrafficPolicy: Local
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+# Disables the Helm chart's built-in IngressRoute for the dashboard only.
+# The dashboard itself remains fully enabled — we manage the IngressRoute
+# ourselves in ingressroute-dashboard.yaml so we can apply authentication
+# and TLS on our own terms.
+ingressRoute:
+  dashboard:
+    enabled: false
+
+# ── Providers ─────────────────────────────────────────────────────────────────
+# kubernetesCRD: watches for IngressRoute, Middleware, etc. CRDs across all
+# namespaces. This is Traefik's native Kubernetes integration and is the
+# primary way routes are configured in this stack.
+#
+# kubernetesIngress: also enabled so that any standard Kubernetes Ingress
+# resources (from Helm charts that don't support IngressRoute) are also
+# picked up automatically.
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: true
+  kubernetesIngress:
+    enabled: true
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+
+# ── Additional Arguments ──────────────────────────────────────────────────────
+# serversTransport.insecureSkipVerify: allows Traefik to forward to backends
+# that use self-signed certificates (common for internal services like iDRAC,
+# NAS UIs, etc.). This only affects backend connections, not client-facing TLS.
+additionalArguments:
+  - "--serversTransport.insecureSkipVerify=true"

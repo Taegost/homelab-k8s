@@ -1,0 +1,41 @@
+# Service + EndpointSlice — Docker Traefik
+#
+# Points at the Docker Traefik instance on the host at 192.168.5.251.
+# This allows the catch-all IngressRoute (docker-traefik-catchall.yaml)
+# to forward unrecognised requests to Docker Traefik during the migration
+# period.
+#
+# Why Endpoints instead of ExternalName?
+# ExternalName services work via CNAME DNS resolution, which breaks for
+# HTTPS backends because the TLS handshake cannot complete against a CNAME.
+# A headless Service with an explicit Endpoints object points directly at
+# the IP address, which works correctly for HTTPS traffic.
+#
+# This is a temporary resource — remove it once all services have been
+# migrated and Docker Traefik is decommissioned. See the cleanup instructions
+# in docs/migration-traefik-docker.md.
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-traefik
+  namespace: traefik
+spec:
+  ports:
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: docker-traefik
+  namespace: traefik
+  labels:
+    kubernetes.io/service-name: docker-traefik
+addressType: IPv4
+ports:
+  - port: 443
+    protocol: TCP
+endpoints:
+  - addresses:
+      - 192.168.5.251

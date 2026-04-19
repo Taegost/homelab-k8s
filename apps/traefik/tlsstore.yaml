@@ -1,0 +1,22 @@
+# TLSStore — default
+#
+# Defines the fallback TLS certificate Traefik serves when an IngressRoute
+# does not specify an explicit secretName in its tls block.
+#
+# The secret referenced here lives in the traefik namespace, served by
+# certificate-home-fallback.yaml. This is a separate Certificate resource
+# from the one in the cert-manager namespace — TLSStore can only reference
+# secrets in its own namespace, even with allowCrossNamespace enabled.
+#
+# In normal operation this fallback should rarely be used, since every
+# IngressRoute in this stack specifies its TLS secret explicitly. It exists
+# as a safety net so that any route missing an explicit cert reference gets
+# a valid wildcard rather than Traefik's self-signed certificate.
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik
+spec:
+  defaultCertificate:
+    secretName: wildcard-diceninjagaming-com-tls
