@@ -65,28 +65,37 @@ dig +short *.home.yourdomain.com
 
 ### Step 2 — Create the Docker Traefik forwarding service
 
-This creates a Kubernetes Service that points at your Docker Traefik host, allowing Kubernetes Traefik to forward requests to it during the migration period.
+This creates a Kubernetes Service and EndpointSlice that point directly at your Docker Traefik host's IP, allowing Kubernetes Traefik to forward requests to it during the migration period.
+
+> **Why not ExternalName?** `ExternalName` services work via CNAME DNS resolution, which breaks for HTTPS backends because the TLS handshake cannot complete against a CNAME. A headless Service with an explicit `EndpointSlice` points directly at the IP and works correctly for HTTPS traffic.
 
 ```yaml
 # apps/traefik/docker-traefik-forward.yaml
-#
-# Temporary ExternalName service pointing at the Docker Traefik instance.
-# This is removed in Phase 4 once all routing has been migrated.
-#
-# Why ExternalName instead of a raw IP endpoint?
-# ExternalName is a first-class Kubernetes resource — it shows up in
-# kubectl, can be tracked in Git, and is easy to find and remove cleanly.
 apiVersion: v1
 kind: Service
 metadata:
   name: docker-traefik
   namespace: traefik
 spec:
-  type: ExternalName
-  externalName: DOCKER_HOST_IP   # <-- replace with your Docker host IP address
   ports:
     - port: 443
       targetPort: 443
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: docker-traefik
+  namespace: traefik
+  labels:
+    kubernetes.io/service-name: docker-traefik
+addressType: IPv4
+ports:
+  - port: 443
+    protocol: TCP
+endpoints:
+  - addresses:
+      - DOCKER_HOST_IP   # <-- replace with your Docker host IP address
 ```
 
 ### Step 3 — Create the catch-all IngressRoute
@@ -110,7 +119,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: HostRegexp(`^.+$`)
+    - match: HostRegexp(`.+`)
       kind: Rule
       priority: 1
       services:
@@ -120,8 +129,7 @@ spec:
           # passHostHeader ensures the original Host header reaches Docker Traefik
           # so it can route the request to the correct backend.
           passHostHeader: true
-  tls:
-    secretName: ""
+  tls: {}
 ```
 
 Apply both:
@@ -192,7 +200,7 @@ metadata:
   annotations:
     # Document that this service intentionally runs outside the cluster
     homelab/workload-location: "external"
-    homelab/external-host: "<docker-host-ip>:<port>"
+    homelab/external-host: "<application-host-ip>:<port>"
 spec:
   entryPoints:
     - websecure
@@ -201,22 +209,38 @@ spec:
       kind: Rule
       services:
         - name: <service-name>-external-svc
-          port: 443
+          port: <application-port>
   tls:
     secretName: <tls-secret-name>
 ---
-# ExternalName Service pointing directly at the application (not Docker Traefik)
+# Headless Service + EndpointSlice pointing directly at the application.
+# ExternalName is not used here because it relies on CNAME resolution
+# which breaks for HTTPS backends.
 apiVersion: v1
 kind: Service
 metadata:
   name: <service-name>-external-svc
   namespace: traefik
 spec:
-  type: ExternalName
-  externalName: <application-host-ip>   # IP of the host running the application
   ports:
     - port: <application-port>           # Port the application listens on
       targetPort: <application-port>
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: <service-name>-external-svc
+  namespace: traefik
+  labels:
+    kubernetes.io/service-name: <service-name>-external-svc
+addressType: IPv4
+ports:
+  - port: <application-port>
+    protocol: TCP
+endpoints:
+  - addresses:
+      - <application-host-ip>   # IP of the host running the application
 ```
 
 As you migrate each service's routing to Kubernetes, the catch-all rule stops forwarding requests for that hostname because the specific `IngressRoute` rule takes precedence automatically.
@@ -294,8 +318,8 @@ ArgoCD will sync any remaining changes automatically.
 ## Troubleshooting
 
 **Requests are not forwarding to Docker Traefik:**
-- Check the ExternalName service resolves: `kubectl get svc docker-traefik -n traefik -o yaml`
-- Confirm the Docker host IP is reachable from within the cluster: `kubectl run -it --rm debug --image=busybox --restart=Never -- wget -qO- https://DOCKER_HOST_IP`
+- Confirm the Service and EndpointSlice exist: `kubectl get svc docker-traefik -n traefik` and `kubectl get endpointslice docker-traefik -n traefik`
+- Confirm the Docker host IP is reachable from within a Traefik pod: `kubectl exec -n traefik -it $(kubectl get pod -n traefik -o name | head -1) -- wget -qO- --no-check-certificate https://DOCKER_HOST_IP --header "Host: YOURHOSTNAME"`
 - Check Traefik logs: `kubectl logs -n traefik -l app.kubernetes.io/name=traefik`
 
 **A service is still hitting Docker Traefik after creating its IngressRoute:**

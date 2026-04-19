@@ -210,15 +210,25 @@ helm install traefik traefik/traefik \
 kubectl rollout status deployment traefik -n traefik
 
 kubectl apply -f apps/traefik/dashboard-auth-sealedsecret.yaml
+# Applies the various shared/default middlewares
 kubectl apply -f apps/traefik/middleware-default-headers.yaml
 kubectl apply -f apps/traefik/middleware-internal-whitelist.yaml
 kubectl apply -f apps/traefik/middleware-secured.yaml
 kubectl apply -f apps/traefik/middleware-https-redirect.yaml
 kubectl apply -f apps/traefik/middleware-dashboard-auth.yaml
+
+# Applies the certificates and default cert
 kubectl apply -f apps/traefik/certificate-dng-home-wildcard.yaml
 kubectl apply -f apps/traefik/certificate-dng-root-wildcard.yaml
 kubectl apply -f apps/traefik/tlsstore.yaml
+
+# IngressRoute for the Traefik dashboard itself
 kubectl apply -f apps/traefik/ingressroute-dashboard.yaml
+
+# Applies the temporary forwarding rules to the existing Traefik instance.
+# These will be removed once all the routes are migrated into kubernetes.
+kubectl apply -f apps/traefik/docker-traefik-forward.yaml
+kubectl apply -f apps/traefik/docker-traefik-catchall.yaml
 ```
 
 Verify Traefik received its external IP and the dashboard is reachable:

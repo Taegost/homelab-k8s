@@ -1,0 +1,34 @@
+# IngressRoute — Docker Traefik catch-all
+#
+# Forwards any request that does not match a Kubernetes-managed IngressRoute
+# to the Docker Traefik instance at 192.168.5.251:443.
+#
+# Priority 1 is the lowest possible value, ensuring every specific
+# IngressRoute defined for a Kubernetes service always takes precedence.
+# When no other rule matches, this catch-all forwards the request to
+# Docker Traefik so services not yet migrated continue to work.
+#
+# passHostHeader: true ensures the original Host header is forwarded so
+# Docker Traefik can route the request to the correct backend.
+#
+# This is a temporary resource — remove it once all services have been
+# migrated and Docker Traefik is decommissioned. See the cleanup instructions
+# in docs/migration-traefik-docker.md.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: docker-traefik-catchall
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: HostRegexp(`.+`)
+      kind: Rule
+      priority: 1
+      services:
+        - name: docker-traefik
+          port: 443
+          scheme: https
+          passHostHeader: true
+  tls: {}
