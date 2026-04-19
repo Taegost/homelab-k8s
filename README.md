@@ -87,6 +87,7 @@ homelab-k8s/
 │   └── disaster-recovery.md     # What to do if you rebuild the cluster
 │
 ├── .gitignore                    # Prevents accidental secret commits
+├── app-of-apps.yaml              # Root ArgoCD Application — bootstraps autodiscovery
 └── README.md                     # You are here
 ```
 
