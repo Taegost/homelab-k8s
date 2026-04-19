@@ -37,8 +37,7 @@
 # for full instructions.
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Sync wave 0 (default): ArgoCD is the last component bootstrapped manually.
-# All other applications are managed by ArgoCD once it is running.
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
