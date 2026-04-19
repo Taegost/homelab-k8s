@@ -240,13 +240,26 @@ kubectl get svc -n traefik
 
 ArgoCD is the GitOps controller that will manage all future deployments — including managing itself after this step.
 
-```bash
-kubectl apply -f apps/argocd/
-```
+> **Note on HA vs non-HA:** The manifest committed to `apps/argocd/argocd.yaml` is the **non-HA** install. The HA manifest requires a minimum of 3 nodes due to Redis HA quorum requirements — running it on fewer nodes leaves pods permanently pending. Once a third node is available, follow the instructions in [docs/argocd-ha-migration.md](../docs/argocd-ha-migration.md) to switch over. Since ArgoCD will be managing itself at that point, the switchover is a single Git commit.
 
-Wait for ArgoCD to be ready:
+Install the manifest, then apply the supporting config:
 
 ```bash
+kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts -f apps/argocd/argocd.yaml
+
+# Wait for ArgoCD to be ready
+kubectl rollout status deployment argocd-server -n argocd
+kubectl rollout status deployment argocd-repo-server -n argocd
+kubectl rollout status statefulset argocd-application-controller -n argocd
+
+# Apply server config (insecure mode for Traefik TLS termination) and IngressRoute
+# It's normal to see a warning about a missing annotation when applying argocd-cmd-params-cm.yaml
+kubectl apply -f apps/argocd/argocd-cmd-params-cm.yaml
+kubectl apply -f apps/argocd/ingressroute.yaml
+
+# Restart ArgoCD server to pick up the insecure mode config
+kubectl rollout restart deployment argocd-server -n argocd
 kubectl rollout status deployment argocd-server -n argocd
 ```
 
@@ -260,7 +273,7 @@ kubectl get secret argocd-initial-admin-secret \
 
 Log in to the ArgoCD UI at your ArgoCD hostname with username `admin` and the password above.
 
-> **Change the admin password** after first login via **User Info → Update Password**. Then delete the initial secret:
+> **Important:** Change the admin password immediately after first login via **User Info → Update Password**. Then delete the initial secret:
 > ```bash
 > kubectl delete secret argocd-initial-admin-secret -n argocd
 > ```
@@ -269,13 +282,17 @@ Log in to the ArgoCD UI at your ArgoCD hostname with username `admin` and the pa
 
 ### Step 6 — Connect ArgoCD to This Repository
 
-Apply the root `Application` manifest that activates the app-of-apps pattern:
+> ⚠️ **Warning:** Before applying `apps/argocd/argocd-app.yaml`, ensure all bootstrap changes have been merged into your default branch (`main`). ArgoCD's self-management Application points at `main` — if that branch does not contain the expected manifests, ArgoCD will sync against nothing and prune itself and all managed resources from the cluster. Merge first, then apply.
+
+Apply the self-management `Application` manifest. This activates the app-of-apps pattern — ArgoCD will discover and sync all applications defined in this repository automatically:
 
 ```bash
-kubectl apply -f apps/argocd/app-of-apps.yaml
+kubectl apply -f apps/argocd/argocd-app.yaml
 ```
 
-ArgoCD will now discover and sync all applications defined in this repository automatically. From this point forward, all changes are made by committing to the `main` branch — no more manual `kubectl apply` commands.
+From this point forward, all changes are made by committing to the `main` branch — no more manual `kubectl apply` commands. ArgoCD will reconcile any drift automatically.
+
+> **Verify:** Open the ArgoCD UI and confirm the `argocd` application appears and reaches `Synced` and `Healthy` status. Then add the remaining application `Application` manifests one by one to bring each component under ArgoCD management.
 
 ---
 
@@ -286,7 +303,7 @@ After completing all steps, confirm the following:
 - [ ] All nodes show `Ready` in `kubectl get nodes`
 - [ ] kube-vip VIP is reachable (try `curl -k https://<your-vip>:6443`)
 - [ ] cert-manager pods are running in `cert-manager`
-- [ ] Both wildcard certificates show `READY=True` in `kubectl get certificate -n cert-manager`
+- [ ] Both wildcard certificates show `READY=True` in `kubectl get certificate -n traefik`
 - [ ] MetalLB controller pod is running in `metallb-system`
 - [ ] Traefik pods are running in `traefik` with your reserved external IP
 - [ ] ArgoCD UI is accessible at your ArgoCD hostname

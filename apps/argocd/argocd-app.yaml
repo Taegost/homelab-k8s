@@ -1,0 +1,63 @@
+# ArgoCD Application — ArgoCD (self-management)
+#
+# This is the app-of-apps root application. Once applied, ArgoCD manages
+# itself and all other applications in this repo from this point forward.
+#
+# Self-management pattern:
+# ArgoCD watches this repo and reconciles its own configuration. Any changes
+# to ArgoCD's config (this file, the IngressRoute, the ConfigMap) are made
+# in Git and ArgoCD applies them to itself automatically.
+#
+# ── Version Management ────────────────────────────────────────────────────────
+# ArgoCD is installed via a raw manifest rather than a Helm chart, so the
+# version cannot be pinned in a targetRevision field. Instead, the version is
+# frozen in the committed apps/argocd/argocd.yaml file itself.
+#
+# Current version: v3.3.7 (non-HA)
+#
+# To upgrade:
+#   1. Download the new manifest:
+#      ARGOCD_VERSION="vX.Y.Z"
+#      curl -sL https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml \
+#        -o apps/argocd/argocd.yaml
+#   2. Update the version number in this comment block
+#   3. Commit and push — ArgoCD will apply the update to itself automatically
+#
+# This version management pattern applies to all manifest-based installs in
+# this repo (i.e. any app not installed via a Helm chart).
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ── HA vs non-HA ─────────────────────────────────────────────────────────────
+# Currently using the non-HA manifest (install.yaml) because the cluster has
+# only 2 nodes. The HA manifest requires a minimum of 3 nodes due to Redis HA
+# quorum requirements — running it on fewer nodes leaves pods permanently pending.
+#
+# When the third node is added, switch to the HA manifest by replacing
+# apps/argocd/argocd.yaml with the HA version and pushing to Git. ArgoCD will
+# apply the change to itself automatically. See docs/argocd-ha-migration.md
+# for full instructions.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Sync wave 0 (default): ArgoCD is the last component bootstrapped manually.
+# All other applications are managed by ArgoCD once it is running.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

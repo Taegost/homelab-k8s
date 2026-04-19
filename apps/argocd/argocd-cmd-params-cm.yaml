@@ -1,0 +1,15 @@
+# ArgoCD server configuration patch
+#
+# Sets ArgoCD server to run in insecure mode (HTTP only, no TLS).
+# TLS is terminated by Traefik, so ArgoCD does not need to handle it.
+# This is the standard approach when running behind an ingress controller.
+#
+# Without this, ArgoCD would attempt to serve its own TLS certificate which
+# would conflict with Traefik's TLS termination and cause certificate errors.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  server.insecure: "true"
