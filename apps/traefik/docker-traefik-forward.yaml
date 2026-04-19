@@ -1,4 +1,4 @@
-# Service + Endpoints — Docker Traefik
+# Service + EndpointSlice — Docker Traefik
 #
 # Points at the Docker Traefik instance on the host at 192.168.5.251.
 # This allows the catch-all IngressRoute (docker-traefik-catchall.yaml)
