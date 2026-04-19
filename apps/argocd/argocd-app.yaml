@@ -1,12 +1,11 @@
 # ArgoCD Application — ArgoCD (self-management)
 #
-# This is the app-of-apps root application. Once applied, ArgoCD manages
-# itself and all other applications in this repo from this point forward.
+# Manages the ArgoCD installation itself — the install manifest, IngressRoute,
+# and ConfigMap in this directory. Changes committed to apps/argocd/ are
+# applied by ArgoCD automatically.
 #
-# Self-management pattern:
-# ArgoCD watches this repo and reconciles its own configuration. Any changes
-# to ArgoCD's config (this file, the IngressRoute, the ConfigMap) are made
-# in Git and ArgoCD applies them to itself automatically.
+# This Application is discovered by the root app-of-apps (app-of-apps.yaml
+# at the repo root) and does not need to be applied manually after bootstrap.
 #
 # ── Version Management ────────────────────────────────────────────────────────
 # ArgoCD is installed via a raw manifest rather than a Helm chart, so the
