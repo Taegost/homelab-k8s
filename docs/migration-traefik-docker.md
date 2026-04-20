@@ -292,6 +292,11 @@ kubectl get svc docker-traefik -n traefik
 # Should return: Error from server (NotFound)
 ```
 
+> **Note:** ArgoCD excludes `EndpointSlice` resources from management by default due to their high-churn nature. This means the `docker-traefik` EndpointSlice will not be pruned automatically when ArgoCD syncs the deletion. Delete it manually:
+> ```bash
+> kubectl delete endpointslice docker-traefik -n traefik
+> ```
+
 ### Decommission Docker Traefik
 
 Once the Kubernetes-side cleanup is confirmed:
