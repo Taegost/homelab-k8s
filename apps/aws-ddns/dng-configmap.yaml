@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-ddns-dng-config
+  namespace: aws-ddns
+data:
+  # Space-separated list of all diceninjagaming.com records to keep updated.
+  # Add or remove entries here when new public-facing services are created/retired.
+  # Sensitive values (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID) live in
+  # dng-sealedsecret.yaml — kept separate so non-sensitive tuning can be
+  # changed without touching the sealed secret.
+  DOMAIN: "authentik.diceninjagaming.com diceninjagaming.com dropin.diceninjagaming.com gamepanel.diceninjagaming.com hass.home.diceninjagaming.com home.diceninjagaming.com immich.home.diceninjagaming.com jellyfin.home.diceninjagaming.com jellyseerr.home.diceninjagaming.com manyfold.diceninjagaming.com mealie.home.diceninjagaming.com n8n.diceninjagaming.com paperless.home.diceninjagaming.com vikunja.diceninjagaming.com"
+  # All other env vars (DNS_TTL, RECHECK_SECS, MAX_RETRIES, RETRY_DELAY,
+  # LOG_LEVEL) are intentionally omitted — application defaults are correct
+  # for normal operation. See https://github.com/Taegost/aws-ddns-docker
+  # for the full list of available variables and their defaults.

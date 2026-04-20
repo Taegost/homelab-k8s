@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aws-ddns
+  # Shared namespace for all aws-ddns instances (one per domain).
+  # Adding a new domain later? Create personal-configmap.yaml,
+  # personal-sealedsecret.yaml, and personal-deployment.yaml alongside
+  # the dng equivalents — no changes needed here.
