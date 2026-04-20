@@ -6,19 +6,21 @@
 # similar to kube-vip.
 #
 # ── What it does ─────────────────────────────────────────────────────────────
-# Recursively scans the apps/ directory for any file named argocd-app.yaml
-# and creates an ArgoCD Application object for each one it finds. Those child
-# Applications then each manage their own directory independently.
+# Points at apps/manifests/ which contains one Application manifest per
+# component. ArgoCD creates each child Application, which then manages its
+# own directory under apps/<name>/ independently.
 #
 # Adding a new application:
-#   1. Create apps/<app-name>/argocd-app.yaml
-#   2. Commit and push to main
-#   3. ArgoCD discovers it automatically on next sync — no manual apply needed
+#   1. Create apps/<app-name>/ with your manifests and an argocd-app.yaml
+#   2. Copy apps/<app-name>/argocd-app.yaml to apps/manifests/<app-name>.yaml
+#   3. Commit and push to main
+#   4. ArgoCD discovers it automatically on next sync — no manual apply needed
 #
 # Removing an application:
-#   1. Delete the apps/<app-name>/ directory
+#   1. Delete apps/manifests/<app-name>.yaml
 #   2. Commit and push to main
 #   3. ArgoCD prunes the Application and all resources it managed
+#   4. Optionally delete the apps/<app-name>/ directory
 #
 # ── Why it lives at the repo root ────────────────────────────────────────────
 # This file lives outside apps/ deliberately. It is not a child Application
@@ -29,8 +31,7 @@
 #
 # ── When to update this file ─────────────────────────────────────────────────
 # This file rarely needs changing. You would update it if you:
-#   - Rename or restructure the apps/ directory
-#   - Change the filename convention from argocd-app.yaml to something else
+#   - Rename or restructure the apps/manifests/ directory
 #   - Change the target repository or branch
 #
 # ── How to update this file ──────────────────────────────────────────────────
@@ -50,10 +51,7 @@ spec:
   source:
     repoURL: https://github.com/Taegost/homelab-k8s
     targetRevision: HEAD
-    path: apps
-    directory:
-      recurse: true
-      include: 'argocd-app.yaml'
+    path: apps/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
