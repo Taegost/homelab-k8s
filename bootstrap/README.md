@@ -294,7 +294,7 @@ Log in to the ArgoCD UI at your ArgoCD hostname with username `admin` and the pa
 
 > ⚠️ **Warning:** Before applying `app-of-apps.yaml`, ensure all bootstrap changes have been merged into your default branch (`main`). The root Application points at `main` — if that branch does not contain the expected manifests, ArgoCD will sync against nothing and prune itself and all managed resources from the cluster. Merge first, then apply.
 
-Apply the root app-of-apps manifest from the repo root. This activates autodiscovery — ArgoCD will recursively scan `apps/` for any file named `argocd-app.yaml` and create an Application for each one it finds:
+Apply the root app-of-apps manifest from the repo root. This activates autodiscovery — ArgoCD will read all Application manifests from `apps/manifests/` and create an Application for each one it finds:
 
 ```bash
 kubectl apply -f app-of-apps.yaml
@@ -302,7 +302,7 @@ kubectl apply -f app-of-apps.yaml
 
 ArgoCD will immediately discover and sync all components — `cert-manager`, `metallb`, `sealed-secrets`, `traefik`, and `argocd` itself. Since these resources already exist in the cluster from the bootstrap steps, ArgoCD will adopt them rather than reinstalling them.
 
-From this point forward, all changes are made by committing to the `main` branch — no more manual `kubectl apply` commands. To add a new application, simply create `apps/<app-name>/argocd-app.yaml` and push — ArgoCD will discover and deploy it automatically.
+From this point forward, all changes are made by committing to the `main` branch — no more manual `kubectl apply` commands. To add a new application, create `apps/<app-name>/` with your manifests and `apps/manifests/<app-name>.yaml` pointing at it, then push — ArgoCD will discover and deploy it automatically.
 
 > **Verify:** Open the ArgoCD UI and confirm all applications appear and reach `Synced` and `Healthy` status. If any application shows `OutOfSync`, review the diff in the UI before syncing — it may indicate a difference between the live cluster state and what is committed in `main`.
 

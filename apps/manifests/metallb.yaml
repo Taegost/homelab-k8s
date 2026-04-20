@@ -1,0 +1,40 @@
+# ArgoCD Application — MetalLB
+#
+# After bootstrap, ArgoCD uses this manifest to take over management of MetalLB.
+# It points at this directory, so ArgoCD reconciles all three files:
+#   - metallb.yaml  (the controller and speaker)
+#   - ipaddresspool.yaml   (your IP range)
+#   - l2advertisement.yaml (L2/ARP mode config)
+#
+# To upgrade MetalLB:
+#   1. Replace metallb.yaml with the new release manifest
+#   2. Update the version comment in that file
+#   3. Commit and push — ArgoCD will apply the update automatically
+#
+# Sync wave -2: MetalLB must be running before Traefik (wave -1) requests a
+# LoadBalancer IP. Without MetalLB ready, the Traefik service would remain
+# in <pending> indefinitely.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/metallb
+  destination:
+    server: https://kubernetes.default.svc
+    # Resources in the manifests define their own namespace (metallb-system),
+    # so this destination namespace is a fallback only.
+    namespace: metallb-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

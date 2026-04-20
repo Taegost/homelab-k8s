@@ -1,0 +1,45 @@
+# ArgoCD Application — cert-manager
+#
+# After bootstrap, ArgoCD uses this manifest to take over management of
+# cert-manager and all associated configuration. It reconciles all files
+# in this directory: the controller manifest, credentials, issuers, and
+# certificates.
+#
+# Sync wave -2: cert-manager must be running before Traefik (wave -1)
+# can reference TLS secrets. The controller and CRDs must exist before
+# any Certificate or ClusterIssuer resource is applied, which is why
+# the official manifest and configuration live in the same directory —
+# ArgoCD applies them in the correct dependency order automatically via
+# server-side apply.
+#
+# Note on cert-manager namespace:
+# cert-manager installs into its own namespace (cert-manager) by design.
+# It is cluster infrastructure, not an application. Keeping TLS secrets
+# here rather than in per-app namespaces means they survive changes to
+# the ingress layer (e.g. swapping Traefik for another controller).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      # Server-side apply is required for cert-manager because its CRDs
+      # contain fields that exceed the kubectl annotation size limit when
+      # using client-side apply.
+      - ServerSideApply=true

@@ -71,6 +71,7 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 homelab-k8s/
 │
 ├── apps/                         # One directory per application
+│   ├── manifests/                # ArgoCD Application manifests (one per app)
 │   ├── argocd/                   # ArgoCD self-management manifests
 │   ├── metallb/                  # MetalLB configuration
 │   ├── traefik/                  # Traefik ingress controller
@@ -122,8 +123,8 @@ See [docs/sealed-secrets.md](docs/sealed-secrets.md) for full instructions inclu
 ## Adding a New Application
 
 1. Create a directory under `apps/<app-name>/`.
-2. Add your manifests (or a `Chart.yaml` + `values.yaml` for Helm-based apps).
-3. Create an ArgoCD `Application` manifest pointing to that directory.
+2. Add your manifests (or a `values.yaml` for Helm-based apps).
+3. Create `apps/manifests/<app-name>.yaml` — an ArgoCD `Application` manifest pointing at `apps/<app-name>/`.
 4. Commit and push — ArgoCD will detect and sync the new app automatically.
 
 Each app lives in its own namespace. Namespaces are created automatically by ArgoCD via the `CreateNamespace=true` sync option — you do not need to create them manually.
