@@ -9,6 +9,10 @@ spec:
   # Single replica only — multiple instances would race to update Route53
   # with the same IP, causing unnecessary API calls and potential conflicts.
   replicas: 1
+  strategy:
+    # Ensures that Kubernetes doesn't do a RollingUpdate so we only have one instance of the pod at a time.
+    type: Recreate
+
   selector:
     matchLabels:
       app: aws-ddns-dng
