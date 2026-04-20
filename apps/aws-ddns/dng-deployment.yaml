@@ -44,11 +44,10 @@ spec:
             limits:
               memory: "128M"
               cpu: "0.1"
-          # This container doesn't need any special privileges and doesn't write anything to disk
+          # This container doesn't need any special privileges
           # It also runs as non-root user 1000
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
             runAsGroup: 1000
