@@ -36,10 +36,10 @@ spec:
           resources:
             requests:
               memory: "60M"
-              cpu: "0.001"
+              cpu: "0.01"
             limits:
               memory: "128M"
-              cpu: "0.01"
+              cpu: "0.1"
           # This container doesn't need any special privileges and doesn't write anything to disk
           # It also runs as non-root user 1000
           securityContext:
