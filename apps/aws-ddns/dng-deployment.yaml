@@ -17,6 +17,11 @@ spec:
       labels:
         app: aws-ddns-dng
     spec:
+      # This container doesn't need any special privileges
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: aws-ddns
           # Source image repo: https://github.com/Taegost/aws-ddns-docker
@@ -31,9 +36,21 @@ spec:
           resources:
             requests:
               memory: "60M"
+              cpu: "0.001"
             limits:
               memory: "128M"
               cpu: "0.01"
+          # This container doesn't need any special privileges and doesn't write anything to disk
+          # It also runs as non-root user 1000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
           envFrom:
             # Non-sensitive config (DOMAIN and tuning values)
             - configMapRef:
