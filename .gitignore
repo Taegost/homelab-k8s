@@ -13,6 +13,7 @@
 *-secret.yaml
 *-secrets.yaml
 *.secret.yaml
+!apps/manifests/sealed-secrets.yaml
 
 # Block SealedSecret keys (these are used to encrypt secrets and should not be shared)
 main.key 
