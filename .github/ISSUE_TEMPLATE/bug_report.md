@@ -9,21 +9,14 @@ assignees: ''
 **Describe the bug**
 A clear description of what went wrong.
 
-**Container version / image tag**
-e.g. `taegost/aws-ddns:latest` or `taegost/aws-ddns:sha-abc1234`
-
-**Environment variables set** *(do NOT include actual credentials or zone IDs)*
-DOMAIN=example.com
-DNS_TTL=300
-RECHECK_SECS=900
-LOG_LEVEL=DEBUG
-etc.
+**Version / Tag**
+e.g. `v1.2.0`
 
 **Log output**
-Please run with `LOG_LEVEL=DEBUG` and paste the relevant output here.
+Please run with `LOG_LEVEL=DEBUG` (if applicable) and paste the relevant output here.
 
 **Expected behavior**
 What did you expect to happen?
 
 **Additional context**
-Hosting environment (NAS, home server, VPS, etc.), Docker version, anything else relevant.
+Hosting environment (NAS, home server, VPS, etc.), Kubernetes flavor and version, anything else relevant.

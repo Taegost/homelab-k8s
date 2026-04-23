@@ -44,6 +44,13 @@ persistence:
   # Keep in sync with defaultSettings.defaultReplicaCount above.
   defaultClassReplicaCount: 2
 
+preUpgradeChecker:
+  # Disabled because the pre-upgrade checker hook runs before the Longhorn
+  # service account exists on a fresh install, causing the job to hang
+  # indefinitely waiting for permissions it cannot get. Safe to leave
+  # disabled — re-evaluate when upgrading from an existing Longhorn install.
+  jobEnabled: false
+
 service:
   ui:
     # ClusterIP is sufficient — external access is via the IngressRoute in
