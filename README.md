@@ -33,6 +33,7 @@ A production-style Kubernetes homelab built on [k3s](https://k3s.io/), managed v
                         │   Traefik  (Ingress / TLS)              │
                         │   ArgoCD   (GitOps controller)          │
                         │   Sealed Secrets (secret management)    │
+                        |   Longhorn (Replicated storage)         |
                         └─────────────────────────────────────────┘
                                           │
                                     GitHub Repo
