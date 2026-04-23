@@ -1,0 +1,58 @@
+# Longhorn Helm values
+# Chart: longhorn/longhorn  Version: 1.11.1
+# Full values reference: helm show values longhorn/longhorn --version 1.11.1
+
+defaultSettings:
+  # Store data at the default path on each node's root disk.
+  # Acceptable for a homelab where nodes have a single disk.
+  # If a dedicated data disk is ever added to a node, register it via the
+  # Longhorn UI (Node → Edit → Add Disk) rather than changing this path,
+  # so existing volumes on other nodes are not affected.
+  defaultDataPath: /var/lib/longhorn
+
+  # 2 replicas matches the current 2-node cluster, keeping volumes healthy
+  # immediately. When node 3 is added, update this to 3 and then use the
+  # Longhorn UI (or kubectl) to update replica count on existing volumes —
+  # they will not automatically gain a third replica just from this setting.
+  defaultReplicaCount: 2
+
+  # Rebalance replicas across nodes when cluster topology changes (e.g. after
+  # adding node 3). "best-effort" tries to rebalance without guaranteeing it,
+  # which is safer than triggering aggressive data movement on every change.
+  replicaAutoBalance: best-effort
+
+  # Required for a 2-node cluster. Longhorn normally refuses to create a
+  # volume if it cannot place all replicas on distinct nodes from the active
+  # engine. With only 2 nodes this is impossible by definition, so this flag
+  # allows creation to proceed despite the degraded placement.
+  # Safe to leave enabled permanently — it only affects creation-time checks.
+  allowVolumeCreationWithDegradedAvailability: true
+
+  # Automatically clean up orphaned replica data (disk files with no matching
+  # volume object). Prevents silent disk space leaks after volume deletions
+  # or node replacements.
+  orphanAutoDeletion: true
+
+persistence:
+  # Do NOT make Longhorn the default StorageClass.
+  # k3s's built-in local-path provisioner remains default. Longhorn is
+  # opt-in via storageClassName: longhorn in a PVC. This keeps the storage
+  # choice intentional — local-path is faster and zero-overhead for workloads
+  # that don't need replicated durable storage (caches, ArgoCD Redis, etc.).
+  defaultClass: false
+  defaultFsType: ext4
+  # Keep in sync with defaultSettings.defaultReplicaCount above.
+  defaultClassReplicaCount: 2
+
+service:
+  ui:
+    # ClusterIP is sufficient — external access is via the IngressRoute in
+    # apps/longhorn/ingressroute.yaml, which routes through Traefik.
+    type: ClusterIP
+
+csi:
+  # k3s stores kubelet data at a non-standard path. Without this override,
+  # the Longhorn CSI driver cannot find the kubelet socket and volume
+  # mounting fails with "no such file or directory" errors.
+  # Standard Kubernetes uses /var/lib/kubelet — k3s uses the path below.
+  kubeletRootDir: /var/lib/rancher/k3s/agent/kubelet

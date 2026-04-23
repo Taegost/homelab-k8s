@@ -1,0 +1,30 @@
+# Middleware — basic-auth
+#
+# HTTP Basic Authentication gate. Used on top of the standard `secured`
+# middleware for internal UIs that need a username/password prompt.
+# Currently applied to: Longhorn UI, Traefik dashboard
+# TODO: Replace with Authentik SSO once Authentik is deployed.
+#
+# Credentials are stored in the basic-auth SealedSecret in this directory.
+# See sealedsecret-basic-auth.yaml for the committed sealed form, and
+# the generation instructions below for how to rotate credentials.
+#
+# Usage in an IngressRoute (always chain after `secured`):
+#   middlewares:
+#     - name: secured
+#       namespace: traefik
+#     - name: basic-auth
+#       namespace: traefik
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: basic-auth
+  namespace: traefik
+spec:
+  basicAuth:
+    # References the 'users' key in the basic-auth Secret.
+    # Secret is created by sealedsecret-basic-auth.yaml in this directory.
+    secret: basic-auth
+    # Remove the Authorization header before forwarding to the backend.
+    # Prevents BasicAuth credentials from being forwarded to backend services/logs.
+    removeHeader: true

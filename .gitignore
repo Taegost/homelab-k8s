@@ -13,6 +13,8 @@
 *-secret.yaml
 *-secrets.yaml
 *.secret.yaml
+!apps/manifests/sealed-secrets.yaml
+secret-*.yaml
 
 # Block SealedSecret keys (these are used to encrypt secrets and should not be shared)
 main.key 
@@ -20,6 +22,7 @@ main.key
 # Explicitly allow kubeseal output files (the '!' negates the block above)
 !*-sealedsecret.yaml
 !*-sealedsecrets.yaml
+!sealedsecret-*.yaml
 
 # Kubeconfig files (contain cluster credentials)
 kubeconfig

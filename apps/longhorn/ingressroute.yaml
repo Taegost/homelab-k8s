@@ -1,0 +1,44 @@
+# IngressRoute — Longhorn UI
+#
+# Exposes the Longhorn storage dashboard at longhorn.home.diceninjagaming.com.
+#
+# This resource lives in apps/longhorn/ alongside the rest of the Longhorn
+# configuration, but deploys into the traefik namespace because the wildcard
+# TLS secret (wildcard-home-diceninjagaming-com-tls) lives there.
+# Traefik's allowCrossNamespace applies to Middleware/IngressRoute CRDs only —
+# it does NOT extend to Kubernetes Secrets, which must be co-located with the
+# IngressRoute that references them.
+#
+# Authentication: basic-auth middleware (see apps/traefik/middleware-basic-auth.yaml)
+# chains on top of the standard secured middleware (IP allowlist + headers).
+# TODO: Replace basic-auth with Authentik SSO once Authentik is deployed.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: longhorn
+  # Must be traefik namespace — required to access wildcard TLS secret.
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`longhorn.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        # Standard internal middleware: IP allowlist + security headers.
+        # Defined in apps/traefik/middleware-secured.yaml
+        - name: secured
+          namespace: traefik
+        # BasicAuth gate. Credentials in apps/traefik/sealedsecret-basic-auth.yaml.
+        # Defined in apps/traefik/middleware-basic-auth.yaml
+        - name: basic-auth
+          namespace: traefik
+      services:
+        - name: longhorn-frontend
+          namespace: longhorn-system
+          port: 80
+  tls:
+    # Wildcard cert for *.home.diceninjagaming.com
+    # Created by cert-manager, stored in the traefik namespace.
+    # See apps/traefik/certificate-dng-home-wildcard.yaml
+    secretName: wildcard-home-diceninjagaming-com-tls
