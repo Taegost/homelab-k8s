@@ -1,0 +1,102 @@
+# Deployment — NeutArr
+#
+# NeutArr is an automated missing media hunter and quality upgrader for *arr apps.
+# GitHub: https://github.com/I-am-PUID-0/NeutArr
+#
+# Runs as a single replica — NeutArr is a background automation tool, not a
+# user-facing service. If the pod restarts, *arr hunts resume on the next
+# scheduled cycle with no user impact.
+#
+# Auth mode: NEUTARR_AUTH_MODE=proxy_bypass disables NeutArr's built-in JWT
+# login. Access is gated by the Traefik basic-auth middleware defined in
+# apps/traefik/middleware-basic-auth.yaml.
+# TODO: When Authentik is deployed:
+#   1. Replace the basic-auth middleware on ingressroute-neutarr.yaml with
+#      the Authentik forward-auth middleware
+#   2. Remove NEUTARR_AUTH_MODE env var (or set to `standard`) so NeutArr's
+#      own auth is re-enabled as a second factor
+#
+# Volumes:
+#   /config  — Longhorn PVC (neutarr-config): NeutArr application state,
+#              API keys, app connections, search schedules. NeutArr-specific.
+#   /backups — NFS PVC (backups-nfs): shared backup destination for all
+#              arr-stack apps. NeutArr writes to /backups/NeutArr/.
+#
+# Image versioning: always pin to a specific tag, never `latest`.
+# To upgrade:
+#   1. Update the image tag below
+#   2. Update the version comment in apps/manifests/arr-stack.yaml
+#   3. Commit and push — ArgoCD applies the new image automatically
+#
+# Current version: 1.5.0 (released 2026-03-03)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neutarr
+  namespace: arr-stack
+  labels:
+    app: neutarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neutarr
+  template:
+    metadata:
+      labels:
+        app: neutarr
+    spec:
+      containers:
+        - name: neutarr
+          image: iampuid0/neutarr:1.6.1
+          ports:
+            - containerPort: 9705
+              name: http
+          # TODO: Tune resource limits after profiling
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            # PUID/PGID: The container entrypoint repairs /config ownership at
+            # startup using these values. With Longhorn provisioning a fresh PVC,
+            # the default 1000:1000 is fine — no pre-existing ownership to match.
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          # Native health endpoint added in NeutArr (not present in upstream Huntarr).
+          # /api/health returns 200 when the app is ready to serve requests.
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 9705
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 9705
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            # Longhorn-backed, NeutArr-specific. Defined in
+            # apps/arr-stack/neutarr/persistentvolumeclaim-neutarr-config.yaml
+            claimName: neutarr-config
+        - name: backups
+          persistentVolumeClaim:
+            # NFS-backed, shared across all arr-stack apps. Defined in
+            # apps/arr-stack/persistentvolumeclaim-backups-nfs.yaml
+            claimName: backups-nfs

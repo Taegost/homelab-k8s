@@ -1,0 +1,47 @@
+# PersistentVolume — multimedia-nfs
+#
+# Cluster-scoped NFS PersistentVolume pointing at the Unraid multimedia share.
+# This PV is the single source of truth for the NFS endpoint — all namespaces
+# that need multimedia access create their own PVC that binds to this PV by
+# name, rather than each declaring their own NFS connection details.
+#
+# NFS server: firebird.lan (Unraid server)
+# Export path: /mnt/user/Multimedia
+# Expected consumers: arr-stack (Sonarr, Radarr, etc.), and potentially others.
+# Each namespace that needs access creates its own PVC — see the backups-nfs
+# PVC in apps/arr-stack/ for a reference implementation.
+#
+# No PVC is created here at this time — this PV is stubbed in advance of the
+# first consumer being migrated to Kubernetes. Create the PVC in the consuming
+# namespace when it is needed.
+#
+# Adding a namespace that needs multimedia access:
+#   Create a PVC in that namespace with:
+#     storageClassName: nfs-static
+#     volumeName: multimedia-nfs
+#   No changes to this file are needed.
+#
+# See apps/infrastructure/storage/storageclass-nfs-static.yaml for the full
+# rationale on storageClassName, capacity semantics, and volumeName binding.
+# See apps/infrastructure/storage/persistentvolume-backups-nfs.yaml for the
+# established pattern this PV follows.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: multimedia-nfs
+  # PersistentVolumes are cluster-scoped — no namespace field
+spec:
+  capacity:
+    # Required by the Kubernetes API. Does not enforce a limit at the NFS level —
+    # Unraid enforces actual storage limits on the share itself. Set to reflect
+    # the realistic upper bound of the share. PVC requests must be <= this value
+    # or binding will fail.
+    storage: 120Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  nfs:
+    server: firebird.lan
+    path: /mnt/user/Multimedia
+    readOnly: false

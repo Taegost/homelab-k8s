@@ -1,0 +1,50 @@
+# ArgoCD Application — Infrastructure
+#
+# Manages cluster-wide infrastructure resources that don't belong to any
+# specific application or namespace. This is intentionally kept as a single
+# ArgoCD Application rather than splitting by subcategory — the folder
+# structure under apps/infrastructure/ provides organization, and a single
+# sync unit is simpler to reason about at homelab scale.
+#
+# When to split this into multiple Applications:
+#   - If a subcategory (e.g. networking) grows large enough to need
+#     independent sync control or sync waves
+#   - If a resource in one subcategory is blocking syncs for unrelated resources
+#
+# Subdirectory structure under apps/infrastructure/:
+#   storage/     — PersistentVolumes, StorageClasses (cluster-scoped)
+#   networking/  — cluster-wide NetworkPolicies, etc. (empty, reserved for future use)
+#
+# Sync wave -2: Infrastructure must be ready before applications that depend
+# on it (e.g. arr-stack PVCs binding to PVs defined here). Runs alongside
+# cert-manager and MetalLB.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/infrastructure
+    directory:
+      # Recurse into subdirectories (storage/, networking/, etc.) so all
+      # infrastructure manifests are picked up without listing each subfolder
+      # explicitly. New subcategories are discovered automatically.
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    # PersistentVolumes are cluster-scoped (no namespace), but ArgoCD requires
+    # a destination namespace. Using `default` here is a convention for
+    # cluster-scoped resources — it has no effect on where the resources land.
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

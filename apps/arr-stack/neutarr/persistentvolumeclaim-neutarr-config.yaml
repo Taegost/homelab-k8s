@@ -1,0 +1,25 @@
+# PersistentVolumeClaim — neutarr-config
+#
+# Longhorn-backed storage for NeutArr's /config directory.
+# Stores: app connections (URLs + API keys), auth settings, search schedules.
+#
+# storageClassName: longhorn — uses the Longhorn default StorageClass.
+# Longhorn replicates this volume across nodes, so NeutArr config survives
+# a node failure and the pod can be rescheduled without data loss.
+# This is why we don't need a nodeSelector to pin the pod to a specific node.
+#
+# 1Gi is generous for a config-only volume (NeutArr stores no media).
+# Resize by editing the request here and letting ArgoCD apply — Longhorn
+# supports online volume expansion without pod restart.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neutarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

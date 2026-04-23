@@ -1,0 +1,42 @@
+# PersistentVolumeClaim — backups-nfs (arr-stack namespace)
+#
+# Binds to the cluster-wide backups-nfs PersistentVolume defined in
+# apps/infrastructure/storage/persistentvolume-backups-nfs.yaml.
+#
+# This PVC is shared by all *arr applications in the arr-stack namespace.
+# Each app mounts this PVC at /backups and writes to its own subdirectory
+# (e.g. /backups/NeutArr, /backups/Sonarr). Subdirectory creation is
+# handled by each application, not Kubernetes.
+#
+# Why storageClassName: nfs-static:
+#   Matches the PV's storageClassName so Kubernetes knows to look for a
+#   manually provisioned NFS PV rather than asking Longhorn to create one.
+#   See apps/infrastructure/storage/storageclass-nfs-static.yaml for details.
+#
+# Why volumeName is set:
+#   Explicitly binds to backups-nfs by name. Without this, Kubernetes could
+#   bind this PVC to any nfs-static PV that satisfies the accessMode and
+#   storage request — non-deterministic once multiple NFS PVs exist.
+#   volumeName is mandatory for all nfs-static PVCs in this cluster.
+#
+# Adding a new *arr app that needs backup access:
+#   Just mount this PVC in the new app's Deployment — no changes needed here.
+#
+# Adding a different namespace that needs backup access:
+#   Create a new PVC in that namespace using the same pattern as this file.
+#   See apps/infrastructure/storage/persistentvolume-backups-nfs.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups-nfs
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-static
+  volumeName: backups-nfs
+  resources:
+    requests:
+      # Must be <= the PV capacity (1Ti). Does not enforce an NFS-level limit —
+      # Unraid enforces actual storage limits on the share itself.
+      storage: 1Ti

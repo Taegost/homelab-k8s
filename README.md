@@ -130,6 +130,54 @@ See [docs/sealed-secrets.md](docs/sealed-secrets.md) for full instructions inclu
 
 Each app lives in its own namespace. Namespaces are created automatically by ArgoCD via the `CreateNamespace=true` sync option — you do not need to create them manually.
 
+### Application Namespaces
+
+Each application runs in its own namespace by default. However, tightly coupled
+applications that are always deployed together and communicate with each other
+may share a namespace. In that case, all manifests for those applications live
+under a single shared directory in `apps/`, managed by a single ArgoCD
+Application. The shared directory follows the same structure as a single-app
+directory, with per-app subdirectories for organization.
+
+When adding a new application, decide upfront whether it belongs in an existing
+shared namespace or warrants its own. This decision is difficult to reverse
+cleanly once storage and other namespace-scoped resources exist.
+
+### Infrastructure Resources
+
+Cluster-scoped resources (PersistentVolumes, StorageClasses, ClusterIssuers,
+etc.) that are not owned by any single application live under `apps/infrastructure/`,
+organized by function:
+
+```
+apps/infrastructure/
+  storage/      — PersistentVolumes, StorageClasses
+  networking/   — cluster-wide NetworkPolicies, etc. (reserved for future use)
+```
+
+This directory is managed by a dedicated `infrastructure` ArgoCD Application
+(sync wave `-2`) with `recurse: true`, so new resources are picked up
+automatically by dropping files into the appropriate subdirectory.
+
+Do not put cluster-scoped resources inside an application's own directory —
+they would be owned by that application's ArgoCD sync, making them fragile to
+remove and misleading to future readers.
+
+### Static NFS Volumes
+
+NFS-backed storage uses the `nfs-static` StorageClass
+(`apps/infrastructure/storage/storageclass-nfs-static.yaml`), which disables dynamic provisioning. All NFS PersistentVolumes must be declared manually in `apps/infrastructure/storage/`.
+
+When creating a PVC that binds to an NFS PV, two fields are mandatory:
+
+- `storageClassName: nfs-static` — routes the claim to a manually provisioned
+  NFS volume rather than a dynamic provisioner like Longhorn
+- `volumeName: <pv-name>` — pins the binding to a specific PV by name;
+  without this, binding is non-deterministic when multiple NFS PVs exist
+
+> The NFS PV is the single source of truth for the server hostname and export
+path. Multiple namespaces can each hold a PVC binding to the same PV —
+do not duplicate connection details across namespaces.
 ---
 
 ## Disaster Recovery
