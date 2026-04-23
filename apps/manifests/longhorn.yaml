@@ -1,0 +1,63 @@
+# ArgoCD Application — Longhorn
+#
+# Deploys Longhorn distributed block storage into longhorn-system.
+# Follows the same three-source pattern as the Traefik application:
+#   Source 1: Helm chart from the Longhorn chart repo
+#   Source 2: This repo as a $values ref (provides values.yaml to Source 1)
+#   Source 3: This repo path (provides ancillary manifests — IngressRoute, etc.)
+#
+# Sync wave note: Longhorn has no hard ordering dependency on the networking
+# stack, but it should come after the cluster is stable. No sync-wave annotation
+# is set; it will sync at wave 0 (default), after wave -1 apps (Traefik, etc.)
+#
+# UPGRADE PATH: Longhorn enforces strict upgrade ordering — you cannot skip
+# minor versions. Always check https://longhorn.io/docs/ before changing
+# targetRevision. 
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Source 1: The Longhorn Helm chart from the official chart repo.
+    # targetRevision is the single source of truth for the deployed version.
+    # Extract programmatically:
+    #   grep -A1 "chart: longhorn" apps/manifests/longhorn.yaml | grep targetRevision | awk '{print $2}'
+    - repoURL: https://charts.longhorn.io
+      chart: longhorn
+      targetRevision: 1.11.1
+      helm:
+        valueFiles:
+          - $values/apps/longhorn/values.yaml
+
+    # Source 2: This repo, used only as a $values reference for Source 1.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+
+    # Source 3: This repo, providing ancillary manifests in apps/longhorn/
+    # (IngressRoute, any future CRDs, etc.)
+    # Excludes values.yaml since that is consumed by Source 1 via $values,
+    # not applied directly as a manifest.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      path: apps/longhorn
+      directory:
+        exclude: 'values.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Longhorn's CRDs are large and will exceed the 262KB client-side
+      # annotation limit ArgoCD uses by default. Without this, the first
+      # sync fails with "too long: must have at most 262144 bytes".
+      - ServerSideApply=true
