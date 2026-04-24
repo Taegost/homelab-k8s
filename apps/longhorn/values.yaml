@@ -58,8 +58,6 @@ service:
     type: ClusterIP
 
 csi:
-  # k3s stores kubelet data at a non-standard path. Without this override,
-  # the Longhorn CSI driver cannot find the kubelet socket and volume
-  # mounting fails with "no such file or directory" errors.
-  # Standard Kubernetes uses /var/lib/kubelet — k3s uses the path below.
-  kubeletRootDir: /var/lib/rancher/k3s/agent/kubelet
+  # k3s used to store kubelet data at a non-standard path.
+  # Standard Kubernetes uses /var/lib/kubelet — k3s uses that in newer versions
+  kubeletRootDir: /var/lib/kubelet
