@@ -28,11 +28,7 @@ spec:
     - match: Host(`neutarr.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        # basic-auth is defined in apps/traefik/middleware-basic-auth.yaml.
-        # Same credentials as the Traefik dashboard — shared by design.
         - name: secured
-          namespace: traefik
-        - name: basic-auth
           namespace: traefik
       services:
         - name: neutarr
