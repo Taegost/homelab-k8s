@@ -7,8 +7,9 @@
 # Volumes:
 #   /config     — Longhorn PVC (whisparr-config): app configuration, library
 #                 database, quality profiles, indexer settings.
-#   /multimedia — NFS PVC (whisparr-multimedia): read/write access to the full
-#                 Multimedia share on Unraid for moving/renaming downloaded files.
+#   /multimedia — Inline NFS CSI volume: mounts the Multimedia share root
+#                 on Unraid directly without a PV or PVC, for moving and
+#                 renaming downloaded files.
 #   /backups    — NFS PVC (whisparr-backups): dynamically provisioned on the
 #                 Unraid Backups share via nfs-backups StorageClass. Data lives
 #                 at /mnt/user/Backups/arr-stack/whisparr-backups/ on Unraid.
@@ -92,8 +93,12 @@ spec:
           persistentVolumeClaim:
             claimName: whisparr-config
         - name: multimedia
-          persistentVolumeClaim:
-            claimName: whisparr-multimedia
+          csi:
+            driver: nfs.csi.k8s.io
+            volumeAttributes:
+              server: firebird.lan.
+              share: /mnt/user/Multimedia
+              mountOptions: "nfsvers=3,nolock"
         - name: backups
           persistentVolumeClaim:
             claimName: whisparr-backups

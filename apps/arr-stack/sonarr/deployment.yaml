@@ -7,8 +7,9 @@
 # Volumes:
 #   /config     — Longhorn PVC (sonarr-config): app configuration, series
 #                 database, quality profiles, indexer settings.
-#   /multimedia — NFS PVC (sonarr-multimedia): read/write access to the full
-#                 Multimedia share on Unraid for moving/renaming episode files.
+#   /multimedia — Inline NFS CSI volume: mounts the Multimedia share root
+#                 on Unraid directly without a PV or PVC, for moving and
+#                 renaming downloaded episode files.
 #   /backups    — NFS PVC (sonarr-backups): dynamically provisioned on the
 #                 Unraid Backups share via nfs-backups StorageClass. Data lives
 #                 at /mnt/user/Backups/arr-stack/sonarr-backups/ on Unraid.
@@ -93,8 +94,12 @@ spec:
           persistentVolumeClaim:
             claimName: sonarr-config
         - name: multimedia
-          persistentVolumeClaim:
-            claimName: sonarr-multimedia
+          csi:
+            driver: nfs.csi.k8s.io
+            volumeAttributes:
+              server: firebird.lan.
+              share: /mnt/user/Multimedia
+              mountOptions: "nfsvers=3,nolock"
         - name: backups
           persistentVolumeClaim:
             claimName: sonarr-backups

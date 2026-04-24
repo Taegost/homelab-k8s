@@ -7,8 +7,9 @@
 # Volumes:
 #   /config     — Longhorn PVC (radarr-config): app configuration, movie
 #                 database, quality profiles, indexer settings.
-#   /multimedia — NFS PVC (radarr-multimedia): read/write access to the full
-#                 Multimedia share on Unraid for moving/renaming movie files.
+#   /multimedia — Inline NFS CSI volume: mounts the Multimedia share root
+#                 on Unraid directly without a PV or PVC, for moving and
+#                 renaming downloaded movie files.
 #   /backups    — NFS PVC (radarr-backups): dynamically provisioned on the
 #                 Unraid Backups share via nfs-backups StorageClass. Data lives
 #                 at /mnt/user/Backups/arr-stack/radarr-backups/ on Unraid.
@@ -89,8 +90,12 @@ spec:
           persistentVolumeClaim:
             claimName: radarr-config
         - name: multimedia
-          persistentVolumeClaim:
-            claimName: radarr-multimedia
+          csi:
+            driver: nfs.csi.k8s.io
+            volumeAttributes:
+              server: firebird.lan.
+              share: /mnt/user/Multimedia
+              mountOptions: "nfsvers=3,nolock"
         - name: backups
           persistentVolumeClaim:
             claimName: radarr-backups
