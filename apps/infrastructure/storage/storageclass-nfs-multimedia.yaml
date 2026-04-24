@@ -1,0 +1,64 @@
+# StorageClass — nfs-multimedia
+#
+# NFS provisioner for multimedia library access.
+# Backed by the Unraid Multimedia share via the NFS CSI driver.
+#
+# NFS server: firebird.lan
+# NFS export: /mnt/user/Multimedia
+#
+# How this differs from nfs-backups:
+#   This StorageClass mounts the share ROOT rather than creating per-PVC
+#   subdirectories. Every PVC using this class gets the full Multimedia share
+#   mounted. The application's Deployment then controls which subdirectory
+#   it reads/writes via mountPath and subPath (e.g. Sonarr mounts /tv,
+#   Radarr mounts /movies). This preserves the existing directory structure
+#   on Unraid without Kubernetes inventing subdirectory names.
+#
+# Why no subDir parameter:
+#   Omitting subDir means the CSI driver mounts the share root directly.
+#   Adding subDir here would cause the driver to create a subdirectory per
+#   PVC, which would break existing media paths that apps expect to find at
+#   the share root.
+#
+# Why reclaimPolicy: Retain:
+#   Deleting a PVC should never affect the media library on Unraid. Retain
+#   ensures the data is untouched regardless of what happens to the PVC.
+#
+# Usage — create a PVC per namespace that needs multimedia access:
+#   apiVersion: v1
+#   kind: PersistentVolumeClaim
+#   metadata:
+#     name: multimedia
+#     namespace: <app-namespace>
+#   spec:
+#     accessModes:
+#       - ReadWriteMany
+#     storageClassName: nfs-multimedia
+#     resources:
+#       requests:
+#         storage: 120Ti             # not enforced at NFS level — Unraid controls actual limits
+#
+#   Then in the Deployment, use subPath to mount specific subdirectories:
+#     volumeMounts:
+#       - name: multimedia
+#         mountPath: /tv
+#         subPath: TV                # mounts /mnt/user/Multimedia/TV into the container at /tv
+#       - name: multimedia
+#         mountPath: /movies
+#         subPath: Movies
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-multimedia
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: firebird.lan
+  share: /mnt/user/Multimedia
+  # No subDir — mounts share root directly. See header comment for rationale.
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+mountOptions:
+  # nfsvers=4.1: Use NFSv4.1 for better performance and reliability over NFSv3.
+  # Unraid supports NFSv4 — confirm the share is exported with NFSv4 enabled.
+  # If mount failures occur, fall back to nfsvers=3.
+  - nfsvers=4.1

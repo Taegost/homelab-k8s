@@ -1,0 +1,46 @@
+# IngressRoute — neutarr (in traefik namespace)
+#
+# Lives in the `traefik` namespace because it references the wildcard
+# certificate secret (stored in traefik namespace). Kubernetes Secrets
+# cannot be shared across namespaces — `allowCrossNamespace: true` on
+# Traefik only applies to CRDs (Middlewares, etc.), not Secrets.
+#
+# Auth: basic-auth middleware gates access until Authentik is deployed.
+# NeutArr's own auth is disabled (proxy_bypass mode in the Deployment).
+# TODO: Replace basic-auth middleware with Authentik forward auth middleware
+# once Authentik is deployed. At that point also update NEUTARR_AUTH_MODE
+# in apps/arr-stack/neutarr/deployment.yaml back to `standard` or remove it entirely.
+#
+# The `secured` middleware (if defined) should be chained before basic-auth.
+# Check apps/traefik/ for the current secured middleware definition.
+#
+# Backend service: neutarr.arr-stack.svc.cluster.local:9705
+# Cross-namespace service routing is supported by Traefik natively.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: neutarr
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`neutarr.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        # basic-auth is defined in apps/traefik/middleware-basic-auth.yaml.
+        # Same credentials as the Traefik dashboard — shared by design.
+        - name: secured
+          namespace: traefik
+        - name: basic-auth
+          namespace: traefik
+      services:
+        - name: neutarr
+          # Cross-namespace service reference — Traefik reaches into arr-stack
+          # to forward traffic to the NeutArr ClusterIP service.
+          namespace: arr-stack
+          port: 9705
+  tls:
+    # Wildcard cert for *.home.diceninjagaming.com, managed by cert-manager.
+    # Secret lives in traefik namespace — see certificate-dng-home-wildcard.yaml.
+    secretName: wildcard-home-diceninjagaming-com-tls

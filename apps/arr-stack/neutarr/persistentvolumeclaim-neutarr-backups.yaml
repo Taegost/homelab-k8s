@@ -1,0 +1,37 @@
+# PersistentVolumeClaim — neutarr-backups
+#
+# NFS-backed backup storage for NeutArr, dynamically provisioned by the
+# NFS CSI driver via the nfs-backups StorageClass.
+#
+# On Unraid, this PVC's data will be stored at:
+#   /mnt/user/Backups/arr-stack/neutarr-backups/
+# The path is derived from ${pvc.metadata.namespace}/${pvc.metadata.name}
+# as defined in the nfs-backups StorageClass subDir parameter.
+# See apps/infrastructure/storage/storageclass-nfs-backups.yaml.
+#
+# NeutArr writes its backup files into this volume at /backups inside the
+# container. NeutArr itself creates any subdirectory structure it needs
+# within this mount — Kubernetes does not manage that.
+#
+# Why reclaimPolicy is Retain (set on the StorageClass):
+#   If this PVC is deleted, the NFS subdirectory and backup data on Unraid
+#   are NOT deleted. The PV moves to Released state. To fully clean up:
+#     1. Manually delete the directory on Unraid if desired
+#     2. Delete the Released PV: kubectl delete pv <pv-name>
+#
+# Storage request: not enforced at the NFS level — Unraid controls actual
+# limits on the share. Set to a reasonable value to satisfy the Kubernetes
+# API requirement. Resize by editing this value and pushing — the CSI driver
+# supports online expansion.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neutarr-backups
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-backups
+  resources:
+    requests:
+      storage: 10Gi

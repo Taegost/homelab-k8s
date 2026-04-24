@@ -1,0 +1,22 @@
+# Service — neutarr
+#
+# ClusterIP service exposing NeutArr's web UI port within the cluster.
+# Traefik routes external traffic to this service via the IngressRoute
+# defined in apps/traefik/ingressroute-neutarr.yaml.
+#
+# ClusterIP (not LoadBalancer) is correct here — Traefik is the only
+# consumer of this service, and it reaches it over the cluster network.
+# A LoadBalancer would waste a MetalLB IP for no reason.
+apiVersion: v1
+kind: Service
+metadata:
+  name: neutarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: neutarr
+  ports:
+    - name: http
+      port: 9705
+      targetPort: 9705
+  type: ClusterIP

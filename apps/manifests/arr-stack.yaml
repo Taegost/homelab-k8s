@@ -1,0 +1,49 @@
+# ArgoCD Application — arr-stack
+#
+# Manages all *arr media automation applications and their shared resources.
+# All apps in this stack run in the `arr-stack` namespace and are tightly
+# coupled (they talk to each other, share backup storage, and are always
+# deployed together), which is why they share a single ArgoCD Application
+# rather than having one per app.
+#
+# When to split into per-app Applications:
+#   - If you need to independently sync or roll back a single *arr app
+#   - If a broken manifest in one app is blocking syncs for others frequently
+#   - At homelab scale, this is unlikely to be necessary
+#
+# Directory structure under apps/arr-stack/:
+#   persistentvolumeclaim-backups.yaml  — shared NFS backup PVC (all apps)
+#   neutarr/                            — NeutArr manifests
+#   sonarr/                             — Sonarr manifests (future)
+#   radarr/                             — Radarr manifests (future)
+#   (etc.)
+#
+# Sync wave 0: Depends on infrastructure (wave -2) for the backups PV,
+# Traefik (wave -1) for IngressRoutes, and Longhorn for PVC provisioning.
+# Wave 0 is correct — no other apps depend on arr-stack.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arr-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/arr-stack
+    directory:
+      # Recurse into per-app subdirectories so new apps are picked up
+      # automatically without updating this manifest.
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arr-stack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

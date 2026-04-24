@@ -130,6 +130,76 @@ See [docs/sealed-secrets.md](docs/sealed-secrets.md) for full instructions inclu
 
 Each app lives in its own namespace. Namespaces are created automatically by ArgoCD via the `CreateNamespace=true` sync option — you do not need to create them manually.
 
+### Application Namespaces
+
+Each application runs in its own namespace by default. However, tightly coupled
+applications that are always deployed together and communicate with each other
+may share a namespace. In that case, all manifests for those applications live
+under a single shared directory in `apps/`, managed by a single ArgoCD
+Application. The shared directory follows the same structure as a single-app
+directory, with per-app subdirectories for organization.
+
+When adding a new application, decide upfront whether it belongs in an existing
+shared namespace or warrants its own. This decision is difficult to reverse
+cleanly once storage and other namespace-scoped resources exist.
+
+### Infrastructure Resources
+
+Cluster-scoped resources (StorageClasses, ClusterIssuers, etc.) that are not
+owned by any single application live under `apps/infrastructure/`, organized
+by function:
+
+```text
+apps/infrastructure/
+  storage/      — StorageClasses for NFS shares
+  networking/   — cluster-wide NetworkPolicies, etc. (reserved for future use)
+```
+
+This directory is managed by a dedicated `infrastructure` ArgoCD Application
+(sync wave `-1`) with `recurse: true`, so new resources are picked up
+automatically by dropping files into the appropriate subdirectory.
+
+Do not put cluster-scoped resources inside an application's own directory —
+they would be owned by that application's ArgoCD sync, making them fragile to
+remove and misleading to future readers.
+
+### NFS Storage
+
+NFS-backed storage is provisioned dynamically by the NFS CSI driver
+(`apps/manifests/nfs-csi.yaml`), which runs as a cluster-wide DaemonSet
+(sync wave `-1`). No manual PersistentVolume declarations are needed.
+
+Two StorageClasses are available, defined in `apps/infrastructure/storage/`:
+
+- **`nfs-backups`** — provisions a dedicated subdirectory per PVC on the
+  Unraid Backups share. The subdirectory path is derived from
+  `<namespace>/<pvc-name>`, making it easy to identify on the NAS.
+  Use this for application backup volumes. Create one PVC per application.
+- **`nfs-multimedia`** — mounts the Unraid Multimedia share root directly.
+  Every PVC using this class sees the full share. Use `subPath` in the
+  Deployment's `volumeMounts` to access specific subdirectories (e.g. `TV`,
+  `Movies`). Create one PVC per namespace that needs media access.
+
+Both StorageClasses use `reclaimPolicy: Retain` — deleting a PVC never
+deletes data on the NAS. Released PVs must be manually cleaned up.
+
+To add NFS storage to a new application:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: <app-name>-backups   # becomes the subdirectory name on the NAS
+  namespace: <app-namespace> # becomes the parent directory on the NAS
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-backups
+  resources:
+    requests:
+      storage: 10Gi          # not enforced at NFS level
+```
+
 ---
 
 ## Disaster Recovery

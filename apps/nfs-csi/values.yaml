@@ -1,0 +1,30 @@
+# Helm values — csi-driver-nfs
+#
+# Chart: csi-driver-nfs (kubernetes-csi/csi-driver-nfs)
+# Repo: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+# ArgoCD Application: apps/manifests/nfs-csi.yaml
+#
+# Upgrade instructions:
+#   1. Update targetRevision in apps/manifests/nfs-csi.yaml
+#   2. Check the chart changelog for breaking value changes:
+#      https://github.com/kubernetes-csi/csi-driver-nfs/releases
+#   3. Commit and push — ArgoCD applies the new version automatically
+#
+# StorageClasses are NOT defined here — they live as separate manifests in
+# apps/infrastructure/storage/ so they can be managed independently of the
+# driver version and are visible as first-class Kubernetes resources in ArgoCD.
+#
+# Why controller.runOnControlPlane: true:
+#   This is a 3-node HA cluster where all nodes are combined control-plane
+#   and worker nodes. The controller must be schedulable on these nodes or
+#   it will never start. If dedicated worker nodes are added later that are
+#   NOT control-plane nodes, this can be set to false.
+controller:
+  runOnControlPlane: true
+
+# Why externalSnapshotter.enabled: false:
+#   Volume snapshots are not currently used in this cluster. Enabling the
+#   snapshotter installs additional CRDs and a sidecar container that add
+#   complexity for no current benefit. Re-enable if snapshot support is needed.
+externalSnapshotter:
+  enabled: false
