@@ -1,0 +1,23 @@
+# PersistentVolumeClaim — radarr-config
+#
+# Longhorn-backed storage for Radarr's /config directory.
+# Stores: SQLite movie database, quality profiles, indexer settings,
+# download client config, and application state.
+#
+# 5Gi allocated — Radarr's database grows with library size; a large movie
+# collection can push the SQLite DB to several gigabytes.
+#
+# Longhorn replicates this volume across nodes — Radarr config survives a
+# node failure and the pod reschedules without data loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

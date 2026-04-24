@@ -1,0 +1,23 @@
+# PersistentVolumeClaim — sonarr-config
+#
+# Longhorn-backed storage for Sonarr's /config directory.
+# Stores: SQLite series database, quality profiles, indexer settings,
+# download client config, and application state.
+#
+# 10Gi allocated — current Docker config volume is 6.2GiB (including 2.6GiB
+# in Sonarr's internal /config/Backups). Sized to fit the restore plus growth.
+#
+# Longhorn replicates this volume across nodes — Sonarr config survives a
+# node failure and the pod reschedules without data loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

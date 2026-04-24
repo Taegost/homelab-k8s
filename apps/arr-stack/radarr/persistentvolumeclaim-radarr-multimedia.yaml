@@ -1,0 +1,23 @@
+# PersistentVolumeClaim — radarr-multimedia
+#
+# NFS-backed mount of the full Multimedia share on Unraid, provisioned by the
+# nfs-multimedia StorageClass. Radarr needs read/write access to move and
+# rename downloaded movie files into the library.
+#
+# The PV maps directly to the share root (/mnt/user/Multimedia on Unraid),
+# giving Radarr access to the entire library hierarchy.
+#
+# Storage request is not enforced by NFS — set to a placeholder value to
+# satisfy the Kubernetes API.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-multimedia
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-multimedia
+  resources:
+    requests:
+      storage: 10Ti

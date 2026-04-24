@@ -1,0 +1,26 @@
+# Middleware — authentik-basic-auth
+#
+# Variant of the authentik forward-auth middleware that forwards the
+# Authorization header to the upstream application. Use this on routes
+# where the application needs to receive the Authorization header directly
+# (e.g., apps that surface their own API key auth through Authentik).
+#
+# Usage in an IngressRoute (replaces the standard `authentik` middleware):
+#   middlewares:
+#     - name: secured
+#       namespace: traefik
+#     - name: authentik-basic-auth
+#       namespace: traefik
+#
+# For standard UI SSO protection, use middleware-authentik.yaml instead.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authentik-basic-auth
+  namespace: traefik
+spec:
+  forwardAuth:
+    address: "https://authentik.diceninjagaming.com/outpost.goauthentik.io/auth/traefik"
+    trustForwardHeader: true
+    authResponseHeaders:
+      - Authorization

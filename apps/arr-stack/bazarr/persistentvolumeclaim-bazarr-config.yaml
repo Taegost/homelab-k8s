@@ -1,0 +1,20 @@
+# PersistentVolumeClaim — bazarr-config
+#
+# Longhorn-backed storage for Bazarr's /config directory.
+# Stores: subtitle provider credentials, sync settings, SQLite database,
+# and application state.
+#
+# Longhorn replicates this volume across nodes — Bazarr config survives a
+# node failure and the pod reschedules without data loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bazarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
