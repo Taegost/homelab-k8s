@@ -145,39 +145,60 @@ cleanly once storage and other namespace-scoped resources exist.
 
 ### Infrastructure Resources
 
-Cluster-scoped resources (PersistentVolumes, StorageClasses, ClusterIssuers,
-etc.) that are not owned by any single application live under `apps/infrastructure/`,
-organized by function:
+Cluster-scoped resources (StorageClasses, ClusterIssuers, etc.) that are not
+owned by any single application live under `apps/infrastructure/`, organized
+by function:
 
-```
+```text
 apps/infrastructure/
-  storage/      — PersistentVolumes, StorageClasses
+  storage/      — StorageClasses for NFS shares
   networking/   — cluster-wide NetworkPolicies, etc. (reserved for future use)
 ```
 
 This directory is managed by a dedicated `infrastructure` ArgoCD Application
-(sync wave `-2`) with `recurse: true`, so new resources are picked up
+(sync wave `-1`) with `recurse: true`, so new resources are picked up
 automatically by dropping files into the appropriate subdirectory.
 
 Do not put cluster-scoped resources inside an application's own directory —
 they would be owned by that application's ArgoCD sync, making them fragile to
 remove and misleading to future readers.
 
-### Static NFS Volumes
+### NFS Storage
 
-NFS-backed storage uses the `nfs-static` StorageClass
-(`apps/infrastructure/storage/storageclass-nfs-static.yaml`), which disables dynamic provisioning. All NFS PersistentVolumes must be declared manually in `apps/infrastructure/storage/`.
+NFS-backed storage is provisioned dynamically by the NFS CSI driver
+(`apps/manifests/nfs-csi.yaml`), which runs as a cluster-wide DaemonSet
+(sync wave `-1`). No manual PersistentVolume declarations are needed.
 
-When creating a PVC that binds to an NFS PV, two fields are mandatory:
+Two StorageClasses are available, defined in `apps/infrastructure/storage/`:
 
-- `storageClassName: nfs-static` — routes the claim to a manually provisioned
-  NFS volume rather than a dynamic provisioner like Longhorn
-- `volumeName: <pv-name>` — pins the binding to a specific PV by name;
-  without this, binding is non-deterministic when multiple NFS PVs exist
+- **`nfs-backups`** — provisions a dedicated subdirectory per PVC on the
+  Unraid Backups share. The subdirectory path is derived from
+  `<namespace>/<pvc-name>`, making it easy to identify on the NAS.
+  Use this for application backup volumes. Create one PVC per application.
+- **`nfs-multimedia`** — mounts the Unraid Multimedia share root directly.
+  Every PVC using this class sees the full share. Use `subPath` in the
+  Deployment's `volumeMounts` to access specific subdirectories (e.g. `TV`,
+  `Movies`). Create one PVC per namespace that needs media access.
 
-> The NFS PV is the single source of truth for the server hostname and export
-path. Multiple namespaces can each hold a PVC binding to the same PV —
-do not duplicate connection details across namespaces.
+Both StorageClasses use `reclaimPolicy: Retain` — deleting a PVC never
+deletes data on the NAS. Released PVs must be manually cleaned up.
+
+To add NFS storage to a new application:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: <app-name>-backups   # becomes the subdirectory name on the NAS
+  namespace: <app-namespace> # becomes the parent directory on the NAS
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-backups
+  resources:
+    requests:
+      storage: 10Gi          # not enforced at NFS level
+```
 ---
 
 ## Disaster Recovery

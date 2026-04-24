@@ -7,24 +7,37 @@
 # sync unit is simpler to reason about at homelab scale.
 #
 # When to split this into multiple Applications:
-#   - If a subcategory (e.g. networking) grows large enough to need
-#     independent sync control or sync waves
+#   - If a subcategory grows large enough to need independent sync control
 #   - If a resource in one subcategory is blocking syncs for unrelated resources
 #
 # Subdirectory structure under apps/infrastructure/:
-#   storage/     — PersistentVolumes, StorageClasses (cluster-scoped)
-#   networking/  — cluster-wide NetworkPolicies, etc. (empty, reserved for future use)
+#   storage/    — StorageClasses for NFS shares (cluster-scoped)
+#   networking/ — cluster-wide NetworkPolicies, etc. (empty, reserved for future use)
 #
-# Sync wave -2: Infrastructure must be ready before applications that depend
-# on it (e.g. arr-stack PVCs binding to PVs defined here). Runs alongside
-# cert-manager and MetalLB.
+# Note: The NFS CSI driver itself is managed by apps/manifests/nfs-csi.yaml,
+# not here. This Application manages only the StorageClasses that depend on
+# the driver — keeping driver installation and StorageClass declaration
+# as separate concerns with independent sync control.
+#
+# Sync wave -1: Runs alongside nfs-csi (wave -1) and Traefik (wave -1).
+# StorageClasses must exist before arr-stack (wave 0) creates PVCs against them.
+# The nfs-csi driver must also be running before those PVCs are created —
+# sync wave ordering across Applications is not strictly guaranteed, but since
+# both are wave -1 and the CSI driver starts quickly, this is reliable in practice.
+# If ordering issues occur, move infrastructure to wave 0 and accept that the
+# first sync of arr-stack may require a manual retry.
+#
+# Adding a new infrastructure resource:
+#   Drop a manifest file into the appropriate subdirectory under apps/infrastructure/.
+#   With recurse: true, ArgoCD picks it up automatically on next sync.
+#   No changes to this file are needed.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: infrastructure
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   project: default
   source:
@@ -32,15 +45,14 @@ spec:
     targetRevision: HEAD
     path: apps/infrastructure
     directory:
-      # Recurse into subdirectories (storage/, networking/, etc.) so all
-      # infrastructure manifests are picked up without listing each subfolder
-      # explicitly. New subcategories are discovered automatically.
+      # Recurse into subdirectories so new resource categories are picked up
+      # automatically without updating this manifest.
       recurse: true
   destination:
     server: https://kubernetes.default.svc
-    # PersistentVolumes are cluster-scoped (no namespace), but ArgoCD requires
-    # a destination namespace. Using `default` here is a convention for
-    # cluster-scoped resources — it has no effect on where the resources land.
+    # StorageClasses are cluster-scoped (no namespace), but ArgoCD requires a
+    # destination namespace. default is used as a conventional placeholder —
+    # it has no effect on where cluster-scoped resources are created.
     namespace: default
   syncPolicy:
     automated:

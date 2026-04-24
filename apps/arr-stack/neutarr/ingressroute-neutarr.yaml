@@ -9,7 +9,7 @@
 # NeutArr's own auth is disabled (proxy_bypass mode in the Deployment).
 # TODO: Replace basic-auth middleware with Authentik forward auth middleware
 # once Authentik is deployed. At that point also update NEUTARR_AUTH_MODE
-# in apps/neutarr/deployment.yaml back to `standard` or remove it entirely.
+# in apps/arr-stack/neutarr/deployment.yaml back to `standard` or remove it entirely.
 #
 # The `secured` middleware (if defined) should be chained before basic-auth.
 # Check apps/traefik/ for the current secured middleware definition.
@@ -30,9 +30,9 @@ spec:
       middlewares:
         # basic-auth is defined in apps/traefik/middleware-basic-auth.yaml.
         # Same credentials as the Traefik dashboard — shared by design.
-        - name: basic-auth
-          namespace: traefik
         - name: secured
+          namespace: traefik
+        - name: basic-auth
           namespace: traefik
       services:
         - name: neutarr

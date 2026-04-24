@@ -7,8 +7,7 @@
 # user-facing service. If the pod restarts, *arr hunts resume on the next
 # scheduled cycle with no user impact.
 #
-# Auth mode: NEUTARR_AUTH_MODE=proxy_bypass disables NeutArr's built-in JWT
-# login. Access is gated by the Traefik basic-auth middleware defined in
+# Access is gated by the Traefik basic-auth middleware defined in
 # apps/traefik/middleware-basic-auth.yaml.
 # TODO: When Authentik is deployed:
 #   1. Replace the basic-auth middleware on ingressroute-neutarr.yaml with
@@ -19,8 +18,10 @@
 # Volumes:
 #   /config  — Longhorn PVC (neutarr-config): NeutArr application state,
 #              API keys, app connections, search schedules. NeutArr-specific.
-#   /backups — NFS PVC (backups-nfs): shared backup destination for all
-#              arr-stack apps. NeutArr writes to /backups/NeutArr/.
+#   /backups — NFS PVC (neutarr-backups): dynamically provisioned on the
+#              Unraid Backups share via nfs-backups StorageClass. NeutArr
+#              writes backup files here. Data lives at:
+#              /mnt/user/Backups/arr-stack/neutarr-backups/ on Unraid.
 #
 # Image versioning: always pin to a specific tag, never `latest`.
 # To upgrade:
@@ -28,7 +29,7 @@
 #   2. Update the version comment in apps/manifests/arr-stack.yaml
 #   3. Commit and push — ArgoCD applies the new image automatically
 #
-# Current version: 1.5.0 (released 2026-03-03)
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,9 +47,30 @@ spec:
       labels:
         app: neutarr
     spec:
+      # Do not mount a service account token — NeutArr does not interact
+      # with the Kubernetes API and has no need for cluster credentials.
+      automountServiceAccountToken: false
+      securityContext:
+        # RuntimeDefault seccomp profile restricts available syscalls to a
+        # safe subset without requiring a custom profile. Supported by k3s.
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: neutarr
           image: iampuid0/neutarr:1.6.1
+          securityContext:
+            # Prevent the container from gaining additional privileges beyond
+            # what it starts with. Defense in depth against privilege escalation.
+            allowPrivilegeEscalation: false
+            capabilities:
+              # Drop NET_RAW specifically — it enables raw socket access which
+              # NeutArr does not need and which is a common attack vector.
+              # Drop ALL is more thorough but may break the container entrypoint
+              # that repairs /config ownership at startup (requires some caps).
+              # Revisit dropping ALL once the container's startup behavior is
+              # confirmed under restricted capabilities.
+              drop:
+                - NET_RAW
           ports:
             - containerPort: 9705
               name: http
@@ -73,6 +95,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: backups
+              mountPath: /backups
           # Native health endpoint added in NeutArr (not present in upstream Huntarr).
           # /api/health returns 200 when the app is ready to serve requests.
           livenessProbe:
@@ -92,11 +116,12 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            # Longhorn-backed, NeutArr-specific. Defined in
-            # apps/arr-stack/neutarr/persistentvolumeclaim-neutarr-config.yaml
+            # Longhorn-backed, NeutArr-specific config storage.
+            # Defined in apps/arr-stack/neutarr/persistentvolumeclaim-neutarr-config.yaml
             claimName: neutarr-config
         - name: backups
           persistentVolumeClaim:
-            # NFS-backed, shared across all arr-stack apps. Defined in
-            # apps/arr-stack/persistentvolumeclaim-backups-nfs.yaml
-            claimName: backups-nfs
+            # NFS-backed, dynamically provisioned via nfs-backups StorageClass.
+            # Data stored at /mnt/user/Backups/arr-stack/neutarr-backups/ on Unraid.
+            # Defined in apps/arr-stack/neutarr/persistentvolumeclaim-neutarr-backups.yaml
+            claimName: neutarr-backups

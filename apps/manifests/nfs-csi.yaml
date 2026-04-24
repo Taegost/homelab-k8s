@@ -1,0 +1,56 @@
+# ArgoCD Application — nfs-csi
+#
+# Installs the NFS CSI Driver (kubernetes-csi/csi-driver-nfs) via Helm.
+# This driver enables dynamic NFS volume provisioning for all namespaces
+# in the cluster via StorageClasses defined in apps/infrastructure/storage/.
+#
+# GitHub: https://github.com/kubernetes-csi/csi-driver-nfs
+# Helm repo: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+#
+# Sync wave -1: Must be running before any namespace creates an NFS-backed PVC
+# (arr-stack is wave 0). Runs alongside Traefik rather than with cert-manager
+# and MetalLB (wave -2) because no current wave -2 component depends on NFS.
+# TODO: If a wave -2 component ever needs NFS storage (e.g. DNS), move this
+# to wave -2 so the driver is ready before that component starts.
+#
+# Upgrade instructions:
+#   1. Update targetRevision below
+#   2. Check changelog for breaking value or schema changes:
+#      https://github.com/kubernetes-csi/csi-driver-nfs/releases
+#   3. Commit and push — ArgoCD applies the new version automatically
+#   Current chart version: 4.13.2
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nfs-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    # Source 1: NFS CSI Driver Helm chart from upstream chart repository.
+    - repoURL: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+      chart: csi-driver-nfs
+      targetRevision: 4.13.2
+      helm:
+        valueFiles:
+          - $values/apps/nfs-csi/values.yaml
+    # Source 2: This repo, providing $values reference for Source 1.
+    # No path is set — this source exists solely to make values.yaml
+    # available to the Helm chart. No manifests are applied from this source.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    # kube-system is the conventional namespace for storage drivers —
+    # the CSI driver requires elevated node permissions that are typically
+    # granted in this namespace.
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
