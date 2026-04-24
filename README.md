@@ -199,6 +199,7 @@ spec:
     requests:
       storage: 10Gi          # not enforced at NFS level
 ```
+
 ---
 
 ## Disaster Recovery

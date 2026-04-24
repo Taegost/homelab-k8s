@@ -2,11 +2,10 @@
 #
 # Chart: csi-driver-nfs (kubernetes-csi/csi-driver-nfs)
 # Repo: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
-# Current chart version: 4.13.2
-# ArgoCD Application: apps/manifests/infrastructure.yaml
+# ArgoCD Application: apps/manifests/nfs-csi.yaml
 #
 # Upgrade instructions:
-#   1. Update targetRevision in apps/manifests/infrastructure.yaml
+#   1. Update targetRevision in apps/manifests/nfs-csi.yaml
 #   2. Check the chart changelog for breaking value changes:
 #      https://github.com/kubernetes-csi/csi-driver-nfs/releases
 #   3. Commit and push — ArgoCD applies the new version automatically
