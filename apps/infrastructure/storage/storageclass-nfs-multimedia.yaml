@@ -58,7 +58,9 @@ parameters:
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 mountOptions:
-  # nfsvers=4.1: Use NFSv4.1 for better performance and reliability over NFSv3.
-  # Unraid supports NFSv4 — confirm the share is exported with NFSv4 enabled.
-  # If mount failures occur, fall back to nfsvers=3.
   - nfsvers=3
+  # nolock: NFSv3 uses rpc.statd for distributed file locking, which is not
+  # running on k3s nodes. nolock keeps locks local to each node, which is
+  # safe for media access where cross-node locking is not required.
+  # Remove if switching to NFSv4, which handles locking natively.
+  - nolock
