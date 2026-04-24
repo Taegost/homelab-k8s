@@ -72,13 +72,15 @@ spec:
             - name: backups
               mountPath: /backups
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /api/system/ping
               port: 6767
             initialDelaySeconds: 15
             periodSeconds: 15
             failureThreshold: 3
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /api/system/ping
               port: 6767
             initialDelaySeconds: 30
             periodSeconds: 30

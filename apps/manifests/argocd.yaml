@@ -22,6 +22,11 @@
 #   2. Update the version number in this comment block
 #   3. Commit and push — ArgoCD will apply the update to itself automatically
 #
+#   No other edits to argocd.yaml are needed. The two-source layout below
+#   ensures customisations in apps/argocd/ (e.g. argocd-cmd-params-cm.yaml)
+#   always override whatever the upstream install manifest ships with, because
+#   ArgoCD applies sources in order and the last source wins on conflicts.
+#
 # This version management pattern applies to all manifest-based installs in
 # this repo (i.e. any app not installed via a Helm chart).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -45,10 +50,21 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/Taegost/homelab-k8s
-    targetRevision: HEAD
-    path: apps/argocd
+  sources:
+    # The sources are laid out this way explicitly because the install manifest contains
+    # ConfigMaps that conflict with one we've created, and whichever is applied last wins.
+    # This pattern intends to defeat that by forcing it to sync the install manifest before
+    # anything else.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      path: apps/argocd
+      directory:
+        include: 'argocd.yaml'
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      path: apps/argocd
+      directory:
+        exclude: 'argocd.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

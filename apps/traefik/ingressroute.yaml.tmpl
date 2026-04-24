@@ -1,0 +1,94 @@
+# IngressRoute Template
+#
+# Copy the relevant pattern below into apps/<app>/ingressroute-<app>.yaml
+# (or apps/arr-stack/<app>/ingressroute-<app>.yaml for arr-stack apps) and
+# replace all <PLACEHOLDER> values. Delete the pattern you are not using.
+#
+# This file is not applied by ArgoCD — the .tmpl extension is intentional.
+#
+# Placeholders:
+#   <APP_NAME>   — lowercase app name, e.g. sonarr, immich, paperless
+#   <HOST>       — full hostname, e.g. sonarr.home.diceninjagaming.com
+#   <NAMESPACE>  — app's Kubernetes namespace, e.g. arr-stack, media
+#   <PORT>       — port the app's ClusterIP service listens on, e.g. 8989
+#
+# IngressRoutes must live in the traefik namespace because they reference
+# the wildcard TLS secret, which cannot be shared across namespaces.
+#
+# Available middlewares (all in traefik namespace):
+#   secured          — internal-whitelist + security headers (use on every route)
+#   authentik        — Authentik forward-auth SSO (add for UI routes)
+#   authentik-basic-auth — Authentik forward-auth forwarding Authorization header
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PATTERN A: Standard — secured + Authentik on all traffic
+#
+# Use for services whose API does not need to be reachable externally
+# without SSO. Most services use this pattern.
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: <APP_NAME>
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`<HOST>`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+        - name: authentik
+          namespace: traefik
+      services:
+        - name: <APP_NAME>
+          namespace: <NAMESPACE>
+          port: <PORT>
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATTERN B: API bypass — /api/ without Authentik, UI with Authentik
+#
+# Use when the app's API must be reachable from the local subnet without SSO
+# (e.g. for inter-service calls, download client callbacks, external tooling).
+# Traefik selects the more specific rule (longer match) automatically —
+# no explicit priority field is needed.
+#
+# Used by: bazarr, prowlarr, radarr, sonarr, whisparr
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: <APP_NAME>
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`<HOST>`) && PathPrefix(`/api/`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+      services:
+        - name: <APP_NAME>
+          namespace: <NAMESPACE>
+          port: <PORT>
+    - match: Host(`<HOST>`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+        - name: authentik
+          namespace: traefik
+      services:
+        - name: <APP_NAME>
+          namespace: <NAMESPACE>
+          port: <PORT>
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

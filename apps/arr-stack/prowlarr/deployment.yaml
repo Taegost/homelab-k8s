@@ -60,6 +60,8 @@ spec:
               value: "99"
             - name: PGID
               value: "100"
+            - name: UMASK
+              value: "000"
             - name: TZ
               value: "America/New_York"
           volumeMounts:
