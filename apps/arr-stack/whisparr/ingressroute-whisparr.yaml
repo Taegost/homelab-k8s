@@ -3,12 +3,10 @@
 # Lives in the `traefik` namespace because it references the wildcard TLS
 # secret, which cannot be shared across namespaces.
 #
-# Two routes on the same host:
-#   /api/ — secured only (no Authentik). Allows Prowlarr, download clients,
-#            and external tooling to call the Whisparr API without SSO.
-#            Restricted to internal subnets via the internal-whitelist in
-#            the `secured` middleware chain.
-#   /     — secured + authentik for full SSO protection on the UI.
+# Authentik SSO is not wired in yet — will be added during the Authentik
+# migration. At that point this becomes two routes: /api/ with `secured`
+# only (so Prowlarr/download clients can reach the API without SSO), and
+# / with `secured` + `authentik` for the UI.
 #
 # Backend service: whisparr.arr-stack.svc.cluster.local:6969
 apiVersion: traefik.io/v1alpha1

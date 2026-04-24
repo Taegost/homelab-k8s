@@ -25,6 +25,15 @@ spec:
   entryPoints:
     - websecure
   routes:
+    - match: Host(`neutarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+      services:
+        - name: neutarr
+          namespace: arr-stack
+          port: 9705
     - match: Host(`neutarr.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
