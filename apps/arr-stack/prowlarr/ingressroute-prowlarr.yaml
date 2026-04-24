@@ -1,0 +1,44 @@
+# IngressRoute — prowlarr (in traefik namespace)
+#
+# Lives in the `traefik` namespace because it references the wildcard TLS
+# secret, which cannot be shared across namespaces.
+#
+# Two routes on the same host:
+#   /api/ — secured only (no Authentik). Allows Sonarr, Radarr, and other
+#            arr-stack services to call the Prowlarr API for indexer sync
+#            without SSO. Also reachable from outside Kubernetes on the
+#            local subnet without authentication.
+#   /     — secured + authentik for full SSO protection on the UI.
+#
+# Backend service: prowlarr.arr-stack.svc.cluster.local:9696
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`prowlarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+      services:
+        - name: prowlarr
+          namespace: arr-stack
+          port: 9696
+    - match: Host(`prowlarr.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+        - name: authentik
+          namespace: traefik
+      services:
+        - name: prowlarr
+          namespace: arr-stack
+          port: 9696
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

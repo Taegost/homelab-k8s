@@ -1,0 +1,43 @@
+# Middleware — authentik
+#
+# ForwardAuth middleware that delegates authentication to the Authentik
+# embedded outpost. Any IngressRoute that requires SSO login should chain
+# this middleware after `secured`.
+#
+# Traefik forwards each request to the outpost, which returns 200 (allow)
+# or 302 (redirect to login page). On success, Authentik populates the
+# authResponseHeaders below so upstream applications can receive the
+# authenticated user's identity if they choose to consume it.
+#
+# Usage in an IngressRoute:
+#   middlewares:
+#     - name: secured
+#       namespace: traefik
+#     - name: authentik
+#       namespace: traefik
+#
+# For routes that only need the Authorization header forwarded (e.g., apps
+# that validate API keys via Authentik), use middleware-authentik-basic-auth.yaml
+# instead.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authentik
+  namespace: traefik
+spec:
+  forwardAuth:
+    address: "https://authentik.diceninjagaming.com/outpost.goauthentik.io/auth/traefik"
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-authentik-username
+      - X-authentik-groups
+      - X-authentik-entitlements
+      - X-authentik-email
+      - X-authentik-name
+      - X-authentik-uid
+      - X-authentik-jwt
+      - X-authentik-meta-jwks
+      - X-authentik-meta-outpost
+      - X-authentik-meta-provider
+      - X-authentik-meta-app
+      - X-authentik-meta-version

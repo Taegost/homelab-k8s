@@ -1,0 +1,19 @@
+# PersistentVolumeClaim — prowlarr-config
+#
+# Longhorn-backed storage for Prowlarr's /config directory.
+# Stores: indexer definitions, API keys, sync settings, SQLite database.
+#
+# Longhorn replicates this volume across nodes — Prowlarr config survives a
+# node failure and the pod reschedules without data loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prowlarr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

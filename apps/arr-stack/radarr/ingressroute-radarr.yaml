@@ -1,0 +1,44 @@
+# IngressRoute — radarr (in traefik namespace)
+#
+# Lives in the `traefik` namespace because it references the wildcard TLS
+# secret, which cannot be shared across namespaces.
+#
+# Two routes on the same host:
+#   /api/ — secured only (no Authentik). Allows Prowlarr, Bazarr, download
+#            clients, and external tooling to call the Radarr API without SSO.
+#            Restricted to internal subnets via the internal-whitelist in
+#            the `secured` middleware chain.
+#   /     — secured + authentik for full SSO protection on the UI.
+#
+# Backend service: radarr.arr-stack.svc.cluster.local:7878
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: radarr
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`radarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+      services:
+        - name: radarr
+          namespace: arr-stack
+          port: 7878
+    - match: Host(`radarr.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: secured
+          namespace: traefik
+        - name: authentik
+          namespace: traefik
+      services:
+        - name: radarr
+          namespace: arr-stack
+          port: 7878
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

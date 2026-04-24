@@ -1,0 +1,19 @@
+# Service — whisparr
+#
+# ClusterIP service exposing Whisparr's web UI and API port within the cluster.
+# Traefik routes external traffic here via the IngressRoute in the traefik
+# namespace. Prowlarr reaches Whisparr directly at
+# whisparr.arr-stack.svc.cluster.local:6969.
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisparr
+  namespace: arr-stack
+spec:
+  selector:
+    app: whisparr
+  ports:
+    - name: http
+      port: 6969
+      targetPort: 6969
+  type: ClusterIP

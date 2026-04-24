@@ -1,0 +1,22 @@
+# PersistentVolumeClaim — radarr-backups
+#
+# NFS-backed backup storage for Radarr, dynamically provisioned by the
+# nfs-backups StorageClass.
+#
+# On Unraid, data is stored at:
+#   /mnt/user/Backups/arr-stack/radarr-backups/
+#
+# reclaimPolicy is Retain (set on the StorageClass) — deleting this PVC
+# does NOT delete the backup data on Unraid.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-backups
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-backups
+  resources:
+    requests:
+      storage: 10Gi

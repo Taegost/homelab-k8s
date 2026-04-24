@@ -1,0 +1,96 @@
+# Deployment — Radarr
+#
+# Radarr is an automated movie collection manager that monitors RSS feeds,
+# grabs releases, and manages your movie library.
+# GitHub: https://github.com/Radarr/Radarr
+#
+# Volumes:
+#   /config     — Longhorn PVC (radarr-config): app configuration, movie
+#                 database, quality profiles, indexer settings.
+#   /multimedia — NFS PVC (radarr-multimedia): read/write access to the full
+#                 Multimedia share on Unraid for moving/renaming movie files.
+#   /backups    — NFS PVC (radarr-backups): dynamically provisioned on the
+#                 Unraid Backups share via nfs-backups StorageClass. Data lives
+#                 at /mnt/user/Backups/arr-stack/radarr-backups/ on Unraid.
+#
+# Image versioning: pinned to a specific tag for reproducible deployments.
+# To upgrade: update the image tag below and push — ArgoCD applies the change.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+  namespace: arr-stack
+  labels:
+    app: radarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:6.0.4.10291-ls293
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW
+          ports:
+            - containerPort: 7878
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "300Mi"
+            limits:
+              cpu: "1000m"
+              memory: "700Mi"
+          env:
+            - name: PUID
+              value: "99"
+            - name: PGID
+              value: "100"
+            - name: UMASK
+              value: "000"
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: multimedia
+              mountPath: /multimedia
+            - name: backups
+              mountPath: /backups
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 7878
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 7878
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr-config
+        - name: multimedia
+          persistentVolumeClaim:
+            claimName: radarr-multimedia
+        - name: backups
+          persistentVolumeClaim:
+            claimName: radarr-backups

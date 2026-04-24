@@ -1,0 +1,95 @@
+# Deployment — Bazarr
+#
+# Bazarr is a subtitle management and download automation tool that works
+# alongside Sonarr and Radarr to fetch and sync subtitles for your library.
+# GitHub: https://github.com/morpheus65535/bazarr
+#
+# Volumes:
+#   /config     — Longhorn PVC (bazarr-config): app configuration, subtitle
+#                 provider credentials, sync settings, SQLite database.
+#   /multimedia — NFS PVC (bazarr-multimedia): read/write access to the full
+#                 Multimedia share on Unraid. Bazarr needs this to write
+#                 subtitle files alongside the media files.
+#   /backups    — NFS PVC (bazarr-backups): dynamically provisioned on the
+#                 Unraid Backups share via nfs-backups StorageClass. Data lives
+#                 at /mnt/user/Backups/arr-stack/bazarr-backups/ on Unraid.
+#
+# Image versioning: pinned to a specific tag for reproducible deployments.
+# To upgrade: update the image tag below and push — ArgoCD applies the change.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+  namespace: arr-stack
+  labels:
+    app: bazarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:v1.5.6-ls341
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW
+          ports:
+            - containerPort: 6767
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "400Mi"
+            limits:
+              cpu: "800m"
+              memory: "700Mi"
+          env:
+            - name: PUID
+              value: "99"
+            - name: PGID
+              value: "100"
+            - name: UMASK
+              value: "000"
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: multimedia
+              mountPath: /multimedia
+            - name: backups
+              mountPath: /backups
+          readinessProbe:
+            tcpSocket:
+              port: 6767
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 6767
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: bazarr-config
+        - name: multimedia
+          persistentVolumeClaim:
+            claimName: bazarr-multimedia
+        - name: backups
+          persistentVolumeClaim:
+            claimName: bazarr-backups

@@ -1,0 +1,19 @@
+# Service — bazarr
+#
+# ClusterIP service exposing Bazarr's web UI and API port within the cluster.
+# Traefik routes external traffic here via the IngressRoute in the traefik
+# namespace. Other arr-stack pods (e.g., Sonarr, Radarr) can also reach
+# Bazarr directly via bazarr.arr-stack.svc.cluster.local:6767.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: bazarr
+  ports:
+    - name: http
+      port: 6767
+      targetPort: 6767
+  type: ClusterIP

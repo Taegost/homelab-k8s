@@ -1,0 +1,90 @@
+# Deployment — Prowlarr
+#
+# Prowlarr is an indexer manager and proxy for the arr-stack, centralising
+# indexer configuration for Sonarr, Radarr, and other *arr apps.
+# GitHub: https://github.com/Prowlarr/Prowlarr
+#
+# Volumes:
+#   /config  — Longhorn PVC (prowlarr-config): indexer definitions, API keys,
+#              sync settings, SQLite database.
+#   /backups — NFS PVC (prowlarr-backups): dynamically provisioned on the
+#              Unraid Backups share via nfs-backups StorageClass. Data lives
+#              at /mnt/user/Backups/arr-stack/prowlarr-backups/ on Unraid.
+#
+# No multimedia mount needed — Prowlarr manages indexers and does not
+# interact with the media library directly.
+#
+# Image versioning: pinned to a specific tag for reproducible deployments.
+# To upgrade: update the image tag below and push — ArgoCD applies the change.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: arr-stack
+  labels:
+    app: prowlarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:2.3.0.5236-ls137
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW
+          ports:
+            - containerPort: 9696
+              name: http
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "2500m"
+              memory: "512Mi"
+          env:
+            - name: PUID
+              value: "99"
+            - name: PGID
+              value: "100"
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: backups
+              mountPath: /backups
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 9696
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 9696
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: prowlarr-config
+        - name: backups
+          persistentVolumeClaim:
+            claimName: prowlarr-backups

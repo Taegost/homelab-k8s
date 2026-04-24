@@ -1,0 +1,23 @@
+# PersistentVolumeClaim — whisparr-config
+#
+# Longhorn-backed storage for Whisparr's /config directory.
+# Stores: SQLite library database, quality profiles, indexer settings,
+# download client config, and application state.
+#
+# 15Gi allocated — current Docker config volume is 8.8GiB (8.1GiB config +
+# 680MiB internal backups). Sized to fit the restore plus growth headroom.
+#
+# Longhorn replicates this volume across nodes — Whisparr config survives a
+# node failure and the pod reschedules without data loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: whisparr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 15Gi

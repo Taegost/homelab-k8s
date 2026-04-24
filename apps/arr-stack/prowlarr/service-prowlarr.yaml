@@ -1,0 +1,18 @@
+# Service — prowlarr
+#
+# ClusterIP service exposing Prowlarr's web UI and API port within the cluster.
+# Sonarr, Radarr, and other arr-stack apps connect to Prowlarr directly at
+# prowlarr.arr-stack.svc.cluster.local:9696 to sync indexer configurations.
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: arr-stack
+spec:
+  selector:
+    app: prowlarr
+  ports:
+    - name: http
+      port: 9696
+      targetPort: 9696
+  type: ClusterIP

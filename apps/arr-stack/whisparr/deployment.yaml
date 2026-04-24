@@ -1,0 +1,99 @@
+# Deployment — Whisparr
+#
+# Whisparr is an automated adult content collection manager, a fork of the
+# *arr ecosystem targeting a specific content category.
+# Image: https://github.com/hotio/whisparr
+#
+# Volumes:
+#   /config     — Longhorn PVC (whisparr-config): app configuration, library
+#                 database, quality profiles, indexer settings.
+#   /multimedia — NFS PVC (whisparr-multimedia): read/write access to the full
+#                 Multimedia share on Unraid for moving/renaming downloaded files.
+#   /backups    — NFS PVC (whisparr-backups): dynamically provisioned on the
+#                 Unraid Backups share via nfs-backups StorageClass. Data lives
+#                 at /mnt/user/Backups/arr-stack/whisparr-backups/ on Unraid.
+#
+# Image tag: v3 is the stable release track for Whisparr v3.x. The hotio
+# image uses rolling tags — v3 always points to the latest v3 release.
+# imagePullPolicy is set to Always so the node re-checks for a newer v3
+# image on each pod start.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisparr
+  namespace: arr-stack
+  labels:
+    app: whisparr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whisparr
+  template:
+    metadata:
+      labels:
+        app: whisparr
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: whisparr
+          image: ghcr.io/hotio/whisparr:v3
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW
+          ports:
+            - containerPort: 6969
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "500Mi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
+          env:
+            - name: PUID
+              value: "99"
+            - name: PGID
+              value: "100"
+            - name: UMASK
+              value: "000"
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: multimedia
+              mountPath: /multimedia
+            - name: backups
+              mountPath: /backups
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 6969
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 6969
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: whisparr-config
+        - name: multimedia
+          persistentVolumeClaim:
+            claimName: whisparr-multimedia
+        - name: backups
+          persistentVolumeClaim:
+            claimName: whisparr-backups
