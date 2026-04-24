@@ -49,7 +49,7 @@ metadata:
   name: nfs-backups
 provisioner: nfs.csi.k8s.io
 parameters:
-  server: firebird.lan
+  server: firebird.lan.
   share: /mnt/user/Backups
   # Creates namespace/pvcname subdirectory structure on the NFS share.
   # Example: arr-stack/neutarr-backups/

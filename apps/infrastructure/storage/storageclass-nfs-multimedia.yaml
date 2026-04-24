@@ -52,7 +52,7 @@ metadata:
   name: nfs-multimedia
 provisioner: nfs.csi.k8s.io
 parameters:
-  server: firebird.lan
+  server: firebird.lan.
   share: /mnt/user/Multimedia
   # No subDir — mounts share root directly. See header comment for rationale.
 reclaimPolicy: Retain
