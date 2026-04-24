@@ -7,16 +7,18 @@
 # Volumes:
 #   /config     — Longhorn PVC (sonarr-config): app configuration, series
 #                 database, quality profiles, indexer settings.
-#   /multimedia — Inline NFS CSI volume: mounts the Multimedia share root
-#                 on Unraid directly without a PV or PVC, for moving and
-#                 renaming downloaded episode files.
+#   /multimedia — Shared NFS PVC (multimedia): all four arr-stack media apps
+#                 mount this single RWX PVC simultaneously. It binds to the
+#                 static PV arr-stack-multimedia which points directly at the
+#                 Multimedia share root — Sonarr uses it to move and rename
+#                 downloaded episode files into the library.
 #   /backups    — NFS PVC (sonarr-backups): dynamically provisioned on the
 #                 Unraid Backups share via nfs-backups StorageClass. Data lives
 #                 at /mnt/user/Backups/arr-stack/sonarr-backups/ on Unraid.
 #
-# Resources based on observed peak under full load (all series searching
-# simultaneously): 907MB RAM peak, 163% CPU peak with two plateaus at ~30%
-# and ~75%. 1Gi RAM and 2000m CPU give comfortable headroom above those peaks.
+# Memory limit: 4Gi to match the resource ceiling from the legacy Docker
+# Compose deployment — Sonarr's SQLite database operations are memory-hungry
+# on large TV libraries.
 #
 # Image versioning: pinned to a specific tag for reproducible deployments.
 # To upgrade: update the image tag below and push — ArgoCD applies the change.
@@ -54,11 +56,11 @@ spec:
               name: http
           resources:
             requests:
-              cpu: "200m"
-              memory: "300Mi"
+              cpu: "100m"
+              memory: "512Mi"
             limits:
-              cpu: "2000m"
-              memory: "1.2Gi"
+              cpu: "1000m"
+              memory: "4Gi"
           env:
             - name: PUID
               value: "99"
@@ -94,12 +96,8 @@ spec:
           persistentVolumeClaim:
             claimName: sonarr-config
         - name: multimedia
-          csi:
-            driver: nfs.csi.k8s.io
-            volumeAttributes:
-              server: firebird.lan.
-              share: /mnt/user/Multimedia
-              mountOptions: "nfsvers=3,nolock"
+          persistentVolumeClaim:
+            claimName: multimedia
         - name: backups
           persistentVolumeClaim:
             claimName: sonarr-backups

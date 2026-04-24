@@ -1,0 +1,38 @@
+# PersistentVolumeClaim — multimedia (arr-stack namespace)
+#
+# Shared RWX claim that gives the arr-stack namespace access to the root of
+# the Unraid Multimedia NFS share. This single PVC is mounted by all four
+# arr-stack apps that need media access:
+#   Bazarr   → /multimedia  (writes subtitle files alongside media)
+#   Radarr   → /multimedia  (moves/renames downloaded movie files)
+#   Sonarr   → /multimedia  (moves/renames downloaded episode files)
+#   Whisparr → /multimedia  (moves/renames downloaded adult content files)
+#
+# Why one shared PVC instead of one per app:
+#   All apps need the same share root at the same path. ReadWriteMany lets
+#   multiple pods mount simultaneously. A shared PVC avoids creating four
+#   identical NFS mounts and keeps the namespace clean.
+#
+# Why storageClassName: "":
+#   Required for static binding. An empty string tells Kubernetes not to
+#   invoke a dynamic provisioner — this PVC must bind to the pre-existing
+#   static PV named arr-stack-multimedia (in persistentvolume-arr-stack-multimedia.yaml).
+#   Without this, Kubernetes would attempt to use the default StorageClass.
+#
+# Why volumeName: arr-stack-multimedia:
+#   Pre-binds this PVC to the specific static PV, preventing accidental
+#   binding to any other PV that happens to match the access mode and
+#   capacity. The PV's claimRef mirrors this binding from the other side.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: multimedia
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: arr-stack-multimedia
+  resources:
+    requests:
+      storage: 100Ti

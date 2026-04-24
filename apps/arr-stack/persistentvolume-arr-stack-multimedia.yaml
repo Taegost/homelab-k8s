@@ -1,0 +1,57 @@
+# PersistentVolume — arr-stack-multimedia
+#
+# Static PV giving the arr-stack namespace read/write access to the root of
+# the Unraid Multimedia NFS share. All four arr-stack apps that handle media
+# files (Bazarr, Radarr, Sonarr, Whisparr) mount this through the single
+# shared PVC defined in persistentvolumeclaim-multimedia.yaml.
+#
+# Why static provisioning (not the nfs-multimedia StorageClass):
+#   The NFS CSI dynamic provisioner always creates a per-PVC subdirectory
+#   on the share, even without a subDir parameter — it uses the PV UUID as
+#   the directory name. The arr-stack apps need the share root directly so
+#   they can find existing library content organised by Jellyfin/Plex/etc.
+#   Static provisioning lets us bind directly to /mnt/user/Multimedia
+#   without any subdirectory being created.
+#
+# Why the name includes "arr-stack":
+#   PersistentVolumes are cluster-scoped (no namespace). The "arr-stack-"
+#   prefix makes it immediately clear which namespace owns this PV and
+#   prevents accidental binding from other namespaces. The claimRef below
+#   enforces the binding exclusively to the multimedia PVC in arr-stack.
+#
+# NFSv3 + nolock:
+#   Unraid has stale file handle issues with NFSv4.1 — NFSv3 is required.
+#   rpc.statd is not running on k3s nodes; nolock keeps locks local to each
+#   node, which is safe here because the arr-stack apps never write to the
+#   same file simultaneously.
+#
+# reclaimPolicy: Retain:
+#   If this PV or the bound PVC is deleted, the NFS share and its data are
+#   untouched. The PV moves to Released state and must be manually deleted
+#   before it can be reused.
+#
+# capacity: 100Ti is a nominal ceiling — NFS does not enforce quotas at the
+#   PV level. Actual capacity is whatever Unraid reports for the share.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: arr-stack-multimedia
+spec:
+  capacity:
+    storage: 100Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - nfsvers=3
+    - nolock
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: arr-stack-multimedia
+    volumeAttributes:
+      server: firebird.lan.
+      share: /mnt/user/Multimedia
+  claimRef:
+    namespace: arr-stack
+    name: multimedia

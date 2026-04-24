@@ -37,8 +37,6 @@ spec:
       middlewares:
         - name: secured
           namespace: traefik
-        # - name: authentik
-        #   namespace: traefik
       services:
         - name: bazarr
           namespace: arr-stack

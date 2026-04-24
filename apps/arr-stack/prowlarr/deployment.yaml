@@ -50,18 +50,16 @@ spec:
               name: http
           resources:
             requests:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "100m"
+              memory: "128Mi"
             limits:
-              cpu: "2500m"
+              cpu: "500m"
               memory: "512Mi"
           env:
             - name: PUID
               value: "99"
             - name: PGID
               value: "100"
-            - name: UMASK
-              value: "000"
             - name: TZ
               value: "America/New_York"
           volumeMounts:
