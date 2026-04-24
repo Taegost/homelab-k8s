@@ -60,4 +60,4 @@ mountOptions:
   # nfsvers=4.1: Use NFSv4.1 for better performance and reliability over NFSv3.
   # Unraid supports NFSv4 — confirm the share is exported with NFSv4 enabled
   # if mount failures occur, fall back to nfsvers=3.
-  - nfsvers=4.1
+  - nfsvers=3
