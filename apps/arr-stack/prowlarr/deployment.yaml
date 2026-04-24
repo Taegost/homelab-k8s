@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:2.3.0.5236-ls137
+          image: lscr.io/linuxserver/prowlarr:2.3.5
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
