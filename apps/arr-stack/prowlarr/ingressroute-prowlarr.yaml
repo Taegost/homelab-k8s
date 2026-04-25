@@ -4,11 +4,11 @@
 # secret, which cannot be shared across namespaces.
 #
 # Two routes on the same host:
-#   /api/ — secured only (no Authentik). Allows Sonarr, Radarr, and other
+#   /api/ — default-whitelist only (no Authentik). Allows Sonarr, Radarr, and other
 #            arr-stack services to call the Prowlarr API for indexer sync
 #            without SSO. Also reachable from outside Kubernetes on the
 #            local subnet without authentication.
-#   /     — secured + authentik for full SSO protection on the UI.
+#   /     — default-whitelist + authentik for full SSO protection on the UI.
 #
 # Backend service: prowlarr.arr-stack.svc.cluster.local:9696
 apiVersion: traefik.io/v1alpha1
@@ -23,7 +23,7 @@ spec:
     - match: Host(`prowlarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: prowlarr
@@ -32,7 +32,7 @@ spec:
     - match: Host(`prowlarr.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: prowlarr

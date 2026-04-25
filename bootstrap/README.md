@@ -213,7 +213,7 @@ kubectl apply -f apps/traefik/dashboard-auth-sealedsecret.yaml
 # Applies the various shared/default middlewares
 kubectl apply -f apps/traefik/middleware-default-headers.yaml
 kubectl apply -f apps/traefik/middleware-internal-whitelist.yaml
-kubectl apply -f apps/traefik/middleware-secured.yaml
+kubectl apply -f apps/traefik/middleware-default-whitelist.yaml
 kubectl apply -f apps/traefik/middleware-https-redirect.yaml
 kubectl apply -f apps/traefik/middleware-dashboard-auth.yaml
 

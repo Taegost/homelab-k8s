@@ -4,9 +4,9 @@
 # secret, which cannot be shared across namespaces.
 #
 # Authentik SSO is not wired in yet — will be added during the Authentik
-# migration. At that point this becomes two routes: /api/ with `secured`
+# migration. At that point this becomes two routes: /api/ with `default-whitelist`
 # only (so Prowlarr/download clients can reach the API without SSO), and
-# / with `secured` + `authentik` for the UI.
+# / with `default-whitelist` + `authentik` for the UI.
 #
 # Backend service: whisparr.arr-stack.svc.cluster.local:6969
 apiVersion: traefik.io/v1alpha1
@@ -21,7 +21,7 @@ spec:
     - match: Host(`whisparr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: whisparr
@@ -30,7 +30,7 @@ spec:
     - match: Host(`whisparr.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: whisparr

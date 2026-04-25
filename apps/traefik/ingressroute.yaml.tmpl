@@ -16,12 +16,12 @@
 # the wildcard TLS secret, which cannot be shared across namespaces.
 #
 # Available middlewares (all in traefik namespace):
-#   secured          — internal-whitelist + security headers (use on every route)
+#   default-whitelist          — internal-whitelist + security headers (use on every route)
 #   authentik        — Authentik forward-auth SSO (add for UI routes)
 #   authentik-basic-auth — Authentik forward-auth forwarding Authorization header
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# PATTERN A: Standard — secured + Authentik on all traffic
+# PATTERN A: Standard — default-whitelist + Authentik on all traffic
 #
 # Use for services whose API does not need to be reachable externally
 # without SSO. Most services use this pattern.
@@ -39,7 +39,7 @@ spec:
     - match: Host(`<HOST>`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
         - name: authentik
           namespace: traefik
@@ -73,7 +73,7 @@ spec:
     - match: Host(`<HOST>`) && PathPrefix(`/api/`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: <APP_NAME>
@@ -82,7 +82,7 @@ spec:
     - match: Host(`<HOST>`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
         - name: authentik
           namespace: traefik
