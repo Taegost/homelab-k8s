@@ -81,7 +81,7 @@ spec:
               memory: "128Mi"
             limits:
               cpu: "500m"
-              memory: "512Mi"
+              memory: "750Mi"
           env:
             # PUID/PGID: The container entrypoint repairs /config ownership at
             # startup using these values. With Longhorn provisioning a fresh PVC,

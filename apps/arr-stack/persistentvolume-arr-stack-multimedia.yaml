@@ -44,8 +44,13 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   mountOptions:
-    - nfsvers=3
-    - nolock
+    # NFSv4.2 handles file handle invalidation more gracefully than v3 when Unraid's
+    # Mover migrates files from SSD cache to the parity array. Hard mount ensures
+    # transparent recovery from transient failures (reboots, network blips) without
+    # returning errors to the application. Together these are the most stable combo
+    # for Unraid NFS shares with Cache: Yes and/or Mover enabled.
+    - nfsvers=4.2
+    - hard
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: arr-stack-multimedia

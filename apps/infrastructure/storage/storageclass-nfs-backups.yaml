@@ -57,9 +57,10 @@ parameters:
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 mountOptions:
-  - nfsvers=3
-  # nolock: NFSv3 uses rpc.statd for distributed file locking, which is not
-  # running on k3s nodes. nolock keeps locks local to each node, which is
-  # safe for backup storage where concurrent cross-node writes do not occur.
-  # Remove if switching to NFSv4, which handles locking natively.
-  - nolock
+# NFSv4.2 handles file handle invalidation more gracefully than v3 when Unraid's
+# Mover migrates files from SSD cache to the parity array. Hard mount ensures
+# transparent recovery from transient failures (reboots, network blips) without
+# returning errors to the application. Together these are the most stable combo
+# for Unraid NFS shares with Cache: Yes and/or Mover enabled.
+  - nfsvers=4.2
+  - hard
