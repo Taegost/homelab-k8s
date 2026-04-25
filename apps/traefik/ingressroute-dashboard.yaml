@@ -5,7 +5,7 @@
 # TODO: Rename to traefik.home.diceninjagaming.com once the Docker Traefik
 # instance has been fully decommissioned (see docs/migration-traefik-docker.md).
 #
-# Security: the `secured` middleware restricts access to internal subnets
+# Security: the `default-whitelist` middleware restricts access to internal subnets
 # only, and `dashboard-auth` requires username/password authentication.
 # Both are required — network restriction alone is not sufficient for a
 # management interface.
@@ -24,7 +24,7 @@ spec:
     - match: Host(`traefik-k8s.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
         - name: dashboard-auth
           namespace: traefik

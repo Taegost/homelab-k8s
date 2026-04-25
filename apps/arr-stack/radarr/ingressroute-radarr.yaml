@@ -4,11 +4,11 @@
 # secret, which cannot be shared across namespaces.
 #
 # Two routes on the same host:
-#   /api/ — secured only (no Authentik). Allows Prowlarr, Bazarr, download
+#   /api/ — default-whitelist only (no Authentik). Allows Prowlarr, Bazarr, download
 #            clients, and external tooling to call the Radarr API without SSO.
 #            Restricted to internal subnets via the internal-whitelist in
-#            the `secured` middleware chain.
-#   /     — secured + authentik for full SSO protection on the UI.
+#            the `default-whitelist` middleware chain.
+#   /     — default-whitelist + authentik for full SSO protection on the UI.
 #
 # Backend service: radarr.arr-stack.svc.cluster.local:7878
 apiVersion: traefik.io/v1alpha1
@@ -23,7 +23,7 @@ spec:
     - match: Host(`radarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: radarr
@@ -32,7 +32,7 @@ spec:
     - match: Host(`radarr.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: radarr

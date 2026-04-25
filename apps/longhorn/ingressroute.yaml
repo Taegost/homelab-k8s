@@ -10,7 +10,7 @@
 # IngressRoute that references them.
 #
 # Authentication: basic-auth middleware (see apps/traefik/middleware-basic-auth.yaml)
-# chains on top of the standard secured middleware (IP allowlist + headers).
+# chains on top of the standard default-whitelist middleware (IP allowlist + headers).
 # TODO: Replace basic-auth with Authentik SSO once Authentik is deployed.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -26,8 +26,8 @@ spec:
       kind: Rule
       middlewares:
         # Standard internal middleware: IP allowlist + security headers.
-        # Defined in apps/traefik/middleware-secured.yaml
-        - name: secured
+        # Defined in apps/traefik/middleware-default-whitelist.yaml
+        - name: default-whitelist
           namespace: traefik
         # BasicAuth gate. Credentials in apps/traefik/sealedsecret-basic-auth.yaml.
         # Defined in apps/traefik/middleware-basic-auth.yaml

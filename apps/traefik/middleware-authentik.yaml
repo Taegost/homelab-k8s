@@ -2,7 +2,7 @@
 #
 # ForwardAuth middleware that delegates authentication to the Authentik
 # embedded outpost. Any IngressRoute that requires SSO login should chain
-# this middleware after `secured`.
+# this middleware after `default-whitelist`.
 #
 # Traefik forwards each request to the outpost, which returns 200 (allow)
 # or 302 (redirect to login page). On success, Authentik populates the
@@ -11,7 +11,7 @@
 #
 # Usage in an IngressRoute:
 #   middlewares:
-#     - name: secured
+#     - name: default-whitelist
 #       namespace: traefik
 #     - name: authentik
 #       namespace: traefik

@@ -1,6 +1,6 @@
 # Middleware — basic-auth
 #
-# HTTP Basic Authentication gate. Used on top of the standard `secured`
+# HTTP Basic Authentication gate. Used on top of the standard `default-whitelist`
 # middleware for internal UIs that need a username/password prompt.
 # Currently applied to: Longhorn UI, Traefik dashboard
 # TODO: Replace with Authentik SSO once Authentik is deployed.
@@ -9,9 +9,9 @@
 # See sealedsecret-basic-auth.yaml for the committed sealed form, and
 # the generation instructions below for how to rotate credentials.
 #
-# Usage in an IngressRoute (always chain after `secured`):
+# Usage in an IngressRoute (always chain after `default-whitelist`):
 #   middlewares:
-#     - name: secured
+#     - name: default-whitelist
 #       namespace: traefik
 #     - name: basic-auth
 #       namespace: traefik

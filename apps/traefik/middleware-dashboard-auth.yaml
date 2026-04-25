@@ -4,7 +4,7 @@
 # and password. The credentials are stored in the dashboard-auth SealedSecret
 # above in htpasswd format.
 #
-# This middleware is intentionally separate from the `secured` chain so that
+# This middleware is intentionally separate from the `default-whitelist` chain so that
 # it can be applied in addition to it on the dashboard route only.
 #
 # TODO: Replace with Authentik forward auth middleware once Authentik is

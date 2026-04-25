@@ -11,8 +11,8 @@
 # once Authentik is deployed. At that point also update NEUTARR_AUTH_MODE
 # in apps/arr-stack/neutarr/deployment.yaml back to `standard` or remove it entirely.
 #
-# The `secured` middleware (if defined) should be chained before basic-auth.
-# Check apps/traefik/ for the current secured middleware definition.
+# The `default-whitelist` middleware (if defined) should be chained before basic-auth.
+# Check apps/traefik/ for the current default-whitelist middleware definition.
 #
 # Backend service: neutarr.arr-stack.svc.cluster.local:9705
 # Cross-namespace service routing is supported by Traefik natively.
@@ -28,7 +28,7 @@ spec:
     - match: Host(`neutarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: neutarr
@@ -37,7 +37,7 @@ spec:
     - match: Host(`neutarr.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: secured
+        - name: default-whitelist
           namespace: traefik
       services:
         - name: neutarr
