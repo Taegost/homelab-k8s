@@ -12,7 +12,7 @@
 #   files shift between cache and array disks (inode changes). The noserverino
 #   mount option tells the SMB client to generate its own inodes, which
 #   completely avoids the problem. See:
-#   https://forums.unraid.net/topic/XXX (stale file handle thread)
+#   https://forums.unraid.net/topic/103945-psahow-to-proper-fix-for-smb-stale-file-handle/ (stale file handle thread)
 #
 # Prerequisites:
 #   A Secret named "smb-creds" must exist in the kube-system namespace with:
@@ -37,9 +37,8 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-name: smb-creds
   csi.storage.k8s.io/node-stage-secret-namespace: kube-system
 reclaimPolicy: Retain
+allowVolumeExpansion: true
 volumeBindingMode: Immediate
 mountOptions:
   - noserverino
   - _netdev
-  - dir_mode=0777
-  - file_mode=0666
