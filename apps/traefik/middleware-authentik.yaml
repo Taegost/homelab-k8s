@@ -26,7 +26,7 @@ metadata:
   namespace: traefik
 spec:
   forwardAuth:
-    address: "https://authentik.diceninjagaming.com/outpost.goauthentik.io/auth/traefik"
+    address: "https://authentik.lan.:9000/outpost.goauthentik.io/auth/traefik"
     trustForwardHeader: true
     authResponseHeaders:
       - X-authentik-username

@@ -37,6 +37,8 @@ spec:
       middlewares:
         - name: default-whitelist
           namespace: traefik
+        - name: authentik
+          namespace: traefik
       services:
         - name: bazarr
           namespace: arr-stack
