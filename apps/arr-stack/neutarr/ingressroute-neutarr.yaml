@@ -39,6 +39,8 @@ spec:
       middlewares:
         - name: default-whitelist
           namespace: traefik
+        - name: authentik
+          namespace: traefik
       services:
         - name: neutarr
           # Cross-namespace service reference — Traefik reaches into arr-stack
