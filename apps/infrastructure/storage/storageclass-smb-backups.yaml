@@ -30,7 +30,7 @@ metadata:
   name: smb-backups
 provisioner: smb.csi.k8s.io
 parameters:
-  source: //firebird.lan/Backups
+  source: //firebird.lan./Backups
   subDir: ${pvc.metadata.namespace}/${pvc.metadata.name}
   csi.storage.k8s.io/provisioner-secret-name: smb-creds
   csi.storage.k8s.io/provisioner-secret-namespace: kube-system

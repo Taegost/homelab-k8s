@@ -52,7 +52,7 @@ spec:
     driver: smb.csi.k8s.io
     volumeHandle: arr-stack-multimedia
     volumeAttributes:
-      source: //firebird.lan/Multimedia
+      source: //firebird.lan./Multimedia
     nodeStageSecretRef:
       name: smb-creds
       namespace: kube-system
