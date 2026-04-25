@@ -11,6 +11,7 @@
 # Current allowed subnets:
 #   192.168.5.0/24 — Baremetal, VMs and LXCs (servers, infrastructure)
 #   192.168.6.0/24 — Main computers (workstations, laptops)
+#   10.0.0.0/8     - Kubernetes internal IP ranges
 #
 # To customise for your environment, replace these ranges with your own
 # internal subnets. Add additional VLAN subnets here as your network grows.
@@ -24,3 +25,4 @@ spec:
     sourceRange:
       - "192.168.5.0/24"
       - "192.168.6.0/24"
+      - "10.0.0.0/8"

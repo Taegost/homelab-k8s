@@ -1,0 +1,44 @@
+# StorageClass — smb-backups
+#
+# Dynamic SMB provisioner for application backup volumes, backed by the
+# Unraid "Backups" share via the SMB CSI driver.
+#
+# Each PVC gets its own subdirectory: Backups/<namespace>/<pvc-name>/
+# This mirrors the layout the old nfs-backups class created, so directory
+# paths on Unraid remain consistent.
+#
+# Why SMB instead of NFS?
+#   NFS hard mounts with Unraid's Mover cause stale file handle errors when
+#   files shift between cache and array disks (inode changes). The noserverino
+#   mount option tells the SMB client to generate its own inodes, which
+#   completely avoids the problem. See:
+#   https://forums.unraid.net/topic/103945-psahow-to-proper-fix-for-smb-stale-file-handle/ (stale file handle thread)
+#
+# Prerequisites:
+#   A Secret named "smb-creds" must exist in the kube-system namespace with:
+#     username: <unraid-user>
+#     password: <unraid-password>
+#   Create it (or a SealedSecret) before any PVC using this class is bound.
+#   Example:
+#     kubectl create secret generic smb-creds \
+#       --from-literal=username=<user> \
+#       --from-literal=password=<pass> \
+#       -n kube-system
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: smb-backups
+provisioner: smb.csi.k8s.io
+parameters:
+  source: //firebird.lan/Backups
+  subDir: ${pvc.metadata.namespace}/${pvc.metadata.name}
+  csi.storage.k8s.io/provisioner-secret-name: smb-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: kube-system
+  csi.storage.k8s.io/node-stage-secret-name: smb-creds
+  csi.storage.k8s.io/node-stage-secret-namespace: kube-system
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+mountOptions:
+  - noserverino
+  - _netdev

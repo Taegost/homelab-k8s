@@ -1,0 +1,4 @@
+controller:
+  # Required for clusters where all nodes are control-plane + worker
+  # (e.g. 3-node HA where there are no dedicated worker-only nodes).
+  runOnControlPlane: true

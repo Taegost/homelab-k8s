@@ -1,0 +1,69 @@
+# ArgoCD Application — smb-csi
+#
+# Installs the SMB CSI Driver (kubernetes-csi/csi-driver-smb) via Helm.
+# This driver enables dynamic and static SMB (CIFS) volume provisioning for
+# all namespaces in the cluster via StorageClasses defined in
+# apps/infrastructure/storage/.
+#
+# Why SMB instead of NFS?
+#   NFS hard mounts with Unraid's Mover cause stale file handle errors when
+#   files shift between cache and array disks (inode changes confuse NFS
+#   clients). SMB with noserverino avoids this entirely — the client generates
+#   its own inodes rather than trusting the server's.
+#
+# GitHub: https://github.com/kubernetes-csi/csi-driver-smb
+# Helm repo: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/master/charts
+#
+# Sync wave -1: Must be running before any namespace creates an SMB-backed PVC
+# (arr-stack is wave 0). Runs alongside nfs-csi and Traefik rather than with
+# cert-manager and MetalLB (wave -2) because no wave -2 component needs SMB.
+#
+# Upgrade instructions:
+#   1. Update targetRevision below
+#   2. Check changelog for breaking value or schema changes:
+#      https://github.com/kubernetes-csi/csi-driver-smb/releases
+#   3. Commit and push — ArgoCD applies the new version automatically
+#   Current chart version: 1.15.0
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smb-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    # Source 1: SMB CSI Driver Helm chart from upstream chart repository.
+    - repoURL: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/master/charts
+      chart: csi-driver-smb
+      targetRevision: 1.15.0
+      helm:
+        valueFiles:
+          - $values/apps/smb-csi/values.yaml
+    # Source 2: This repo, providing $values reference for Source 1.
+    # No path is set — this source exists solely to make values.yaml
+    # available to the Helm chart. No manifests are applied from this source.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+    # Source 3: This repo, applying manifests from apps/smb-csi/ (e.g. the
+    # smb-creds SealedSecret). values.yaml is excluded — it is consumed by
+    # Source 1 via the $values ref and must not be applied as a raw manifest.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      path: apps/smb-csi
+      directory:
+        exclude: 'values.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    # kube-system is the conventional namespace for storage drivers —
+    # the CSI driver requires elevated node permissions that are typically
+    # granted in this namespace.
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,7 +1,7 @@
 # PersistentVolumeClaim — bazarr-backups
 #
-# NFS-backed backup storage for Bazarr, dynamically provisioned by the
-# nfs-backups StorageClass.
+# SMB-backed backup storage for Bazarr, dynamically provisioned by the
+# smb-backups StorageClass.
 #
 # On Unraid, data is stored at:
 #   /mnt/user/Backups/arr-stack/bazarr-backups/
@@ -16,7 +16,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: nfs-backups
+  storageClassName: smb-backups
   resources:
     requests:
       storage: 10Gi
