@@ -23,7 +23,7 @@
 #   2. Check changelog for breaking value or schema changes:
 #      https://github.com/kubernetes-csi/csi-driver-smb/releases
 #   3. Commit and push — ArgoCD applies the new version automatically
-#   Current chart version: 1.15.0
+#   Current chart version: v1.20.1
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -37,7 +37,7 @@ spec:
     # Source 1: SMB CSI Driver Helm chart from upstream chart repository.
     - repoURL: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/master/charts
       chart: csi-driver-smb
-      targetRevision: 1.15.0
+      targetRevision: v1.20.1
       helm:
         valueFiles:
           - $values/apps/smb-csi/values.yaml

@@ -1,4 +1,7 @@
 controller:
-  # Required for clusters where all nodes are control-plane + worker
-  # (e.g. 3-node HA where there are no dedicated worker-only nodes).
+  # Required for clusters where you want this to be able to run on Control Plane nodes
+  # NOTE: chart v1.15.0 used a node selector (node-role.kubernetes.io/control-plane=)
+  # which requires the label with an empty value — incompatible with k3s which sets
+  # node-role.kubernetes.io/control-plane=true. Chart v1.20.1+ uses an Exists affinity
+  # instead, which matches any label value and works correctly with k3s.
   runOnControlPlane: true
