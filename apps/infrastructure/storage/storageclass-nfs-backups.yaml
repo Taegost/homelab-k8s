@@ -1,4 +1,16 @@
-# StorageClass — nfs-backups
+# StorageClass — nfs-backups  [SUPERSEDED — kept for reference]
+#
+# This StorageClass has been superseded by smb-backups (storageclass-smb-backups.yaml).
+# All active PVCs have been migrated to SMB. This definition is retained so the
+# StorageClass can be reinstated quickly if needed (e.g. SMB driver issues, or a
+# workload that specifically requires NFS semantics like Linux POSIX locks).
+#
+# To use this again:
+#   1. Ensure nfs-csi ArgoCD Application is synced (apps/manifests/nfs-csi.yaml)
+#   2. Create a PVC referencing storageClassName: nfs-backups
+#   Known issue: hard + NFSv4.2 mounts produce stale file handle errors after
+#   Unraid's Mover migrates files between cache and array. Use noserverino with
+#   SMB (storageclass-smb-backups.yaml) to avoid this entirely.
 #
 # Dynamic NFS provisioner for application backup volumes.
 # Backed by the Unraid Backups share via the NFS CSI driver.

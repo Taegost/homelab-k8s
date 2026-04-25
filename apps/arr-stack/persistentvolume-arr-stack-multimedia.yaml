@@ -1,36 +1,35 @@
 # PersistentVolume — arr-stack-multimedia
 #
 # Static PV giving the arr-stack namespace read/write access to the root of
-# the Unraid Multimedia NFS share. All four arr-stack apps that handle media
+# the Unraid Multimedia SMB share. All four arr-stack apps that handle media
 # files (Bazarr, Radarr, Sonarr, Whisparr) mount this through the single
 # shared PVC defined in persistentvolumeclaim-multimedia.yaml.
 #
-# Why static provisioning (not the nfs-multimedia StorageClass):
-#   The NFS CSI dynamic provisioner always creates a per-PVC subdirectory
-#   on the share, even without a subDir parameter — it uses the PV UUID as
-#   the directory name. The arr-stack apps need the share root directly so
-#   they can find existing library content organised by Jellyfin/Plex/etc.
-#   Static provisioning lets us bind directly to /mnt/user/Multimedia
-#   without any subdirectory being created.
+# Why static provisioning (not a StorageClass):
+#   The SMB CSI dynamic provisioner always creates a per-PVC subdirectory,
+#   even without a subDir parameter — it uses the PV UUID as the directory
+#   name. The arr-stack apps need the share root directly so they can find
+#   existing library content organised by Jellyfin/Plex/etc. Static
+#   provisioning lets us bind directly to //firebird.lan/Multimedia without
+#   any subdirectory being created.
 #
-# Why the name includes "arr-stack":
-#   PersistentVolumes are cluster-scoped (no namespace). The "arr-stack-"
-#   prefix makes it immediately clear which namespace owns this PV and
-#   prevents accidental binding from other namespaces. The claimRef below
-#   enforces the binding exclusively to the multimedia PVC in arr-stack.
+# Why SMB instead of NFS:
+#   NFS hard mounts with Unraid's Mover cause stale file handle errors when
+#   files shift between cache and array disks (the file inode changes and the
+#   NFS client gets confused). The noserverino mount option tells the SMB
+#   client to generate its own inodes rather than trusting the server's, which
+#   completely eliminates the problem.
 #
-# NFSv3 + nolock:
-#   Unraid has stale file handle issues with NFSv4.1 — NFSv3 is required.
-#   rpc.statd is not running on k3s nodes; nolock keeps locks local to each
-#   node, which is safe here because the arr-stack apps never write to the
-#   same file simultaneously.
+# Credentials:
+#   A Secret named "smb-creds" must exist in the kube-system namespace.
+#   See storageclass-smb-backups.yaml for creation instructions.
 #
 # reclaimPolicy: Retain:
-#   If this PV or the bound PVC is deleted, the NFS share and its data are
+#   If this PV or the bound PVC is deleted, the SMB share and its data are
 #   untouched. The PV moves to Released state and must be manually deleted
 #   before it can be reused.
 #
-# capacity: 100Ti is a nominal ceiling — NFS does not enforce quotas at the
+# capacity: 100Ti is a nominal ceiling — SMB does not enforce quotas at the
 #   PV level. Actual capacity is whatever Unraid reports for the share.
 apiVersion: v1
 kind: PersistentVolume
@@ -44,19 +43,19 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   mountOptions:
-    # NFSv4.2 handles file handle invalidation more gracefully than v3 when Unraid's
-    # Mover migrates files from SSD cache to the parity array. Hard mount ensures
-    # transparent recovery from transient failures (reboots, network blips) without
-    # returning errors to the application. Together these are the most stable combo
-    # for Unraid NFS shares with Cache: Yes and/or Mover enabled.
-    - nfsvers=4.2
-    - hard
+    # noserverino: client generates its own inodes rather than using the
+    # server's. This is the key fix for stale file handle errors when Unraid's
+    # Mover migrates files between SSD cache and the parity array.
+    - noserverino
+    - _netdev
   csi:
-    driver: nfs.csi.k8s.io
+    driver: smb.csi.k8s.io
     volumeHandle: arr-stack-multimedia
     volumeAttributes:
-      server: firebird.lan.
-      share: /mnt/user/Multimedia
+      source: //firebird.lan/Multimedia
+    nodeStageSecretRef:
+      name: smb-creds
+      namespace: kube-system
   claimRef:
     namespace: arr-stack
     name: multimedia
