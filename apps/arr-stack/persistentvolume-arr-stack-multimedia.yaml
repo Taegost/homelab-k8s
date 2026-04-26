@@ -48,6 +48,11 @@ spec:
     # Mover migrates files between SSD cache and the parity array.
     - noserverino
     - _netdev
+    - noperm
+    - uid=99
+    - gid=100
+    - dir_mode=0777
+    - file_mode=0777
   csi:
     driver: smb.csi.k8s.io
     volumeHandle: arr-stack-multimedia
