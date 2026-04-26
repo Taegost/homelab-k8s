@@ -42,3 +42,8 @@ volumeBindingMode: Immediate
 mountOptions:
   - noserverino
   - _netdev
+  - noperm
+  - uid=99
+  - gid=100
+  - dir_mode=0777
+  - file_mode=0777
