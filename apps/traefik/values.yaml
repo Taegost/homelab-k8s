@@ -56,15 +56,6 @@ ports:
       trustedIPs:
         - "10.0.0.0/8"    # Internal Kubernetes VPC range
     protocol: TCP
-  ports:
-  # Existing entrypoints
-  web:
-    port: 80
-    # ... your existing config
-  websecure:
-    port: 443
-    # ... your existing config
-
   # Arr stack entrypoints — Seerr requires port-suffixed URLs for API connections
   # These allow https://appname.home.diceninjagaming.com:PORT to reach Traefik
   # and be routed to the correct backend service
@@ -73,30 +64,36 @@ ports:
     expose:
       default: true
     exposedPort: 7878
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
     protocol: TCP
   sonarr:
     port: 8989
     expose:
       default: true
     exposedPort: 8989
-    protocol: TCP
-  lidarr:
-    port: 8686
-    expose:
-      default: true
-    exposedPort: 8686
-    protocol: TCP
-  readarr:
-    port: 8787
-    expose:
-      default: true
-    exposedPort: 8787
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
     protocol: TCP
   prowlarr:
     port: 9696
     expose:
       default: true
     exposedPort: 9696
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
+    protocol: TCP
+  whisparr:
+    port: 6969
+    expose:
+      default: true
+    exposedPort: 6969
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
     protocol: TCP
 
 # ── Service ───────────────────────────────────────────────────────────────────

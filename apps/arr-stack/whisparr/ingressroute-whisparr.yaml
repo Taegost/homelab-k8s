@@ -17,6 +17,7 @@ metadata:
 spec:
   entryPoints:
     - websecure
+    - whisparr
   routes:
     - match: Host(`whisparr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule
