@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: maitreya
+  namespace: traefik
+spec:
+  ports:
+    - port: 8006
+      protocol: TCP
+      targetPort: 8006
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: maitreya
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.3
+    ports:
+      - port: 8006
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: maitreya
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`maitreya.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: maitreya
+          port: 8006
+          scheme: https
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

@@ -37,6 +37,7 @@ spec:
       targetRevision: HEAD
       path: apps/traefik
       directory:
+        recurse: true
         exclude: 'values.yaml'
   destination:
     server: https://kubernetes.default.svc

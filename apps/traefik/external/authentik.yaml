@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik
+  namespace: traefik
+spec:
+  ports:
+    - port: 9000
+      protocol: TCP
+      targetPort: 9000
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: authentik
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.251
+    ports:
+      - port: 9000
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: authentik
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`authentik.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: authentik
+          port: 9000
+  tls:
+    secretName: wildcard-diceninjagaming-com-tls

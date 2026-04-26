@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-primary
+  namespace: traefik
+spec:
+  ports:
+    - port: 413
+      protocol: TCP
+      targetPort: 413
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: pihole-primary
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.247
+    ports:
+      - port: 413
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pihole-primary
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`pihole.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: pihole-primary
+          port: 413
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-secondary
+  namespace: traefik
+spec:
+  ports:
+    - port: 413
+      protocol: TCP
+      targetPort: 413
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: pihole-secondary
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.248
+    ports:
+      - port: 413
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pihole-secondary
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`pihole-secondary.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: pihole-secondary
+          port: 413
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls
