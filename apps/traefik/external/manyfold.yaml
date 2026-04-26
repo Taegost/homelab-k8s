@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: manyfold
+  namespace: traefik
+spec:
+  ports:
+    - port: 3214
+      protocol: TCP
+      targetPort: 3214
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: manyfold
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.60
+    ports:
+      - port: 3214
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: manyfold
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`manyfold.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: manyfold
+          port: 3214
+  tls:
+    secretName: wildcard-diceninjagaming-com-tls

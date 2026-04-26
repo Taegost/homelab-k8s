@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: patchpanda
+  namespace: traefik
+spec:
+  ports:
+    - port: 5093
+      protocol: TCP
+      targetPort: 5093
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: patchpanda
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.12
+    ports:
+      - port: 5093
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: patchpanda
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`patchpanda.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: patchpanda
+          port: 5093
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

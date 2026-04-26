@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vikunja
+  namespace: traefik
+spec:
+  ports:
+    - port: 3456
+      protocol: TCP
+      targetPort: 3456
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: vikunja
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.12
+    ports:
+      - port: 3456
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vikunja
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vikunja.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: vikunja
+          port: 3456
+  tls:
+    secretName: wildcard-diceninjagaming-com-tls

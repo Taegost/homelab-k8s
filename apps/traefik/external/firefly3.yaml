@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: firefly3
+  namespace: traefik
+spec:
+  ports:
+    - port: 8001
+      protocol: TCP
+      targetPort: 8001
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: firefly3
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.12
+    ports:
+      - port: 8001
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: firefly3
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`firefly3.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: firefly3
+          port: 8001
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

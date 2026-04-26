@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: homeassistant
+  namespace: traefik
+spec:
+  ports:
+    - port: 8123
+      protocol: TCP
+      targetPort: 8123
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: homeassistant
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 192.168.5.40
+    ports:
+      - port: 8123
+        protocol: TCP
+---
+# hass.home.diceninjagaming.com — external-facing alias
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homeassistant-hass
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`hass.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: homeassistant
+          port: 8123
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls
+---
+# homeassistant.home.diceninjagaming.com — internal alias
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homeassistant-internal
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`homeassistant.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: homeassistant
+          port: 8123
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls
