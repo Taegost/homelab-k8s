@@ -1,7 +1,7 @@
 # ExternalName services with raw IP addresses work here because Traefik reads
 # externalName directly from the Kubernetes API, bypassing CoreDNS entirely.
 # Standard in-cluster DNS cannot resolve an IP as an ExternalName — this is a
-# Traefik-specific capability. See external/README.md for full details.
+# Traefik-specific capability. See apps/traefik/external/README.md for full details.
 apiVersion: v1
 kind: Service
 metadata:
