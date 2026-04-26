@@ -51,6 +51,16 @@ spec:
     - noperm
     - uid=99
     - gid=100
+    # forceuid/forcegid: remap ALL file ownership to uid=99/gid=100 regardless
+    # of what the SMB server reports. Without these, uid= and gid= only set
+    # the default for files where the server reports no owner — existing files
+    # written by Docker, Unraid directly, or any other UID retain their
+    # server-reported ownership. This causes permission denied on delete/write
+    # even though noperm bypasses client-side checks (noperm does not override
+    # the kernel enforcing server-reported ownership). Required for a media
+    # library with mixed-provenance files.
+    - forceuid
+    - forcegid
     - dir_mode=0777
     - file_mode=0777
   csi:
