@@ -89,8 +89,13 @@ providers:
   kubernetesCRD:
     enabled: true
     allowCrossNamespace: true
+    # Required for ExternalName services with raw IP addresses in apps/traefik/external/.
+    # Traefik reads externalName directly from the Kubernetes API rather than via CoreDNS,
+    # so IP-based ExternalName services work here even though CoreDNS cannot resolve them.
+    allowExternalNameServices: true
   kubernetesIngress:
     enabled: true
+    allowExternalNameServices: true
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 logs:
