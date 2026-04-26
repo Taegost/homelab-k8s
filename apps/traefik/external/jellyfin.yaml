@@ -1,25 +1,18 @@
+# ExternalName services with raw IP addresses work here because Traefik reads
+# externalName directly from the Kubernetes API, bypassing CoreDNS entirely.
+# Standard in-cluster DNS cannot resolve an IP as an ExternalName — this is a
+# Traefik-specific capability. See apps/traefik/external/README.md for full details.
 apiVersion: v1
 kind: Service
 metadata:
   name: jellyfin
   namespace: traefik
 spec:
+  type: ExternalName
+  externalName: 192.168.5.9
   ports:
     - port: 8096
-      protocol: TCP
       targetPort: 8096
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  name: jellyfin
-  namespace: traefik
-subsets:
-  - addresses:
-      - ip: 192.168.5.9
-    ports:
-      - port: 8096
-        protocol: TCP
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
