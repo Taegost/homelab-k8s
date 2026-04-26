@@ -19,6 +19,7 @@ metadata:
 spec:
   entryPoints:
     - websecure
+    - radarr     # Seerr API access on :7878 — same hostname, different port
   routes:
     - match: Host(`radarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule

@@ -19,6 +19,7 @@ metadata:
 spec:
   entryPoints:
     - websecure
+    - prowlarr
   routes:
     - match: Host(`prowlarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule

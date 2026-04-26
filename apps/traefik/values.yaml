@@ -56,6 +56,45 @@ ports:
       trustedIPs:
         - "10.0.0.0/8"    # Internal Kubernetes VPC range
     protocol: TCP
+  # Arr stack entrypoints — Seerr requires port-suffixed URLs for API connections
+  # These allow https://appname.home.diceninjagaming.com:PORT to reach Traefik
+  # and be routed to the correct backend service
+  radarr:
+    port: 7878
+    expose:
+      default: true
+    exposedPort: 7878
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
+    protocol: TCP
+  sonarr:
+    port: 8989
+    expose:
+      default: true
+    exposedPort: 8989
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
+    protocol: TCP
+  prowlarr:
+    port: 9696
+    expose:
+      default: true
+    exposedPort: 9696
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
+    protocol: TCP
+  whisparr:
+    port: 6969
+    expose:
+      default: true
+    exposedPort: 6969
+    forwardedHeaders:
+      trustedIPs:
+        - "10.0.0.0/8"
+    protocol: TCP
 
 # ── Service ───────────────────────────────────────────────────────────────────
 # LoadBalancer type so MetalLB assigns the reserved Traefik IP.

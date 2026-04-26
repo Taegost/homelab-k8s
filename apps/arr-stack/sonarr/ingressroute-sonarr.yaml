@@ -19,6 +19,7 @@ metadata:
 spec:
   entryPoints:
     - websecure
+    - sonarr
   routes:
     - match: Host(`sonarr.home.diceninjagaming.com`) && PathPrefix(`/api/`)
       kind: Rule
