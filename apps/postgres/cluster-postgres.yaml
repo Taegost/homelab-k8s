@@ -1,0 +1,53 @@
+# CloudNativePG Cluster — Shared PostgreSQL 18 instance
+#
+# This is the shared Postgres instance used by all applications in the cluster.
+# New databases and roles are provisioned via Database and Role CRDs — do not
+# create them manually via psql. See docs/postgres-runbooks.md.
+#
+# Storage: local-path PVCs on each node. CNPG streaming replication provides
+# data redundancy across nodes — Longhorn is intentionally not used here to
+# avoid double-replication overhead.
+#
+# Backups: WAL archiving and PITR are deferred pending an S3-compatible
+# endpoint being set up. When ready, add a barmanObjectStore block here and
+# re-add the ScheduledBackup manifest. See docs/postgres-runbooks.md.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+  namespace: postgres
+spec:
+  # Postgres 18.3 — pin the patch version for reproducibility.
+  # To upgrade: update this tag and check the CNPG release notes for any
+  # required actions (e.g. pg_upgrade for major version bumps).
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.3
+
+  # 2 instances = 1 primary + 1 replica. Matches the current 2-node cluster.
+  # Pod anti-affinity (below) ensures they land on different nodes.
+  # When a third node is added, increase this to 3 for better fault tolerance.
+  instances: 2
+
+  storage:
+    # 10Gi per instance. Adjust based on expected total database size across
+    # all applications. Each instance gets its own PVC on its local node.
+    size: 10Gi
+    storageClass: local-path
+
+  superuserSecret:
+    name: postgres-superuser
+
+  postgresql:
+    parameters:
+      # Keep max_connections at the default. PgBouncer (the Pooler below)
+      # multiplexes all application connections, so Postgres rarely sees
+      # more than a handful of real connections at once.
+      max_connections: "100"
+
+  affinity:
+    # Prefer placing the primary and replica on different nodes, but do not
+    # require it. With only 2 nodes, a hard requirement would leave the replica
+    # in Pending if one node goes down — preferred allows CNPG to reschedule
+    # both instances onto the surviving node and keep the cluster healthy.
+    enablePodAntiAffinity: true
+    podAntiAffinityType: preferred
+    topologyKey: kubernetes.io/hostname
