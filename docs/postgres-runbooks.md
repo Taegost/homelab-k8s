@@ -16,10 +16,10 @@ For disaster recovery (cluster loss, full restore from backup), see [disaster-re
 | Storage | `local-path` PVCs — CNPG streaming replication provides redundancy |
 | Connection pooling | PgBouncer via CNPG `Pooler` (transaction mode) |
 | WAL archiving / backups | **Deferred** — will be configured when an S3-compatible endpoint is available |
-| App connection string | `postgres-pooler-rw.postgres.svc.cluster.local:5432` |
+| App connection string | `postgres-pooler.postgres.svc.cluster.local:5432` |
 | Direct cluster string | `postgres-rw.postgres.svc.cluster.local:5432` (avoid for normal app use) |
 
-Applications must connect through PgBouncer (`postgres-pooler-rw`), not directly to the cluster. The only exception is applications that use `SET LOCAL`, advisory locks, or `LISTEN/NOTIFY`, which are incompatible with PgBouncer's transaction pooling mode.
+Applications must connect through PgBouncer (`postgres-pooler`), not directly to the cluster. The only exception is applications that use `SET LOCAL`, advisory locks, or `LISTEN/NOTIFY`, which are incompatible with PgBouncer's transaction pooling mode.
 
 ### Per-application roles
 
@@ -178,7 +178,7 @@ kubectl get cluster postgres -n postgres -o jsonpath='{.status.managedRolesStatu
 Add the application's `Deployment`, `Service`, `IngressRoute`, and any other manifests to `apps/<appname>/`. The connection string for the app to use:
 
 ```
-host:     postgres-pooler-rw.postgres.svc.cluster.local
+host:     postgres-pooler.postgres.svc.cluster.local
 port:     5432
 database: <appname>
 user:     <appname>

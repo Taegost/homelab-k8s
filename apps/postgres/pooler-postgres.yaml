@@ -3,7 +3,7 @@
 # Sits in front of the Postgres cluster and multiplexes application connections.
 # Applications should connect to this service, not directly to the cluster.
 #
-# Service: postgres-pooler-rw.postgres.svc.cluster.local:5432
+# Service: postgres-pooler.postgres.svc.cluster.local:5432
 #
 # Transaction pooling mode: a server connection is held only for the duration
 # of a single transaction, then returned to the pool. This is the most
