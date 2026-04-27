@@ -1,0 +1,35 @@
+# Static PV for the Fab-3dPrint Samba share on Unraid.
+# Using a static PV (not dynamic StorageClass) because this is a pre-existing
+# share with user data — we never want the provisioner to create or delete it.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: manyfold-libraries
+spec:
+  capacity:
+    storage: 10Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - noserverino
+    - _netdev
+    - noperm
+    - uid=99
+    - gid=100
+    - forceuid
+    - forcegid
+    - dir_mode=0777
+    - file_mode=0777
+  csi:
+    driver: smb.csi.k8s.io
+    volumeHandle: manyfold-libraries
+    volumeAttributes:
+      source: //firebird.lan./Fab-3dPrint
+    nodeStageSecretRef:
+      name: smb-creds
+      namespace: kube-system
+  claimRef:
+    namespace: manyfold
+    name: manyfold-libraries
