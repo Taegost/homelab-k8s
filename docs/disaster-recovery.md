@@ -84,6 +84,14 @@ NFS-backed volumes (used for large media libraries) are not replicated by Kubern
 
 ---
 
+## PostgreSQL Recovery
+
+> **Backlog:** WAL archiving and point-in-time recovery (PITR) for the shared Postgres cluster are deferred pending an S3-compatible endpoint being set up. Until that is in place, Postgres has no off-cluster backup — recovery from total cluster loss would require restoring data from application-level sources.
+>
+> When the S3 endpoint is ready, follow the checklist in `docs/postgres-runbooks.md` to enable backups, then return here to document the full restore procedure.
+
+---
+
 ## Key Contacts and Locations
 
 | Item | Location |

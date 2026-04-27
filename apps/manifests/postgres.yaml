@@ -1,0 +1,38 @@
+# ArgoCD Application — Shared PostgreSQL Cluster
+#
+# Deploys the CNPG Cluster, PgBouncer Pooler, ScheduledBackup, and sealed
+# credentials for the shared Postgres instance used by all applications.
+#
+# New per-application databases and roles are added to apps/postgres/ as
+# Database and Role CRDs — ArgoCD picks them up automatically on next sync.
+# See docs/postgres-runbooks.md for the full workflow.
+#
+# Sync wave -1: Runs alongside traefik and storage drivers — all are platform
+# services that applications consume. Must run after the CNPG operator (wave -2)
+# has installed its CRDs. If this Application syncs before the CRDs exist,
+# ArgoCD will surface "no matches for kind Cluster" errors and retry — it will
+# self-heal once the operator is ready, but setting wave -1 avoids the noise.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/postgres
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: postgres
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

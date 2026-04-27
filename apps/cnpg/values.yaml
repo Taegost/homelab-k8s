@@ -1,0 +1,17 @@
+# CloudNativePG Operator Helm values
+# Chart: cloudnative-pg/cloudnative-pg  Version: 0.22.0
+# Full values reference: helm show values cloudnative-pg/cloudnative-pg --version 0.22.0
+
+# Monitoring is disabled until Prometheus/Grafana is added to the stack.
+# When that happens:
+#   1. Set monitoring.podMonitorEnabled: true
+#   2. Set monitoring.grafanaDashboard.create: true
+monitoring:
+  podMonitorEnabled: false
+  grafanaDashboard:
+    create: false
+
+config:
+  data:
+    # Retain 10 failed jobs for debugging; completed jobs are cleaned up faster.
+    FAILED_INHERITANCE_ANNOTATIONS: "10"

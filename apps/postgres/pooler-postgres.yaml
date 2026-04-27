@@ -1,0 +1,38 @@
+# CloudNativePG Pooler — PgBouncer connection pooler
+#
+# Sits in front of the Postgres cluster and multiplexes application connections.
+# Applications should connect to this service, not directly to the cluster.
+#
+# Service: postgres-pooler-rw.postgres.svc.cluster.local:5432
+#
+# Transaction pooling mode: a server connection is held only for the duration
+# of a single transaction, then returned to the pool. This is the most
+# efficient mode and is compatible with the majority of applications.
+# Notable incompatibility: applications that use SET LOCAL, advisory locks,
+# or LISTEN/NOTIFY must connect directly to the cluster service instead.
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: postgres-pooler
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+
+  # 2 PgBouncer pods for availability. Each pod is stateless — losing one
+  # does not affect in-flight transactions on the other.
+  instances: 2
+
+  # rw routes to the primary only. Add a separate ro Pooler if read-replica
+  # routing is needed for a specific application in the future.
+  type: rw
+
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      # Maximum total client connections across all databases.
+      max_client_conn: "1000"
+      # Connections held open to Postgres per database+user pair.
+      # 25 is a safe default for a mixed-workload shared instance.
+      # Tune upward per-pool if a specific application needs more throughput.
+      default_pool_size: "25"
