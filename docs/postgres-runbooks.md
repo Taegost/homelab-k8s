@@ -16,10 +16,10 @@ For disaster recovery (cluster loss, full restore from backup), see [disaster-re
 | Storage | `local-path` PVCs — CNPG streaming replication provides redundancy |
 | Connection pooling | PgBouncer via CNPG `Pooler` (transaction mode) |
 | WAL archiving / backups | **Deferred** — will be configured when an S3-compatible endpoint is available |
-| App connection string | `postgres-pooler-rw.postgres.svc.cluster.local:5432` |
+| App connection string | `postgres-pooler.postgres.svc.cluster.local:5432` |
 | Direct cluster string | `postgres-rw.postgres.svc.cluster.local:5432` (avoid for normal app use) |
 
-Applications must connect through PgBouncer (`postgres-pooler-rw`), not directly to the cluster. The only exception is applications that use `SET LOCAL`, advisory locks, or `LISTEN/NOTIFY`, which are incompatible with PgBouncer's transaction pooling mode.
+Applications must connect through PgBouncer (`postgres-pooler`), not directly to the cluster. The only exception is applications that use `SET LOCAL`, advisory locks, or `LISTEN/NOTIFY`, which are incompatible with PgBouncer's transaction pooling mode.
 
 ### Per-application roles
 
@@ -80,40 +80,47 @@ Create the ArgoCD `Application` manifest and database resources, but do not add 
 **1. Create the app folder with the database manifest:**
 
 ```yaml
-# apps/<appname>/database-<appname>.yaml
+# apps/appname/database-appname.yaml
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
-  name: <appname>
+  name: appname
   namespace: postgres
 spec:
-  name: <appname>
-  owner: <appname>
+  name: appname
+  owner: appname
   cluster:
     name: postgres
 ```
 
 ```yaml
-# apps/<appname>/secret-<appname>-db-credentials.yaml
+# apps/appname/secret-appname-db-credentials.yaml
 # Fill in a strong password, then seal:
-#   kubeseal --format yaml < apps/<appname>/secret-<appname>-db-credentials.yaml \
-#     > apps/<appname>/sealedsecret-<appname>-db-credentials.yaml
-#   rm apps/<appname>/secret-<appname>-db-credentials.yaml
+#   kubeseal --format yaml < apps/appname/secret-appname-db-credentials.yaml \
+#     > apps/appname/sealedsecret-appname-db-credentials.yaml
+#   rm apps/appname/secret-appname-db-credentials.yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: <appname>-db-credentials
+  name: appname-db-credentials
   namespace: postgres
+  labels:
+    # Required: tells CNPG to re-reconcile the managed role after Sealed Secrets
+    # decrypts this secret. Without this label, CNPG may set up the role before
+    # the secret exists and never retry, leaving the role without a password.
+    cnpg.io/reload: "true"
 type: kubernetes.io/basic-auth
 stringData:
-  username: <appname>
+  username: appname
   password: PLACEHOLDER_CHANGE_ME
 ```
+
+> **Password duplication:** If the application reads its database password from a separate app-level Secret (e.g. `apps/appname/secret-appname.yaml`), that secret's `database-password` key must contain the **same value** as the password above. Kubernetes pods cannot reference secrets across namespaces, so the credential must appear in both the `postgres`-namespace secret (for CNPG to set the role) and the app-namespace secret (for the pod to connect). Keep them in sync when rotating passwords.
 
 **2. Add the role to `apps/postgres/cluster-postgres.yaml` under `spec.managed.roles`:**
 
 ```yaml
-- name: <appname>
+- name: appname
   login: true
   superuser: false
   createdb: false
@@ -121,17 +128,17 @@ stringData:
   inherit: true
   connectionLimit: -1
   passwordSecret:
-    name: <appname>-db-credentials
+    name: appname-db-credentials
 ```
 
 **3. Create the ArgoCD Application manifest (pointing at the app folder):**
 
 ```yaml
-# apps/manifests/<appname>.yaml
+# apps/manifests/appname.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: <appname>
+  name: appname
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
@@ -140,12 +147,12 @@ spec:
   source:
     repoURL: https://github.com/Taegost/homelab-k8s
     targetRevision: HEAD
-    path: apps/<appname>
+    path: apps/appname
     directory:
       recurse: true
   destination:
     server: https://kubernetes.default.svc
-    namespace: <appname>
+    namespace: appname
   syncPolicy:
     automated:
       prune: true
@@ -157,12 +164,12 @@ spec:
 **4. Seal the credentials, commit, and sync:**
 
 ```bash
-kubeseal --format yaml < apps/<appname>/secret-<appname>-db-credentials.yaml \
-  > apps/<appname>/sealedsecret-<appname>-db-credentials.yaml
-rm apps/<appname>/secret-<appname>-db-credentials.yaml
+kubeseal --format yaml < apps/appname/secret-appname-db-credentials.yaml \
+  > apps/appname/sealedsecret-appname-db-credentials.yaml
+rm apps/appname/secret-appname-db-credentials.yaml
 
 git add apps/
-git commit -m "Add <appname>: provision database and role"
+git commit -m "Add appname: provision database and role"
 git push
 ```
 
@@ -175,13 +182,13 @@ kubectl get cluster postgres -n postgres -o jsonpath='{.status.managedRolesStatu
 
 ### Phase 2 — Deploy the application
 
-Add the application's `Deployment`, `Service`, `IngressRoute`, and any other manifests to `apps/<appname>/`. The connection string for the app to use:
+Add the application's `Deployment`, `Service`, `IngressRoute`, and any other manifests to `apps/appname/`. The connection string for the app to use:
 
 ```
-host:     postgres-pooler-rw.postgres.svc.cluster.local
+host:     postgres-pooler.postgres.svc.cluster.local
 port:     5432
-database: <appname>
-user:     <appname>
+database: appname
+user:     appname
 password: (from sealedsecret-db-credentials)
 ```
 
@@ -214,54 +221,67 @@ Follow Phase 1 from [Adding a new application](#adding-a-new-application-no-exis
 Use `pg_dump` / `pg_restore`. This is a logical dump and works across major Postgres versions.
 
 ```bash
-# On a machine that can reach both the source DB and the cluster:
-
-# 1. Dump from source
-pg_dump \
-  --host=<source_host> \
-  --username=<source_user> \
-  --dbname=<source_db> \
+# 1. Dump from source (pg_dump is available inside the source postgres container)
+docker exec -i -e PGPASSWORD=$POSTGRES_PASSWORD source_postgres_container pg_dump \
+  --username=source_user \
+  --dbname=source_db \
   --format=custom \
-  --file=/tmp/<appname>.dump
+  > /tmp/appname.dump
 
-# 2. Restore into the new cluster (connect via the cluster service, not pooler,
-#    to avoid transaction-mode pooling restrictions during restore)
-pg_restore \
+# 2. Extract the destination password into a shell variable first to avoid
+#    quoting issues with special characters when injecting into the pod env.
+PGPASS=$(kubectl get secret appname-db-credentials -n postgres \
+  -o jsonpath='{.data.password}' | base64 -d)
+
+# 3. Start a restore pod in the postgres namespace with PGPASSWORD baked in.
+#    Use single quotes for the literal prefix to prevent shell expansion of
+#    special characters in the password. The variable reference is double-quoted
+#    separately so it expands correctly.
+kubectl run pg-restore -n postgres --image=postgres:18 --restart=Never \
+  --env='PGPASSWORD='"${PGPASS}" -- sleep infinity
+
+kubectl wait -n postgres --for=condition=Ready pod/pg-restore --timeout=60s
+
+# 4. Copy the dump into the pod
+kubectl cp /tmp/appname.dump postgres/pg-restore:/tmp/appname.dump
+
+# 5. Restore — PGPASSWORD is already set in the pod, no need to pass it here
+kubectl exec -n postgres pg-restore -- pg_restore \
   --host=postgres-rw.postgres.svc.cluster.local \
-  --username=<appname> \
-  --dbname=<appname> \
+  --username=appname \
+  --dbname=appname \
   --no-owner \
   --no-privileges \
-  /tmp/<appname>.dump
-
-# Clean up the dump file
-rm /tmp/<appname>.dump
+  /tmp/appname.dump
 ```
 
-If you cannot reach the cluster service directly, run the restore from inside the cluster:
+**Verify the data before continuing (using the same pod — leave it running):**
 
 ```bash
-kubectl run pg-restore --rm -it --image=postgres:18 --restart=Never -- bash
-# Then run the pg_restore command above from inside the pod
+# Spot-check table list and row counts on key tables
+kubectl exec -n postgres pg-restore -- psql \
+  --host=postgres-rw.postgres.svc.cluster.local \
+  --username=appname --dbname=appname -c "\dt"
+
+kubectl exec -n postgres pg-restore -- psql \
+  --host=postgres-rw.postgres.svc.cluster.local \
+  --username=appname --dbname=appname \
+  -c "SELECT COUNT(*) FROM important_table;"
 ```
 
-**Verify the data before continuing:**
-
-```bash
-# Spot-check row counts on key tables
-kubectl exec -it -n postgres postgres-1 -- psql -U postgres -d <appname> -c "\dt"
-kubectl exec -it -n postgres postgres-1 -- psql -U postgres -d <appname> \
-  -c "SELECT COUNT(*) FROM <important_table>;"
-```
-
-Compare counts against the source. If anything looks wrong, fix it before proceeding — the source is still live and untouched.
+Compare counts against the source. If anything looks wrong, fix it before proceeding — the source is still live and untouched. Leave the `pg-restore` pod running; you may need it again for a final incremental sync in Phase 3.
 
 ### Phase 3 — Deploy the application and smoke test
 
 1. Stop or put the source application into read-only mode to prevent new writes during cutover
-2. Run a final incremental sync if the source had any activity since the initial dump
-3. Add the application's `Deployment`, `Service`, `IngressRoute`, etc. to `apps/<appname>/`
+2. If the source had any activity since the initial dump, run a final incremental sync using the still-running `pg-restore` pod
+3. Add the application's `Deployment`, `Service`, `IngressRoute`, etc. to `apps/appname/`
 4. Update the application's database connection string to point at the new cluster
 5. Commit, push, sync ArgoCD
 6. Smoke test: verify the application is healthy and data looks correct
-7. Once confirmed: decommission the source database and application
+7. Once confirmed: decommission the source database and application, then clean up the restore pod:
+
+```bash
+kubectl delete pod -n postgres pg-restore
+rm /tmp/appname.dump
+```

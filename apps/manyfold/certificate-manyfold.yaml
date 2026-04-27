@@ -1,0 +1,24 @@
+# Certificate — manyfold.diceninjagaming.com
+#
+# Manyfold is publicly exposed, so it gets a dedicated certificate rather than
+# relying on the shared wildcard. The secret lands in the manyfold namespace
+# alongside the IngressRoute that references it, keeping the app's TLS fully
+# isolated from other applications.
+#
+# Traefik (allowCrossNamespace: true) resolves tls.secretName in the same
+# namespace as the IngressRoute, so both resources must share the same namespace.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: manyfold-diceninjagaming-com
+  namespace: manyfold
+spec:
+  secretName: manyfold-diceninjagaming-com-tls
+  duration: 2160h      # 90 days — Let's Encrypt standard
+  renewBefore: 720h    # Renew 30 days before expiry
+  dnsNames:
+    - manyfold.diceninjagaming.com
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

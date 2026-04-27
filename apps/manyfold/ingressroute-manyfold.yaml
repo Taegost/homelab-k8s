@@ -1,0 +1,26 @@
+# IngressRoute lives in the manyfold namespace alongside the Certificate/TLS secret,
+# keeping this app's routing and TLS fully isolated from other applications.
+# Traefik (allowCrossNamespace: true) picks up IngressRoutes from all namespaces
+# and resolves tls.secretName within the IngressRoute's own namespace.
+# Cross-namespace middleware reference (default-whitelist) is supported via the
+# namespace field on the middleware entry.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: manyfold
+  namespace: manyfold
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`manyfold.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: manyfold
+          namespace: manyfold
+          port: 3214
+  tls:
+    secretName: manyfold-diceninjagaming-com-tls
