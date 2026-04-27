@@ -104,6 +104,11 @@ kind: Secret
 metadata:
   name: <appname>-db-credentials
   namespace: postgres
+  labels:
+    # Required: tells CNPG to watch this secret and re-reconcile the managed
+    # role if the secret didn't exist yet at initial sync time (race condition
+    # between SealedSecret decryption and CNPG's first reconciliation attempt).
+    cnpg.io/reload: "true"
 type: kubernetes.io/basic-auth
 stringData:
   username: <appname>
@@ -226,7 +231,17 @@ pg_dump \
 
 # 2. Restore into the new cluster (connect via the cluster service, not pooler,
 #    to avoid transaction-mode pooling restrictions during restore)
-pg_restore \
+#
+# If running from inside the cluster (see below), pull the password directly
+# from the secret to avoid shell quoting issues with special characters.
+# Do NOT quote the PGPASSWORD value when using kubectl exec -- env, as the
+# quotes may be passed literally to the process rather than stripped by the shell.
+kubectl run pg-restore -n postgres --image=postgres:18 --restart=Never -- sleep infinity
+kubectl wait -n postgres --for=condition=Ready pod/pg-restore --timeout=60s
+kubectl cp /tmp/<appname>.dump postgres/pg-restore:/tmp/<appname>.dump
+kubectl exec -n postgres pg-restore -- env \
+  PGPASSWORD=$(kubectl get secret <appname>-db-credentials -n postgres -o jsonpath='{.data.password}' | base64 -d) \
+  pg_restore \
   --host=postgres-rw.postgres.svc.cluster.local \
   --username=<appname> \
   --dbname=<appname> \
@@ -234,15 +249,9 @@ pg_restore \
   --no-privileges \
   /tmp/<appname>.dump
 
-# Clean up the dump file
+# Clean up
+kubectl delete pod -n postgres pg-restore
 rm /tmp/<appname>.dump
-```
-
-If you cannot reach the cluster service directly, run the restore from inside the cluster:
-
-```bash
-kubectl run pg-restore --rm -it --image=postgres:18 --restart=Never -- bash
-# Then run the pg_restore command above from inside the pod
 ```
 
 **Verify the data before continuing:**
