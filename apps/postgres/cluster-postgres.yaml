@@ -1,8 +1,9 @@
 # CloudNativePG Cluster — Shared PostgreSQL 18 instance
 #
 # This is the shared Postgres instance used by all applications in the cluster.
-# New databases and roles are provisioned via Database and Role CRDs — do not
-# create them manually via psql. See docs/postgres-runbooks.md.
+# New databases are provisioned via the Database CRD. Roles are managed via
+# spec.managed.roles below — CNPG 0.28.0 has no standalone Role CRD.
+# Do not create databases or roles manually via psql. See docs/postgres-runbooks.md.
 #
 # Storage: local-path PVCs on each node. CNPG streaming replication provides
 # data redundancy across nodes — Longhorn is intentionally not used here to
@@ -51,4 +52,15 @@ spec:
     enablePodAntiAffinity: true
     podAntiAffinityType: preferred
     topologyKey: kubernetes.io/hostname
-    
+
+  managed:
+    roles:
+      - name: manyfold
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: manyfold-db-credentials

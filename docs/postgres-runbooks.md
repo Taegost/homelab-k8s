@@ -21,6 +21,12 @@ For disaster recovery (cluster loss, full restore from backup), see [disaster-re
 
 Applications must connect through PgBouncer (`postgres-pooler-rw`), not directly to the cluster. The only exception is applications that use `SET LOCAL`, advisory locks, or `LISTEN/NOTIFY`, which are incompatible with PgBouncer's transaction pooling mode.
 
+### Per-application roles
+
+Every application gets its own PostgreSQL role (user) and owns its own database. This is not optional — it enforces isolation at the database layer: an application's credentials only grant access to its own database, so a misconfiguration or credential leak in one app cannot expose another app's data.
+
+Roles are declared in `spec.managed.roles` in `apps/postgres/cluster-postgres.yaml`. CNPG has no standalone Role CRD — this is the only supported declarative mechanism. See the [CNPG declarative role management docs](https://cloudnative-pg.io/documentation/current/declarative_role_management/) for the full list of available fields.
+
 ---
 
 ## First-time setup
@@ -71,7 +77,7 @@ Use this workflow when deploying a fresh application that needs a new Postgres d
 
 Create the ArgoCD `Application` manifest and database resources, but do not add the application's `Deployment` yet.
 
-**1. Create the app folder with database manifests only:**
+**1. Create the app folder with the database manifest:**
 
 ```yaml
 # apps/<appname>/database-<appname>.yaml
@@ -85,25 +91,6 @@ spec:
   owner: <appname>
   cluster:
     name: postgres
-```
-
-```yaml
-# apps/<appname>/role-<appname>.yaml
-apiVersion: postgresql.cnpg.io/v1
-kind: Role
-metadata:
-  name: <appname>
-  namespace: postgres
-spec:
-  name: <appname>
-  passwordSecret:
-    name: <appname>-db-credentials
-  login: true
-  superuser: false
-  createdb: false
-  createrole: false
-  inherit: true
-  connectionLimit: -1
 ```
 
 ```yaml
@@ -123,7 +110,21 @@ stringData:
   password: PLACEHOLDER_CHANGE_ME
 ```
 
-**2. Create the ArgoCD Application manifest (pointing at the app folder):**
+**2. Add the role to `apps/postgres/cluster-postgres.yaml` under `spec.managed.roles`:**
+
+```yaml
+- name: <appname>
+  login: true
+  superuser: false
+  createdb: false
+  createrole: false
+  inherit: true
+  connectionLimit: -1
+  passwordSecret:
+    name: <appname>-db-credentials
+```
+
+**3. Create the ArgoCD Application manifest (pointing at the app folder):**
 
 ```yaml
 # apps/manifests/<appname>.yaml
@@ -153,7 +154,7 @@ spec:
       - CreateNamespace=true
 ```
 
-**3. Seal the credentials, commit, and sync:**
+**4. Seal the credentials, commit, and sync:**
 
 ```bash
 kubeseal --format yaml < apps/<appname>/secret-<appname>-db-credentials.yaml \
@@ -165,10 +166,11 @@ git commit -m "Add <appname>: provision database and role"
 git push
 ```
 
-Sync ArgoCD and verify the database and role were created:
+Sync ArgoCD and verify the database was created and the role is active:
 
 ```bash
-kubectl get database,role -n postgres
+kubectl get database -n postgres
+kubectl get cluster postgres -n postgres -o jsonpath='{.status.managedRolesStatus}' | jq
 ```
 
 ### Phase 2 — Deploy the application
@@ -202,7 +204,8 @@ The migration is split into three phases to work with ArgoCD rather than against
 Follow Phase 1 from [Adding a new application](#adding-a-new-application-no-existing-database) above. At the end of this phase:
 
 - The ArgoCD `Application` exists and is synced
-- The `Database` and `Role` CRDs exist in the cluster
+- The `Database` CRD exists in the `postgres` namespace
+- The role exists in `spec.managed.roles` in `cluster-postgres.yaml` and is confirmed active
 - The application's `Deployment` does **not** exist yet
 - The source system is still running normally
 
