@@ -16,7 +16,7 @@ spec:
     - match: Host(`manyfold.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: default-whitelist
+        - name: default-headers # This is available from outside the network
           namespace: traefik
       services:
         - name: manyfold
