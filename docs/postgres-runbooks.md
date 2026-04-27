@@ -133,7 +133,7 @@ metadata:
   name: <appname>
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:

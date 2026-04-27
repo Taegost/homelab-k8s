@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: manyfold
+  namespace: postgres
+spec:
+  name: manyfold
+  owner: manyfold
+  cluster:
+    name: postgres
