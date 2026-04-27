@@ -105,9 +105,9 @@ metadata:
   name: appname-db-credentials
   namespace: postgres
   labels:
-    # Required: tells CNPG to re-reconcile the managed role after Sealed Secrets
-    # decrypts this secret. Without this label, CNPG may set up the role before
-    # the secret exists and never retry, leaving the role without a password.
+    # Required: tells CNPG to watch this secret and re-reconcile the managed
+    # role if the secret didn't exist yet at initial sync time (race condition
+    # between SealedSecret decryption and CNPG's first reconciliation attempt).
     cnpg.io/reload: "true"
 type: kubernetes.io/basic-auth
 stringData:
@@ -240,28 +240,32 @@ PGPASS=$(kubectl get secret appname-db-credentials -n postgres \
 kubectl run pg-restore -n postgres --image=postgres:18 --restart=Never \
   --env='PGPASSWORD='"${PGPASS}" -- sleep infinity
 
+# 2. Restore into the new cluster (connect via the cluster service, not pooler,
+#    to avoid transaction-mode pooling restrictions during restore)
+#
+# If running from inside the cluster (see below), pull the password directly
+# from the secret to avoid shell quoting issues with special characters.
+# Do NOT quote the PGPASSWORD value when using kubectl exec -- env, as the
+# quotes may be passed literally to the process rather than stripped by the shell.
+kubectl run pg-restore -n postgres --image=postgres:18 --restart=Never -- sleep infinity
 kubectl wait -n postgres --for=condition=Ready pod/pg-restore --timeout=60s
-
-# 4. Copy the dump into the pod
-kubectl cp /tmp/appname.dump postgres/pg-restore:/tmp/appname.dump
-
-# 5. Restore — PGPASSWORD is already set in the pod, no need to pass it here
-kubectl exec -n postgres pg-restore -- pg_restore \
+kubectl cp /tmp/<appname>.dump postgres/pg-restore:/tmp/<appname>.dump
+kubectl exec -n postgres pg-restore -- env \
+  PGPASSWORD=$(kubectl get secret <appname>-db-credentials -n postgres -o jsonpath='{.data.password}' | base64 -d) \
+  pg_restore \
   --host=postgres-rw.postgres.svc.cluster.local \
   --username=appname \
   --dbname=appname \
   --no-owner \
   --no-privileges \
-  /tmp/appname.dump
+  /tmp/<appname>.dump
+
+# Clean up
+kubectl delete pod -n postgres pg-restore
+rm /tmp/<appname>.dump
 ```
 
-**Verify the data before continuing (using the same pod — leave it running):**
-
-```bash
-# Spot-check table list and row counts on key tables
-kubectl exec -n postgres pg-restore -- psql \
-  --host=postgres-rw.postgres.svc.cluster.local \
-  --username=appname --dbname=appname -c "\dt"
+**Verify the data before continuing:**
 
 kubectl exec -n postgres pg-restore -- psql \
   --host=postgres-rw.postgres.svc.cluster.local \
