@@ -189,7 +189,7 @@ host:     postgres-pooler.postgres.svc.cluster.local
 port:     5432
 database: appname
 user:     appname
-password: (from sealedsecret-db-credentials)
+password: (from sealedsecret-appname)
 ```
 
 Commit, push, and sync. ArgoCD picks up the new manifests automatically.
