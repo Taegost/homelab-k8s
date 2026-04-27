@@ -26,7 +26,7 @@ spec:
     - match: Host(`paperless.home.diceninjagaming.com`)
       kind: Rule
       middlewares:
-        - name: default-whitelist
+        - name: default-headers
           namespace: traefik
       services:
         - name: paperless
