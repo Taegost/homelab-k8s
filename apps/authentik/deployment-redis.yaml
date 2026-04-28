@@ -16,13 +16,27 @@ spec:
       containers:
         - name: redis
           image: docker.io/library/redis:7-alpine
+          # noeviction: correct policy for a Celery task queue — Redis returns
+          # an error on new writes when full rather than silently evicting jobs.
+          command:
+            - redis-server
+            - --maxmemory
+            - 96mb
+            - --maxmemory-policy
+            - noeviction
           ports:
             - containerPort: 6379
           livenessProbe:
             exec:
               command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
             periodSeconds: 30
             failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             requests:
               cpu: 10m
@@ -32,6 +46,12 @@ spec:
               memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            # runAsUser bypasses the entrypoint's gosu privilege-drop (which
+            # requires root). The entrypoint detects it is already the redis
+            # user and skips the chown step, so ALL capabilities can be dropped.
+            runAsUser: 999
+            runAsGroup: 999
             capabilities:
               drop:
                 - ALL

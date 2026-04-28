@@ -1,0 +1,24 @@
+# ── COMMIT 3b (cutover) — add this file at the same time as removing
+#    apps/traefik/external/authentik.yaml and updating the middlewares.
+#    Do NOT commit this file until the K8s Authentik is confirmed healthy
+#    via port-forward, or the cutover will fail silently.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: authentik
+  namespace: authentik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`authentik.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-headers
+          namespace: traefik
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 9000
+  tls:
+    secretName: authentik-diceninjagaming-com-tls
