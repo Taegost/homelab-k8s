@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-server
+  namespace: authentik
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: authentik-server
+  template:
+    metadata:
+      labels:
+        app: authentik-server
+    spec:
+      # Prefer spreading the two server replicas across nodes so auth stays up
+      # during a rolling update or node failure. "Preferred" not "required" so
+      # scheduling still works if both replicas must land on the same node.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - authentik-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: server
+          image: ghcr.io/goauthentik/server:2025.10.2
+          command: ["server"]
+          ports:
+            - containerPort: 9000
+          env:
+            - name: AUTHENTIK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: authentik
+                  key: secret-key
+            - name: AUTHENTIK_POSTGRESQL__HOST
+              value: postgres-pooler.postgres.svc.cluster.local
+            - name: AUTHENTIK_POSTGRESQL__PORT
+              value: "5432"
+            - name: AUTHENTIK_POSTGRESQL__NAME
+              value: authentik
+            - name: AUTHENTIK_POSTGRESQL__USER
+              value: authentik
+            - name: AUTHENTIK_POSTGRESQL__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: authentik
+                  key: db-password
+            # Required for PgBouncer transaction-pooling compatibility.
+            # Authentik uses server-side cursors by default which break under
+            # transaction pooling — this disables them.
+            - name: AUTHENTIK_POSTGRESQL__DISABLE_SERVER_SIDE_CURSORS
+              value: "true"
+            - name: AUTHENTIK_REDIS__HOST
+              value: redis.authentik.svc.cluster.local
+          volumeMounts:
+            - name: media
+              mountPath: /media
+              subPath: media
+            - name: media
+              mountPath: /templates
+              subPath: templates
+          # Authentik runs DB migrations on startup; allow up to 10 minutes
+          # before the liveness probe takes over.
+          startupProbe:
+            httpGet:
+              path: /-/health/live/
+              port: 9000
+            failureThreshold: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/health/live/
+              port: 9000
+            periodSeconds: 30
+            failureThreshold: 3
+          # Ready only when the DB connection is confirmed — keeps pods out of
+          # rotation until fully initialised.
+          readinessProbe:
+            httpGet:
+              path: /-/health/ready/
+              port: 9000
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 700Mi
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: authentik-media

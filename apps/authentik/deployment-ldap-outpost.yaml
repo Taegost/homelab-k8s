@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-outpost
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-outpost
+  template:
+    metadata:
+      labels:
+        app: ldap-outpost
+    spec:
+      containers:
+        - name: ldap-outpost
+          image: ghcr.io/goauthentik/ldap:2025.10.2
+          ports:
+            - name: ldap
+              containerPort: 3389
+            - name: ldaps
+              containerPort: 6636
+          env:
+            - name: AUTHENTIK_HOST
+              value: https://authentik.diceninjagaming.com
+            - name: AUTHENTIK_INSECURE
+              value: "false"
+            - name: AUTHENTIK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: authentik
+                  key: ldap-outpost-token
+          livenessProbe:
+            tcpSocket:
+              port: 3389
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
