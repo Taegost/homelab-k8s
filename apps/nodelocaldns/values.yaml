@@ -1,0 +1,25 @@
+# NodeLocal DNSCache Helm Values
+# Version is defined in apps/manifests/nodelocaldns.yaml targetRevision — update both together when upgrading.
+#
+# ── Why this exists ───────────────────────────────────────────────────────────
+# k3s clusters experiencing intermittent DNS failures under load due to the
+# Linux conntrack race condition: concurrent UDP A/AAAA queries sent to the
+# CoreDNS ClusterIP can have their responses swapped by conntrack, causing pods
+# to resolve any hostname to whatever IP was in-flight for another query.
+#
+# NodeLocal DNSCache intercepts DNS queries on each node before they hit
+# kube-proxy, so conntrack is never involved. Cache misses are forwarded
+# directly to a CoreDNS pod IP, also bypassing conntrack.
+#
+# ── k3s iptables mode ─────────────────────────────────────────────────────────
+# k3s uses iptables (not IPVS). setupIptables must be true so the agent
+# creates iptables rules that intercept traffic bound for the kube-dns ClusterIP
+# (10.43.0.10) and redirect it to the local cache. Without this, pods still
+# reach CoreDNS through kube-proxy and the conntrack race is not eliminated.
+#
+# upstreamSvc: kube-dns is the chart default and matches the k3s CoreDNS
+# service name — listed here for visibility, not because it needs overriding.
+image:
+  args:
+    setupIptables: true
+    upstreamSvc: kube-dns

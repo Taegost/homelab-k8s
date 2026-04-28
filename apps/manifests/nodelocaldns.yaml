@@ -1,0 +1,38 @@
+# ArgoCD Application — NodeLocal DNSCache
+#
+# Deploys a DNS cache agent on every node as a DaemonSet. Each agent intercepts
+# DNS queries via iptables before they reach the CoreDNS ClusterIP, eliminating
+# the Linux conntrack race condition that causes intermittent DNS resolution
+# failures when concurrent A/AAAA queries have their responses swapped.
+#
+# Sync wave -1: DNS infrastructure should be running before application pods
+# start. No dependency on Traefik or MetalLB; running early ensures pods
+# launched in wave 0+ get the conntrack-safe DNS path from the start.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nodelocaldns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://lablabs.github.io/k8s-nodelocaldns-helm/
+      chart: node-local-dns
+      targetRevision: 2.4.0
+      helm:
+        valueFiles:
+          - $values/apps/nodelocaldns/values.yaml
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
