@@ -60,6 +60,11 @@ spec:
               value: "true"
             - name: AUTHENTIK_REDIS__HOST
               value: redis.authentik.svc.cluster.local
+            # Prevent Django from holding persistent connections between
+            # requests. With PgBouncer transaction pooling, persistent
+            # connections defeat the pool and can cause stale-connection errors.
+            - name: AUTHENTIK_POSTGRESQL__CONN_MAX_AGE
+              value: "0"
           volumeMounts:
             - name: media
               mountPath: /media

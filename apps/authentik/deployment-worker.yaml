@@ -40,6 +40,8 @@ spec:
               value: "true"
             - name: AUTHENTIK_REDIS__HOST
               value: redis.authentik.svc.cluster.local
+            - name: AUTHENTIK_POSTGRESQL__CONN_MAX_AGE
+              value: "0"
           volumeMounts:
             - name: media
               mountPath: /media

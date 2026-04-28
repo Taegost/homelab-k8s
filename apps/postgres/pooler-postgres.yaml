@@ -36,3 +36,15 @@ spec:
       # 25 is a safe default for a mixed-workload shared instance.
       # Tune upward per-pool if a specific application needs more throughput.
       default_pool_size: "25"
+      # extra_float_digits and options are CNPG's required base — both must be
+      # present whenever this parameter is set explicitly, or their defaults
+      # are cleared.
+      # search_path is added for Authentik (Django-based): it sends search_path
+      # as a startup parameter, which PgBouncer rejects in transaction mode.
+      # Authentik's tables are all in the public schema (the PG default), so
+      # dropping the client's search_path request and letting Postgres use its
+      # own default ("$user", public) is safe. The preferred fix would be
+      # ALTER ROLE authentik SET search_path = public at the role level, but
+      # CNPG's managed roles spec has no field for per-role GUC settings,
+      # making this the practical GitOps-declarative alternative.
+      ignore_startup_parameters: "extra_float_digits,options,search_path"
