@@ -70,10 +70,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 320Mi
+              memory: 450Mi
             limits:
               cpu: 1000m
-              memory: 512Mi
+              memory: 1Gi
           # Root is required for certificate imports written to /certs.
           securityContext:
             runAsUser: 0

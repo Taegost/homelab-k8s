@@ -29,19 +29,55 @@ The NodeLocal agent forwards cache misses directly to a CoreDNS **pod IP**, not 
 
 **Cause:** Linux conntrack has a race condition with concurrent UDP DNS queries. When a pod fires A and AAAA record queries simultaneously, kube-proxy NATs them toward the CoreDNS ClusterIP. If two queries from different pods share a similar 5-tuple at the same moment, conntrack can deliver the response from one query to the other pod's socket. Because there is always heavy traffic to `*.diceninjagaming.com` from in-cluster pods (which legitimately resolves to `192.168.5.202`), those responses are frequently in-flight and are the most common swap target.
 
-**Fix:** NodeLocal DNSCache (`apps/manifests/nodelocaldns.yaml`) — intercepts DNS at the node level via iptables before kube-proxy is involved. Conntrack never enters the DNS path.
+**Fix:** NodeLocal DNSCache (`apps/manifests/nodelocaldns.yaml`) — intercepts DNS at the node level before kube-proxy is involved. Conntrack never enters the DNS path.
 
-**If NodeLocal DNSCache is deployed but the issue persists:**
-1. Verify the DaemonSet is running on all nodes: `kubectl get daemonset -n kube-system node-local-dns`
-2. Confirm iptables rules are set up on the affected node (SSH to the node):
+**Critical requirement — k3s kubelet must be configured on every node:**
+The lablabs chart deploys the NodeLocal agent and sets up NOTRACK iptables rules for
+`169.254.20.11`, but it does NOT configure k3s to inject `169.254.20.11` into pod
+`resolv.conf`. Without this, pods still use `10.43.0.10` and the conntrack race persists.
+
+On **every** node (server and agents), add the kubelet arg and restart:
+
+```bash
+# Server node
+sudo tee -a /etc/rancher/k3s/config.yaml <<'EOF'
+kubelet-arg:
+  - "cluster-dns=169.254.20.11"
+EOF
+sudo systemctl restart k3s
+
+# Agent nodes
+sudo tee -a /etc/rancher/k3s/config.yaml <<'EOF'
+kubelet-arg:
+  - "cluster-dns=169.254.20.11"
+EOF
+sudo systemctl restart k3s-agent
+```
+
+After both nodes are back, restart all running pods (or at minimum the affected ones) to
+pick up the new `resolv.conf`. Verify with:
+
+```bash
+kubectl exec -n <namespace> <pod> -- cat /etc/resolv.conf
+# Must show: nameserver 169.254.20.11
+```
+
+**If NodeLocal DNSCache is deployed and kubelet is configured but the issue persists:**
+1. Verify the DaemonSet is running on all nodes:
    ```bash
-   iptables -t raw -L OUTPUT -n | grep 10.43.0.10
-   iptables -t nat -L PREROUTING -n | grep 10.43.0.10
+   kubectl get daemonset -n kube-system nodelocaldns-node-local-dns
+   kubectl get pods -n kube-system -l app.kubernetes.io/name=node-local-dns -o wide
    ```
-   Both should show rules redirecting port 53 traffic to `169.254.20.11`.
-3. If rules are missing, the pod may have restarted without teardown. Check pod logs:
+   Note: the DaemonSet is named `nodelocaldns-node-local-dns` (Helm release prefix + chart name), not `node-local-dns`.
+2. Confirm the NOTRACK rules are present on the affected node (SSH to the node):
    ```bash
-   kubectl logs -n kube-system -l k8s-app=node-local-dns --tail=50
+   iptables-save | grep 169.254.20.11
+   ```
+   You should see NOTRACK and ACCEPT rules for port 53 on `169.254.20.11`.
+3. If rules are missing, cycle the DaemonSet pod on the affected node:
+   ```bash
+   kubectl logs -n kube-system -l app.kubernetes.io/name=node-local-dns --tail=50
+   kubectl delete pod -n kube-system <nodelocaldns-pod-on-affected-node>
    ```
 
 ---
