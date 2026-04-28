@@ -88,6 +88,10 @@ spec:
           volumeMounts:
             - name: libraries
               mountPath: /libraries
+              # The Unraid share root is Fab-3dPrint; the actual model library
+              # lives in a subdirectory called 'libraries'. subPath mounts only
+              # that subdirectory, matching the original Docker container layout.
+              subPath: libraries
           startupProbe:
             httpGet:
               path: /health
