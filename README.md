@@ -66,6 +66,21 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 
 ---
 
+## Deployed Applications
+
+| Application | Purpose | Namespace |
+|-------------|---------|-----------|
+| [Authentik](https://goauthentik.io/) | Identity provider — SSO, LDAP, ForwardAuth | `authentik` |
+| [Manyfold](https://manyfold.app/) | 3D model library | `manyfold` |
+| [Arr stack](https://wiki.servarr.com/) | Media automation (Sonarr, Radarr, Prowlarr, etc) | `arr-stack` |
+
+Most applications share a single [CloudNativePG](https://cloudnative-pg.io/) PostgreSQL 18
+cluster (`apps/postgres/`) via per-app roles and databases. Connections go through a PgBouncer
+pooler (`postgres-pooler.postgres.svc.cluster.local`). See [docs/postgres-runbooks.md](docs/postgres-runbooks.md)
+for the workflow for adding or migrating a database-backed application.
+
+---
+
 ## Repository Structure
 
 ```
@@ -79,6 +94,9 @@ homelab-k8s/
 │   ├── sealed-secrets/           # Sealed Secrets controller
 │   └── <app-name>/               # Add new apps here (see below)
 │
+├── archived/                     # Evaluated and deliberately removed components
+│   └── README.md                 # Explains what's here and why each was removed
+│
 ├── bootstrap/                    # One-time manual bootstrap scripts/manifests
 │   │                             # These are applied once to get ArgoCD running.
 │   │                             # After that, ArgoCD takes over.
@@ -86,7 +104,9 @@ homelab-k8s/
 │
 ├── docs/                         # Extended documentation
 │   ├── sealed-secrets.md         # How to create and rotate sealed secrets
-│   └── disaster-recovery.md     # What to do if you rebuild the cluster
+│   ├── postgres-runbooks.md      # Day-two Postgres operations and migration workflow
+│   ├── disaster-recovery.md      # What to do if you rebuild the cluster
+│   └── troubleshooting.md        # Common troubleshooting scenarios and issues we've come across
 │
 ├── .gitignore                    # Prevents accidental secret commits
 ├── app-of-apps.yaml              # Root ArgoCD Application — bootstraps autodiscovery

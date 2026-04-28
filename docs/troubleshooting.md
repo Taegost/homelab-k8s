@@ -6,79 +6,122 @@ Cluster-level diagnostics and known gotchas. Add a section here whenever you res
 
 ## DNS
 
+### TL;DR — what has actually gone wrong in this cluster
+
+| Incident | Looked like | Actually was | Fix |
+|----------|-------------|--------------|-----|
+| Authentik migration (2026-04-28) — pod on `ubuntu-server` resolved `postgres-pooler.postgres.svc.cluster.local` to `192.168.5.202` | conntrack race condition | Node's `/etc/resolv.conf` had `search home.diceninjagaming.com`; with `ndots:5` this matched the Pi-hole wildcard before the absolute FQDN was tried | Set DNS Domain to `.` in Proxmox cloud-init; edit `/etc/netplan/50-cloud-init.yaml` |
+
+If a pod is resolving a cluster-internal hostname to `192.168.5.202` (Traefik),
+**check the pod's `resolv.conf` search domains first** before assuming conntrack.
+
+---
+
 ### Architecture
 
 | Component | Detail |
 |-----------|--------|
 | In-cluster DNS | CoreDNS — 1 replica, managed by k3s addon controller (`kube-system`) |
 | ClusterIP | `10.43.0.10` (service name: `kube-dns`) |
-| NodeLocal DNSCache | DaemonSet on every node — intercepts DNS queries via iptables before they reach CoreDNS |
-| NodeLocal link-local IP | `169.254.20.11` — **not** `169.254.20.10` as shown in the official k8s docs |
 | Upstream DNS | Pi-hole at `192.168.5.247` (primary) and `192.168.5.248` (secondary) |
 | Pi-hole wildcard | `*.diceninjagaming.com` → `192.168.5.202` (Traefik ingress) — this is correct and expected |
 
-**Query path (normal):** Pod → iptables intercept → NodeLocal agent (`169.254.20.11`) → cache hit served locally, or cache miss forwarded directly to a CoreDNS pod IP → CoreDNS forwards non-cluster domains to Pi-hole.
-
-The NodeLocal agent forwards cache misses directly to a CoreDNS **pod IP**, not the ClusterIP service — this is intentional and how it avoids the conntrack race condition.
+**Query path (normal):** Pod → kube-proxy → CoreDNS ClusterIP (`10.43.0.10`) → CoreDNS forwards non-cluster domains to Pi-hole.
 
 ---
 
-### Known issue: conntrack race condition (intermittent wrong IP returned)
+### Known issue: search domain causes wrong IP for cluster-internal hostnames
 
-**Symptom:** DNS resolution intermittently returns `192.168.5.202` (the Traefik ingress IP) for hostnames that have nothing to do with `diceninjagaming.com` — including internal cluster names like `pgpooler.postgres.svc.cluster.local` and external internet hostnames.
+**Symptom:** A pod consistently resolves a cluster-internal hostname (e.g. `postgres-pooler.postgres.svc.cluster.local`) to `192.168.5.202` (the Traefik ingress IP) instead of the correct ClusterIP. The problem is deterministic on one node and absent on the other.
 
-**Cause:** Linux conntrack has a race condition with concurrent UDP DNS queries. When a pod fires A and AAAA record queries simultaneously, kube-proxy NATs them toward the CoreDNS ClusterIP. If two queries from different pods share a similar 5-tuple at the same moment, conntrack can deliver the response from one query to the other pod's socket. Because there is always heavy traffic to `*.diceninjagaming.com` from in-cluster pods (which legitimately resolves to `192.168.5.202`), those responses are frequently in-flight and are the most common swap target.
+**Cause:** A node's `/etc/resolv.conf` contains an extra search domain (e.g. `home.diceninjagaming.com`) that gets propagated into pod `resolv.conf` by kubelet. With `ndots:5`, any hostname with fewer than 5 dots triggers search domain expansion before the absolute lookup. `postgres-pooler.postgres.svc.cluster.local` has 4 dots, so the resolver tries:
 
-**Fix:** NodeLocal DNSCache (`apps/manifests/nodelocaldns.yaml`) — intercepts DNS at the node level before kube-proxy is involved. Conntrack never enters the DNS path.
+1. `postgres-pooler.postgres.svc.cluster.local.svc.cluster.local` → NXDOMAIN
+2. `postgres-pooler.postgres.svc.cluster.local.cluster.local` → NXDOMAIN
+3. `postgres-pooler.postgres.svc.cluster.local.home.diceninjagaming.com` → **Pi-hole wildcard matches → returns `192.168.5.202`**
 
-**Critical requirement — k3s kubelet must be configured on every node:**
-The lablabs chart deploys the NodeLocal agent and sets up NOTRACK iptables rules for
-`169.254.20.11`, but it does NOT configure k3s to inject `169.254.20.11` into pod
-`resolv.conf`. Without this, pods still use `10.43.0.10` and the conntrack race persists.
+The absolute lookup (step 4) is never reached.
 
-On **every** node (server and agents), add the kubelet arg and restart:
-
+**Diagnosis:**
 ```bash
-# Server node
-sudo tee -a /etc/rancher/k3s/config.yaml <<'EOF'
-kubelet-arg:
-  - "cluster-dns=169.254.20.11"
-EOF
-sudo systemctl restart k3s
-
-# Agent nodes
-sudo tee -a /etc/rancher/k3s/config.yaml <<'EOF'
-kubelet-arg:
-  - "cluster-dns=169.254.20.11"
-EOF
-sudo systemctl restart k3s-agent
-```
-
-After both nodes are back, restart all running pods (or at minimum the affected ones) to
-pick up the new `resolv.conf`. Verify with:
-
-```bash
+# Check what search domains pods on each node are getting
 kubectl exec -n <namespace> <pod> -- cat /etc/resolv.conf
-# Must show: nameserver 169.254.20.11
+
+# Check the node's own resolv.conf (SSH to the node)
+cat /etc/resolv.conf
+resolvectl status
 ```
 
-**If NodeLocal DNSCache is deployed and kubelet is configured but the issue persists:**
-1. Verify the DaemonSet is running on all nodes:
-   ```bash
-   kubectl get daemonset -n kube-system nodelocaldns-node-local-dns
-   kubectl get pods -n kube-system -l app.kubernetes.io/name=node-local-dns -o wide
-   ```
-   Note: the DaemonSet is named `nodelocaldns-node-local-dns` (Helm release prefix + chart name), not `node-local-dns`.
-2. Confirm the NOTRACK rules are present on the affected node (SSH to the node):
-   ```bash
-   iptables-save | grep 169.254.20.11
-   ```
-   You should see NOTRACK and ACCEPT rules for port 53 on `169.254.20.11`.
-3. If rules are missing, cycle the DaemonSet pod on the affected node:
-   ```bash
-   kubectl logs -n kube-system -l app.kubernetes.io/name=node-local-dns --tail=50
-   kubectl delete pod -n kube-system <nodelocaldns-pod-on-affected-node>
-   ```
+**Fix:** Remove the rogue search domain from the node's network configuration. On nodes
+provisioned via Proxmox cloud-init, set the **DNS Domain** field to `.` (a single dot) in
+the cloud-init tab — this produces `search .` (no domain) on the node, matching the correct
+behaviour. Edit `/etc/netplan/50-cloud-init.yaml` directly for an immediate fix without
+re-running cloud-init:
+
+```yaml
+      nameservers:
+        addresses:
+          - 192.168.5.1
+        search:
+          - .
+```
+
+```bash
+sudo netplan apply
+resolvectl status    # confirm the search domain is gone
+```
+
+Then restart any affected pods to pick up the corrected `resolv.conf`.
+
+**Prevention:** When provisioning new VMs via Proxmox cloud-init, always explicitly set the
+DNS Domain field to `.` rather than leaving it as "use host settings". The Proxmox host's
+domain setting propagates into VMs and will corrupt cluster DNS if it matches a Pi-hole
+wildcard.
+
+---
+
+### Conntrack race condition (theoretical risk — not yet observed)
+
+**What it is:** Linux conntrack has a race condition with concurrent UDP DNS queries. When a
+pod fires A and AAAA record requests simultaneously, kube-proxy NATs both toward the CoreDNS
+ClusterIP. If two queries from different pods share a similar 5-tuple at the same moment,
+conntrack can deliver the response from one query to the other pod's socket — causing an
+arbitrary IP to be returned for an unrelated hostname. Because `*.diceninjagaming.com` is
+always in flight (it legitimately resolves to `192.168.5.202`), those responses are the most
+common swap target when the race fires.
+
+**Current status:** This cluster has not had a confirmed conntrack incident. The Authentik
+migration incident (2026-04-28) initially appeared to match — one pod was consistently
+returning `192.168.5.202` for a cluster-internal hostname — but investigation showed the
+actual cause was the search domain issue documented above. Pods use `10.43.0.10` directly
+through kube-proxy, so the theoretical risk exists but has not materialised in practice.
+
+**What we tried:** NodeLocal DNSCache was deployed (lablabs Helm chart,
+`lablabs.github.io/k8s-nodelocaldns-helm`) and ran successfully as a DaemonSet. However,
+it did not resolve the incident and was subsequently removed. The reasons it was ineffective:
+
+1. The lablabs chart sets up NOTRACK iptables rules for the link-local IP (`169.254.20.11`)
+   but does **not** configure k3s to inject that IP into pod `resolv.conf`.
+2. Both nodes' pods still showed `nameserver 10.43.0.10` — the agent was running but
+   intercepting nothing.
+3. Making it effective would require adding `cluster-dns=169.254.20.11` to
+   `/etc/rancher/k3s/config.yaml` on every node and restarting k3s — an out-of-band,
+   non-GitOps step.
+4. The root cause turned out to be the search domain, not conntrack, so the fix wasn't needed.
+
+The archived manifests live in `archived/nodelocaldns/` if this ever needs to be revisited.
+
+**If conntrack does become a confirmed problem:** Deploy NodeLocal DNSCache and additionally
+configure every k3s node's kubelet to use `169.254.20.11` as the cluster DNS:
+
+```bash
+# Add to /etc/rancher/k3s/config.yaml on every node, then restart k3s / k3s-agent
+kubelet-arg:
+  - "cluster-dns=169.254.20.11"
+```
+
+Without this kubelet change, pods still use `10.43.0.10` and the conntrack path is unchanged
+regardless of whether the DaemonSet is running.
 
 ---
 
@@ -115,17 +158,15 @@ dig +short sonarr.home.diceninjagaming.com
 
 ### Gotchas
 
-**NodeLocal link-local IP is `169.254.20.11`, not `169.254.20.10`.**
-The official Kubernetes documentation and most community guides reference `169.254.20.10`. This cluster uses the lablabs Helm chart which defaults to `169.254.20.11`. Substitute accordingly when following external troubleshooting guides.
-
 **`*.diceninjagaming.com` always resolves to `192.168.5.202` — this is correct.**
-Pi-hole has a wildcard DNS record pointing all `*.diceninjagaming.com` subdomains to the Traefik ingress IP. Any pod querying a `diceninjagaming.com` hostname will receive `192.168.5.202`, which is the correct and intended behaviour. This is only a problem if a `diceninjagaming.com` DNS response gets delivered to a pod that queried a different hostname (see conntrack race condition above).
+Pi-hole has a wildcard DNS record pointing all `*.diceninjagaming.com` subdomains to the
+Traefik ingress IP. Any pod querying a `diceninjagaming.com` hostname will receive
+`192.168.5.202`. This is only a problem when a node search domain causes a cluster-internal
+FQDN to be expanded into a `*.diceninjagaming.com` match before the absolute lookup is tried
+(see search domain issue above).
 
 **CoreDNS is managed by the k3s addon controller, not ArgoCD.**
-The CoreDNS `Deployment` in `kube-system` is owned by k3s's `objectset.rio.cattle.io` addon controller. Direct edits via `kubectl` or ArgoCD patches will be reverted. Changes to CoreDNS configuration must go through a `coredns-custom` ConfigMap (for Corefile changes) or the addon manifest on the server node at `/var/lib/rancher/k3s/server/manifests/`. See the k3s docs for details.
-
-**If the NodeLocal DaemonSet pod crashes, DNS fails for all pods on that node.**
-The `system-node-critical` priority class and DaemonSet restart policy keep the recovery window short, but there is no redundancy at the per-node level. Monitor `kubectl get pods -n kube-system -l k8s-app=node-local-dns` as part of any incident investigation involving DNS failures on a specific node.
-
-**Removing NodeLocal DNSCache leaves iptables rules behind.**
-The chart defaults to `skipTeardown: true`. If the DaemonSet is deleted (e.g. by ArgoCD prune), iptables rules that redirect DNS traffic to `169.254.20.11` will remain on each node until manually removed or the node is rebooted. DNS will fail on those nodes until cleaned up. To manually remove the rules, either reboot the node or identify and delete the relevant `iptables -t raw` and `iptables -t nat` rules pointing at `169.254.20.11`.
+The CoreDNS `Deployment` in `kube-system` is owned by k3s's `objectset.rio.cattle.io` addon
+controller. Direct edits via `kubectl` or ArgoCD patches will be reverted. Changes to CoreDNS
+configuration must go through a `coredns-custom` ConfigMap (for Corefile changes) or the
+addon manifest on the server node at `/var/lib/rancher/k3s/server/manifests/`.
