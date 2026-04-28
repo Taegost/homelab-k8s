@@ -56,6 +56,15 @@ ports:
       trustedIPs:
         - "10.0.0.0/8"    # Internal Kubernetes VPC range
     protocol: TCP
+  # LDAPS entrypoint for the Authentik LDAP outpost.
+  # Traefik SNI-routes on this port via IngressRouteTCP (passthrough).
+  # The LDAP outpost handles TLS termination itself.
+  ldaps:
+    port: 636
+    expose:
+      default: true
+    exposedPort: 636
+    protocol: TCP
   # Arr stack entrypoints — Seerr requires port-suffixed URLs for API connections
   # These allow https://appname.home.diceninjagaming.com:PORT to reach Traefik
   # and be routed to the correct backend service

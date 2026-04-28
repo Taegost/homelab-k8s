@@ -1,0 +1,19 @@
+# TCP passthrough route for LDAPS on ldap.diceninjagaming.com.
+# Traefik SNI-routes the connection to the LDAP outpost, which handles
+# TLS termination itself. Port 636 on the Traefik LoadBalancer IP maps
+# to port 6636 on the outpost container (the container's internal LDAPS port).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: ldap
+  namespace: authentik
+spec:
+  entryPoints:
+    - ldaps
+  routes:
+    - match: HostSNI(`ldap.diceninjagaming.com`)
+      services:
+        - name: ldap-outpost
+          port: 6636
+  tls:
+    passthrough: true

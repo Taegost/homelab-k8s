@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-outpost
+  namespace: authentik
+spec:
+  selector:
+    app: ldap-outpost
+  ports:
+    - name: ldap
+      port: 3389
+      targetPort: 3389
+    - name: ldaps
+      port: 6636
+      targetPort: 6636

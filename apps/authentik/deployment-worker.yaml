@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-worker
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-worker
+  template:
+    metadata:
+      labels:
+        app: authentik-worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/goauthentik/server:2025.10.2
+          command: ["worker"]
+          env:
+            - name: AUTHENTIK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: authentik
+                  key: secret-key
+            - name: AUTHENTIK_POSTGRESQL__HOST
+              value: postgres-pooler.postgres.svc.cluster.local
+            - name: AUTHENTIK_POSTGRESQL__PORT
+              value: "5432"
+            - name: AUTHENTIK_POSTGRESQL__NAME
+              value: authentik
+            - name: AUTHENTIK_POSTGRESQL__USER
+              value: authentik
+            - name: AUTHENTIK_POSTGRESQL__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: authentik
+                  key: db-password
+            - name: AUTHENTIK_POSTGRESQL__DISABLE_SERVER_SIDE_CURSORS
+              value: "true"
+            - name: AUTHENTIK_REDIS__HOST
+              value: redis.authentik.svc.cluster.local
+          volumeMounts:
+            - name: media
+              mountPath: /media
+              subPath: media
+            - name: media
+              mountPath: /certs
+              subPath: certs
+            - name: media
+              mountPath: /templates
+              subPath: templates
+          # ak healthcheck verifies the worker process and DB connectivity.
+          # The startup probe gives extra time for migrations before liveness
+          # kicks in and could restart the pod prematurely.
+          startupProbe:
+            exec:
+              command: ["ak", "healthcheck"]
+            failureThreshold: 60
+            periodSeconds: 10
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["ak", "healthcheck"]
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 320Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          # Root is required for certificate imports written to /certs.
+          securityContext:
+            runAsUser: 0
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: authentik-media
