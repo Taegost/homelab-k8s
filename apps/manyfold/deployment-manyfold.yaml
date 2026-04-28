@@ -90,20 +90,20 @@ spec:
               mountPath: /libraries
           startupProbe:
             httpGet:
-              path: /up
+              path: /health
               port: 3214
             # Allow time for migrations and Puma worker startup
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /up
+              path: /health
               port: 3214
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /up
+              path: /health
               port: 3214
             periodSeconds: 10
           resources:
