@@ -16,13 +16,7 @@ spec:
       containers:
         - name: worker
           image: ghcr.io/goauthentik/server:2025.10.2
-<<<<<<< HEAD
-          command: ["worker"]
-=======
-          # args (not command) — overrides CMD while preserving the image's
-          # ENTRYPOINT (/lifecycle/ak). Using command would replace the entrypoint.
           args: ["worker"]
->>>>>>> 93dc7f1 (Fix: Authentik deployment issues)
           env:
             - name: AUTHENTIK_SECRET_KEY
               valueFrom:
