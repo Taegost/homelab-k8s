@@ -64,3 +64,12 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: manyfold-db-credentials
+      - name: authentik
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: authentik-db-credentials
