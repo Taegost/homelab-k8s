@@ -73,3 +73,12 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: authentik-db-credentials
+      - name: mealie
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: mealie-db-credentials

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mealie
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/mealie
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mealie
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
