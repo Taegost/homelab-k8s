@@ -1,0 +1,24 @@
+# Certificate — mealie.home.diceninjagaming.com
+#
+# Mealie is publicly exposed, so it gets a dedicated certificate rather than
+# relying on the shared wildcard. The secret lands in the mealie namespace
+# alongside the IngressRoute that references it, keeping the app's TLS fully
+# isolated from other applications.
+#
+# Traefik (allowCrossNamespace: true) resolves tls.secretName in the same
+# namespace as the IngressRoute, so both resources must share the same namespace.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mealie-home-diceninjagaming-com
+  namespace: mealie
+spec:
+  secretName: mealie-home-diceninjagaming-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - mealie.home.diceninjagaming.com
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

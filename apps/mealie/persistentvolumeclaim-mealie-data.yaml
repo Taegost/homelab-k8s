@@ -1,0 +1,19 @@
+# PersistentVolumeClaim — mealie-data
+#
+# Longhorn-backed storage for Mealie's /app/data directory.
+# Stores: recipe data, images, and application state.
+#
+# Longhorn replicates this volume across nodes — Mealie data survives a
+# node failure and the pod reschedules without data loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mealie-data
+  namespace: mealie
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
