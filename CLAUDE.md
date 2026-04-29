@@ -211,7 +211,6 @@ full workflow including creating, updating, rotating, and backing up secrets.
   `IngressRoute` — required for any publicly exposed app
 - ClusterIssuers: `letsencrypt-diceninjagaming-prod` and
   `letsencrypt-diceninjagaming-staging`
-- Always test with the staging issuer first before switching to prod
 
 ---
 

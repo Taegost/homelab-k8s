@@ -1,0 +1,104 @@
+# Deployment — Seerr (formerly Jellyseerr)
+#
+# Seerr is a media request management tool that integrates with Jellyfin,
+# Radarr, and Sonarr to let users request movies and TV shows.
+# GitHub: https://github.com/seerr-team/seerr
+#
+# Image versioning:
+#   Pinned to a SHA digest rather than a semver tag because this build is
+#   from the `preview-new-oidc` branch — it includes OIDC fixes not yet in
+#   a stable release. Switch back to the `preview-new-oidc` tag once those
+#   fixes land in a tagged release.
+#   To upgrade: update the sha256 digest below and push.
+#
+# Auth:
+#   Seerr handles its own authentication via OIDC (preview-new-oidc branch).
+#   No Authentik forward-auth middleware is applied at the IngressRoute level.
+#
+# Volumes:
+#   /app/config — Longhorn PVC (seerr-config): SQLite DB, API keys, settings.
+#                 Note: Seerr uses /app/config, not /config like *arr apps.
+#   /multimedia — Shared NFS PVC (multimedia): same RWX volume the *arr apps
+#                 use. Mirrors the Docker Compose mount; remove if not needed.
+#
+# DNS:
+#   The Docker Compose used explicit DNS entries (192.168.5.247/248) due to
+#   historic resolution issues. Omitted here — CoreDNS handles cluster-internal
+#   resolution correctly. Re-add dnsConfig if Seerr has trouble reaching
+#   Radarr/Sonarr/Jellyfin by hostname.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seerr
+  namespace: arr-stack
+  labels:
+    app: seerr
+spec:
+  replicas: 1
+  # Recreate required: Longhorn RWO volumes cannot attach to two nodes
+  # simultaneously. RollingUpdate would create the new pod before terminating
+  # the old one, causing the new pod to hang waiting for the volume to detach.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: seerr
+  template:
+    metadata:
+      labels:
+        app: seerr
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: seerr
+          image: ghcr.io/seerr-team/seerr@sha256:a14a9c326881fdce70b00df3fc095f5b5b128f5552677f677cd3788e757fb4e6 #preview-new-oidc
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - NET_RAW
+          ports:
+            - containerPort: 5055
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          env:
+            - name: LOG_LEVEL
+              value: "debug"
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+            - name: multimedia
+              mountPath: /multimedia
+          readinessProbe:
+            httpGet:
+              path: /api/v1/status
+              port: 5055
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/status
+              port: 5055
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: seerr-config
+        - name: multimedia
+          persistentVolumeClaim:
+            claimName: multimedia
