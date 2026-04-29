@@ -18,8 +18,6 @@
 # Volumes:
 #   /app/config — Longhorn PVC (seerr-config): SQLite DB, API keys, settings.
 #                 Note: Seerr uses /app/config, not /config like *arr apps.
-#   /multimedia — Shared NFS PVC (multimedia): same RWX volume the *arr apps
-#                 use. Mirrors the Docker Compose mount; remove if not needed.
 #
 # DNS:
 #   The Docker Compose used explicit DNS entries (192.168.5.247/248) due to
@@ -82,8 +80,6 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
-            - name: multimedia
-              mountPath: /multimedia
           readinessProbe:
             httpGet:
               path: /api/v1/status
@@ -102,6 +98,3 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: seerr-config
-        - name: multimedia
-          persistentVolumeClaim:
-            claimName: multimedia
