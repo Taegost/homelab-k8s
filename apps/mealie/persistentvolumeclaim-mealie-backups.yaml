@@ -1,0 +1,22 @@
+# PersistentVolumeClaim — mealie-backups
+#
+# SMB-backed backup storage for Mealie, dynamically provisioned by the
+# smb-backups StorageClass.
+#
+# On Unraid, data is stored at:
+#   /mnt/user/Backups/mealie/
+#
+# reclaimPolicy is Retain (set on the StorageClass) — deleting this PVC
+# does NOT delete the backup data on Unraid.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mealie-backups
+  namespace: mealie
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: smb-backups
+  resources:
+    requests:
+      storage: 10Gi

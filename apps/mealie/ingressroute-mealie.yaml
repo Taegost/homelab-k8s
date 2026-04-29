@@ -1,0 +1,40 @@
+# IngressRoute — mealie
+#
+# Both routes use default-headers only (publicly accessible). A separate /api
+# route is declared so it can be tightened independently in future if needed,
+# but no whitelist is applied — the Mealie frontend is a SPA that issues
+# same-origin /api calls from the browser, so restricting /api would break the
+# UI for external users. OIDC auth is handled by Mealie itself via Authentik.
+#
+# Certificate is issued per-app (not the shared wildcard) because this route
+# is publicly exposed. The TLS secret lives in the mealie namespace alongside
+# this IngressRoute so Traefik can resolve it without cross-namespace access.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: mealie
+  namespace: mealie
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`mealie.home.diceninjagaming.com`) && PathPrefix(`/api`)
+      kind: Rule
+      middlewares:
+        - name: default-headers
+          namespace: traefik
+      services:
+        - name: mealie
+          namespace: mealie
+          port: 9000
+    - match: Host(`mealie.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-headers
+          namespace: traefik
+      services:
+        - name: mealie
+          namespace: mealie
+          port: 9000
+  tls:
+    secretName: mealie-home-diceninjagaming-com-tls

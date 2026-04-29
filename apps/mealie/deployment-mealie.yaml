@@ -1,0 +1,138 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mealie
+  namespace: mealie
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mealie
+  template:
+    metadata:
+      labels:
+        app: mealie
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mealie
+          image: ghcr.io/mealie-recipes/mealie:v3.12.0
+          ports:
+            - containerPort: 9000
+          env:
+            - name: ALLOW_SIGNUP
+              value: "false"
+            - name: DEFAULT_GROUP
+              value: Family
+            - name: DEFAULT_HOUSEHOLD
+              value: Default
+            - name: TZ
+              value: America/New_York
+            - name: BASE_URL
+              value: https://mealie.home.diceninjagaming.com
+            - name: DB_ENGINE
+              value: postgres
+            - name: POSTGRES_USER
+              value: mealie
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mealie
+                  key: database-password
+            - name: POSTGRES_SERVER
+              value: postgres-pooler.postgres.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: mealie
+            - name: SMTP_HOST
+              value: smtp.gmail.com
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_FROM_EMAIL
+              value: diceninjagaming@gmail.com
+            - name: SMTP_USER
+              value: diceninjagaming@gmail.com
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mealie
+                  key: smtp-password
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mealie
+                  key: openai-api-key
+            - name: OIDC_AUTH_ENABLED
+              value: "true"
+            - name: OIDC_SIGNUP_ENABLED
+              value: "true"
+            - name: OIDC_CONFIGURATION_URL
+              value: https://authentik.diceninjagaming.com/application/o/mealie/.well-known/openid-configuration
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mealie
+                  key: oidc-client-id
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mealie
+                  key: oidc-client-secret
+            - name: OIDC_USER_GROUP
+              value: Mealie Users
+            - name: OIDC_ADMIN_GROUP
+              value: Mealie Admins
+            - name: OIDC_AUTO_REDIRECT
+              value: "true"
+            - name: OIDC_PROVIDER_NAME
+              value: Authentik
+            - name: OIDC_REMEMBER_ME
+              value: "true"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: backups
+              mountPath: /app/data/backups
+          startupProbe:
+            httpGet:
+              path: /api/app/about
+              port: 9000
+            # Allow time for Alembic migrations on startup
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/app/about
+              port: 9000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/app/about
+              port: 9000
+            periodSeconds: 10
+          resources:
+            requests:
+              # Reflects steady-state: sits around 425MB RAM, CPU near-zero at rest
+              cpu: 100m
+              memory: 425Mi
+            limits:
+              # CPU spikes to ~73% at startup, ~16% during AI image parsing; 1 core
+              # gives headroom without over-provisioning
+              cpu: 1000m
+              memory: 1000Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mealie-data
+        - name: backups
+          persistentVolumeClaim:
+            claimName: mealie-backups
