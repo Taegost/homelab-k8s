@@ -96,6 +96,11 @@ spec:
             capabilities:
               drop:
                 - ALL
+              add:
+                - CHOWN
+                - DAC_OVERRIDE
+                - SETUID
+                - SETGID
           volumeMounts:
             - name: data
               mountPath: /app/data
