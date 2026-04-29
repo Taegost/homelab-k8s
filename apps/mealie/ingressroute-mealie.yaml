@@ -1,12 +1,10 @@
 # IngressRoute — mealie
 #
-# Two routes on the same host:
-#   /api — default-whitelist (internal subnet only + security headers). The API
-#          is locked to internal access because it is only consumed by n8n and
-#          other internal automation. If external API access is ever needed,
-#          replace default-whitelist with default-headers on this route.
-#   /    — default-headers only (publicly accessible). OIDC auth is handled by
-#          Mealie itself via Authentik; no Traefik auth middleware is needed.
+# Both routes use default-headers only (publicly accessible). A separate /api
+# route is declared so it can be tightened independently in future if needed,
+# but no whitelist is applied — the Mealie frontend is a SPA that issues
+# same-origin /api calls from the browser, so restricting /api would break the
+# UI for external users. OIDC auth is handled by Mealie itself via Authentik.
 #
 # Certificate is issued per-app (not the shared wildcard) because this route
 # is publicly exposed. The TLS secret lives in the mealie namespace alongside
@@ -23,7 +21,7 @@ spec:
     - match: Host(`mealie.home.diceninjagaming.com`) && PathPrefix(`/api`)
       kind: Rule
       middlewares:
-        - name: default-whitelist
+        - name: default-headers
           namespace: traefik
       services:
         - name: mealie
