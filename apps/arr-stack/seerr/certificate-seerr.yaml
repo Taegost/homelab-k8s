@@ -1,0 +1,27 @@
+# Certificate — seerr / jellyseerr (arr-stack namespace)
+#
+# Seerr is publicly exposed, so it gets a dedicated certificate rather than
+# the shared wildcard. Both the legacy Jellyseerr hostname and the new Seerr
+# hostname are covered by a single SAN cert so traffic to either works without
+# issuing two separate certificates.
+#
+# The secret lands in the arr-stack namespace alongside the IngressRoute that
+# references it — Traefik resolves tls.secretName in the same namespace as the
+# IngressRoute, so both must share the same namespace.
+#
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: seerr-home-diceninjagaming-com
+  namespace: arr-stack
+spec:
+  secretName: seerr-home-diceninjagaming-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - seerr.home.diceninjagaming.com
+    - jellyseerr.home.diceninjagaming.com
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

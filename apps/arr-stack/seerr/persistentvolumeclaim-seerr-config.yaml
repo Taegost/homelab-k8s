@@ -1,0 +1,20 @@
+# PersistentVolumeClaim — seerr-config
+#
+# Longhorn-backed storage for Seerr's /app/config directory.
+# Stores: SQLite request database, user accounts, notification settings,
+# API keys for Radarr/Sonarr/Jellyfin integrations, and OIDC config.
+#
+# 256Mi is sufficient — current Docker volume is ~48Mi and the SQLite DB
+# plus config files are unlikely to grow significantly.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seerr-config
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 256Mi
