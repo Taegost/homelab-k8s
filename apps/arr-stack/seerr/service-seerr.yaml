@@ -1,0 +1,19 @@
+# Service — seerr
+#
+# ClusterIP service exposing Seerr's web UI port within the cluster.
+# Traefik routes external traffic here via the IngressRoute in the traefik
+# namespace. Other arr-stack apps (Radarr, Sonarr) are reached by Seerr
+# via their own ClusterIP services, not this one.
+apiVersion: v1
+kind: Service
+metadata:
+  name: seerr
+  namespace: arr-stack
+spec:
+  selector:
+    app: seerr
+  ports:
+    - name: http
+      port: 5055
+      targetPort: 5055
+  type: ClusterIP
