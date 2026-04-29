@@ -58,6 +58,9 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
+            # "node" is a named user — Kubernetes can't verify non-root without
+            # a numeric UID. Node.js base images map "node" to 1000.
+            runAsUser: 1000
             capabilities:
               drop:
                 - NET_RAW
