@@ -219,13 +219,11 @@ spec:
   value: "6379"
 ```
 
-**3. Switch the database connection to bypass PgBouncer.** Queue mode uses advisory
-locks, which are incompatible with PgBouncer transaction pooling. Change:
-
-```yaml
-- name: DB_POSTGRESDB_HOST
-  value: "postgres-rw.postgres.svc.cluster.local"   # was: postgres-pooler
-```
+**3. Confirm the database connection is still using `postgres-rw` (direct).** Queue
+mode uses advisory locks, which are incompatible with PgBouncer transaction pooling —
+but n8n also sends `statement_timeout` at connection startup, which PgBouncer rejects
+even in single-instance mode. The direct connection was set from day one for this
+reason; no change needed here.
 
 **4. Change the Deployment strategy** from `Recreate` to `RollingUpdate`.
 The RWO volume blocker is gone; rolling updates are now safe.

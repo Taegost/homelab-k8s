@@ -10,8 +10,7 @@
 #   1. Migrate binary data storage to S3 — eliminates filesystem dependency
 #   2. Package any installed custom nodes into a custom Docker image
 #   3. Enable queue mode: EXECUTIONS_MODE=queue + Redis + QUEUE_BULL_REDIS_* vars
-#   4. Switch DB_POSTGRESDB_HOST to postgres-rw (direct) — advisory locks used by
-#      the Bull queue are incompatible with PgBouncer transaction pooling
+#   4. DB_POSTGRESDB_HOST is already postgres-rw (direct) — no change needed
 #   5. Remove the Longhorn PVC and Recreate strategy; switch to RollingUpdate
 #
 # Encryption key: stored in sealedsecret-n8n.yaml and injected via
@@ -54,6 +53,11 @@ spec:
         app: n8n
     spec:
       automountServiceAccountToken: false
+      # Prevents Kubernetes from injecting N8N_PORT=tcp://... (and other N8N_* vars)
+      # via legacy service env var discovery. Without this, the injected N8N_PORT
+      # collides with n8n's own env var and causes a startup warning. DNS-based
+      # service discovery (*.svc.cluster.local) is unaffected.
+      enableServiceLinks: false
       securityContext:
         # n8n official image runs as the 'node' user (UID/GID 1000).
         runAsUser: 1000
@@ -94,8 +98,12 @@ spec:
             # PostgreSQL backend — replaces default SQLite.
             - name: DB_TYPE
               value: "postgresdb"
+            # n8n is incompatible with PgBouncer transaction mode — it sends
+            # statement_timeout as a session startup parameter, which PgBouncer
+            # rejects. Direct connection required. This also satisfies queue mode's
+            # advisory lock requirement, so no change needed when enabling HA.
             - name: DB_POSTGRESDB_HOST
-              value: "postgres-pooler.postgres.svc.cluster.local"
+              value: "postgres-rw.postgres.svc.cluster.local"
             - name: DB_POSTGRESDB_PORT
               value: "5432"
             - name: DB_POSTGRESDB_DATABASE
