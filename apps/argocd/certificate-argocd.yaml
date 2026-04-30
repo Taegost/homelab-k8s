@@ -1,0 +1,27 @@
+# Certificate — argocd.home.diceninjagaming.com
+#
+# Per-app cert for the external webhook IngressRoute (ingressroute-argocd-webhooks.yaml).
+# Lives in the argocd namespace alongside that IngressRoute so Traefik can resolve
+# the TLS secret without cross-namespace access.
+#
+# The internal UI IngressRoute (ingressroute-argocd.yaml, traefik namespace) uses the
+# shared wildcard cert and does not need its own certificate.
+#
+# If argocd is ever made fully public, promote the webhook IngressRoute to cover
+# the full host and drop the internal IngressRoute + whitelist — this cert
+# already covers the entire hostname.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-home-diceninjagaming-com
+  namespace: argocd
+spec:
+  secretName: argocd-home-diceninjagaming-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - argocd.home.diceninjagaming.com
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

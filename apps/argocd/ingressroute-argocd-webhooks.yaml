@@ -1,0 +1,41 @@
+# IngressRoute — argocd webhooks (external, argocd namespace)
+#
+# Exposes only the production webhook path (/api/webhook/) to the public internet.
+# Rate limited via argocd-webhook-ratelimit (60 req/min per IP, burst 30).
+#
+# IMPORTANT — webhook security is layered:
+#   1. Rate limiting (this file + middleware-argocd-webhook-ratelimit.yaml)
+#   2. Per-workflow authentication configured inside argocd itself — every workflow
+#      that exposes a public webhook MUST have Header Auth, Basic Auth, or JWT
+#      enabled in the Webhook node settings. UUID obscurity alone is insufficient
+#      and is not considered an adequate security control.
+#
+# Lives in the argocd namespace alongside certificate-argocd.yaml so Traefik can
+# resolve the TLS secret (cross-namespace secret access is not permitted).
+#
+# Traefik prioritises the more specific Host+PathPrefix rule over the catch-all
+# Host rule in ingressroute-argocd.yaml (traefik namespace), so webhook requests
+# correctly bypass the internal whitelist while all other traffic is restricted.
+#
+# Test webhooks (/webhook-test/) are intentionally excluded — they are only
+# needed during workflow development in the editor, which is internal-only.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-webhooks
+  namespace: argocd
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`argocd.home.diceninjagaming.com`) && PathPrefix(`/api/webhook/`)
+      kind: Rule
+      middlewares:
+        - name: argocd-webhook-ratelimit
+          namespace: argocd
+      services:
+        - name: argocd
+          namespace: argocd
+          port: 80
+  tls:
+    secretName: argocd-home-diceninjagaming-com-tls
