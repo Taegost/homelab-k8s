@@ -1,0 +1,16 @@
+# Database CRD — n8n
+#
+# Provisions the n8n database on the shared CNPG Postgres cluster.
+# The corresponding role is declared in apps/postgres/cluster-postgres.yaml.
+# Credentials are in sealedsecret-n8n-db-credentials.yaml (postgres namespace)
+# and sealedsecret-n8n.yaml (n8n namespace — for the pod to read).
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: n8n
+  namespace: postgres
+spec:
+  name: n8n
+  owner: n8n
+  cluster:
+    name: postgres

@@ -82,3 +82,12 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: mealie-db-credentials
+      - name: n8n
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: n8n-db-credentials

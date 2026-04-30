@@ -1,0 +1,37 @@
+# PersistentVolumeClaim — n8n-data
+#
+# INTERIM: This volume exists only until S3 storage is available. Once S3 is
+# configured (N8N_DEFAULT_BINARY_DATA_MODE=s3), this PVC and the corresponding
+# volume mount in the Deployment can be removed entirely. See docs/n8n-ha-migration.md.
+#
+# What lives here:
+#   /home/node/.n8n/storage/ — binary files produced by workflows
+#                               (downloaded files, attachments, generated PDFs, etc.)
+#                               Uses the v3 path from day one via N8N_MIGRATE_FS_STORAGE_PATH=true
+#                               in the Deployment — no rename needed on upgrade.
+#                                  This is the only meaningful data written here in
+#                                  Postgres mode. Nothing else in this directory is
+#                                  worth persisting: the database is in Postgres, the
+#                                  encryption key comes from the SealedSecret env var.
+#
+# What does NOT live here:
+#   Workflows, credentials, execution history — all in Postgres.
+#
+# 5Gi allocated — 1.4Gi was the full Docker volume size (including SQLite database,
+# which no longer exists here). Actual binary data usage depends on workflows; 5Gi
+# provides room to grow before S3 is ready.
+#
+# RWO is fine for single-replica. When HA queue mode is enabled, this volume is
+# replaced by S3 — workers do not share a filesystem, they share an S3 bucket.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-data
+  namespace: n8n
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

@@ -1,0 +1,17 @@
+# Service — n8n
+#
+# ClusterIP service exposing the n8n web UI and webhook listener on port 5678.
+# Both the internal IngressRoute (traefik namespace) and the external webhook
+# IngressRoute (n8n namespace) reference this service cross-namespace.
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n
+  namespace: n8n
+spec:
+  selector:
+    app: n8n
+  ports:
+    - name: http
+      port: 5678
+      targetPort: 5678
