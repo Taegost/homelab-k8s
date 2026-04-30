@@ -34,7 +34,7 @@ spec:
         - name: argocd-webhook-ratelimit
           namespace: argocd
       services:
-        - name: argocd
+        - name: argocd-server
           namespace: argocd
           port: 80
   tls:
