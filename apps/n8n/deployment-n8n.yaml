@@ -67,7 +67,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: n8n
-          image: docker.n8n.io/n8nio/n8n:2.12.2
+          image: docker.n8n.io/n8nio/n8n:2.18.5
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -132,20 +132,23 @@ spec:
               mountPath: /home/node/.n8n
           startupProbe:
             httpGet:
-              path: /healthz
+              # /healthz/readiness checks DB connectivity and migration completion.
+              # /healthz alone returns 200 even when the DB is unavailable.
+              path: /healthz/readiness
               port: 5678
-            # Allow time for DB schema migrations on first start
+            # Allow up to 5 minutes for DB schema migrations on first start
             failureThreshold: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /healthz/readiness
               port: 5678
-            initialDelaySeconds: 10
             periodSeconds: 15
             failureThreshold: 3
           livenessProbe:
             httpGet:
+              # /healthz (not /readiness) for liveness — we only want to restart
+              # the process if n8n itself is unresponsive, not on DB hiccups.
               path: /healthz
               port: 5678
             initialDelaySeconds: 30

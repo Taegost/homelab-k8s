@@ -244,8 +244,8 @@ is separate Deployments for main and workers so they can scale independently:
 # Copy deployment-n8n.yaml, rename to n8n-worker, add:
 #   - name: N8N_WORKER
 #     value: "true"
-# Workers do not serve the UI or webhooks; remove the readiness/liveness probes
-# that hit /healthz if the worker image does not expose that endpoint.
+# Workers do not serve the UI or webhooks. Health endpoints require
+# QUEUE_HEALTH_CHECK_ACTIVE=true to be enabled on worker replicas.
 ```
 
 ---
