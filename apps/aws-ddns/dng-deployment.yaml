@@ -66,9 +66,6 @@ spec:
               drop:
                 - ALL
           envFrom:
-            # Non-sensitive config (DOMAIN and tuning values)
-            - configMapRef:
-                name: aws-ddns-dng-config
             # Sensitive credentials (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID)
             # Source: dng-sealedsecret.yaml — plaintext template in dng-secret.yaml
             - secretRef:
