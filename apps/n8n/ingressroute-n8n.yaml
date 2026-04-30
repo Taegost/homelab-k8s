@@ -1,0 +1,32 @@
+# IngressRoute — n8n (internal UI, traefik namespace)
+#
+# Covers the full n8n interface restricted to internal subnets.
+# Uses the shared wildcard cert — lives in the traefik namespace as required.
+#
+# The external webhook path (/webhook/) is handled by a separate IngressRoute
+# in the n8n namespace (ingressroute-n8n-webhooks.yaml) with its own explicit
+# cert and no IP restriction. Traefik's rule specificity ensures the more
+# specific PathPrefix('/webhook/') rule wins for webhook traffic.
+#
+# Test webhooks (/webhook-test/) are intentionally kept internal — they are
+# only used during workflow development in the n8n editor.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: n8n
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`n8n.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: n8n
+          namespace: n8n
+          port: 5678
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

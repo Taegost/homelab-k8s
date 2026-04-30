@@ -1,0 +1,38 @@
+# ArgoCD Application — n8n
+#
+# n8n workflow automation platform. Deployed in its own namespace with a
+# shared PostgreSQL database (CNPG cluster, postgres namespace).
+#
+# The app directory contains resources in two namespaces:
+#   n8n namespace      — Deployment, Service, PVC, IngressRoute (webhooks),
+#                        Certificate, app-level Secret
+#   postgres namespace — Database CRD, db-credentials Secret
+# ArgoCD applies each manifest to the namespace declared in its metadata,
+# regardless of the destination namespace set here.
+#
+# Sync wave 0: depends on Traefik (wave -1) for IngressRoutes, CNPG (wave 0)
+# for the Database CRD, and Longhorn for PVC provisioning. Wave 0 is correct.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: n8n
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/n8n
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: n8n
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

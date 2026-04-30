@@ -14,6 +14,8 @@ Before implementing any change, read the relevant documentation first:
 - **Cluster recovery or node loss** → `docs/disaster-recovery.md`
 - **DNS or networking issues** → `docs/troubleshooting.md`
 - **External service routing** → `apps/traefik/external/README.md`
+- **n8n HA migration (S3, queue mode, custom nodes)** → `docs/n8n-ha-migration.md`
+- **ArgoCD HA migration (third node)** → `docs/argocd-ha-migration.md`
 
 Do not assume context is current. Read the actual files.
 

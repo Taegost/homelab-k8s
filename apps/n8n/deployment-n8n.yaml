@@ -1,0 +1,159 @@
+# Deployment — n8n
+#
+# n8n is a workflow automation platform. This deployment uses PostgreSQL as its
+# database backend (via the shared CNPG cluster) rather than the default SQLite,
+# enabling a clean migration path to queue mode + multiple replicas in the future.
+#
+# Current mode: single-instance (main process handles UI, webhooks, and execution).
+#
+# Future HA path — see docs/n8n-ha-migration.md for the full sequence. Summary:
+#   1. Migrate binary data storage to S3 — eliminates filesystem dependency
+#   2. Package any installed custom nodes into a custom Docker image
+#   3. Enable queue mode: EXECUTIONS_MODE=queue + Redis + QUEUE_BULL_REDIS_* vars
+#   4. Switch DB_POSTGRESDB_HOST to postgres-rw (direct) — advisory locks used by
+#      the Bull queue are incompatible with PgBouncer transaction pooling
+#   5. Remove the Longhorn PVC and Recreate strategy; switch to RollingUpdate
+#
+# Encryption key: stored in sealedsecret-n8n.yaml and injected via
+# N8N_ENCRYPTION_KEY. All credentials saved in n8n are AES-encrypted with this
+# key. Do not rotate it without first exporting and re-importing all credentials.
+#
+# Volumes:
+#   /home/node/.n8n — Longhorn PVC (interim): stores binary data files produced
+#                     by workflows (N8N_DEFAULT_BINARY_DATA_MODE=filesystem).
+#                     Database (workflows, credentials, executions) is in Postgres
+#                     and does not live here. Remove this volume when S3 is
+#                     configured — see docs/n8n-ha-migration.md Phase 1.
+#
+# Image versioning: pinned to the version running in Docker. To upgrade: update
+# the tag and push — ArgoCD applies the change.
+#
+# SECURITY: CVE-2026-21858 (CVSS 10.0) — unauthenticated RCE via webhook request
+# handling, patched in n8n 1.121.0. Confirmed not applicable: the 2.x release
+# line is well beyond the 1.121.0 patch.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: n8n
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  # Recreate required: Longhorn RWO volumes cannot attach to two pods simultaneously.
+  # If the pod reschedules to a different node, RollingUpdate would stall waiting
+  # for the new pod while the old pod still holds the volume attachment.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # n8n official image runs as the 'node' user (UID/GID 1000).
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: n8n
+          image: docker.n8n.io/n8nio/n8n:2.12.2
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 5678
+              name: http
+          env:
+            - name: N8N_HOST
+              value: "n8n.home.diceninjagaming.com"
+            # n8n itself serves plain HTTP; Traefik terminates TLS at the ingress.
+            - name: N8N_PROTOCOL
+              value: "http"
+            # WEBHOOK_URL is the public-facing base URL embedded in webhook links
+            # shown to users. Must be HTTPS even though N8N_PROTOCOL is http.
+            - name: WEBHOOK_URL
+              value: "https://n8n.home.diceninjagaming.com"
+            - name: NODE_ENV
+              value: "production"
+            - name: GENERIC_TIMEZONE
+              value: "America/New_York"
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n
+                  key: encryption-key
+            # PostgreSQL backend — replaces default SQLite.
+            - name: DB_TYPE
+              value: "postgresdb"
+            - name: DB_POSTGRESDB_HOST
+              value: "postgres-pooler.postgres.svc.cluster.local"
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_DATABASE
+              value: "n8n"
+            - name: DB_POSTGRESDB_USER
+              value: "n8n"
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n
+                  key: database-password
+            # Binary data (files processed by workflows) is written to the Longhorn
+            # PVC at /home/node/.n8n/storage/. This is an interim arrangement until
+            # S3 storage is available — at that point switch to 's3', configure
+            # N8N_BINARY_DATA_STORAGE_S3_* vars, and remove the PVC entirely.
+            # See docs/n8n-ha-migration.md Phase 1.
+            - name: N8N_DEFAULT_BINARY_DATA_MODE
+              value: "filesystem"
+            # Proactively adopts the v3 storage path (.n8n/storage/) rather than the
+            # deprecated v2 path (.n8n/binaryData/). No mount config change needed —
+            # the volume is mounted at the parent .n8n, not the subdirectory.
+            - name: N8N_MIGRATE_FS_STORAGE_PATH
+              value: "true"
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.n8n
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            # Allow time for DB schema migrations on first start
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              # Idles around 350–400MB RAM, near-zero CPU at rest
+              cpu: "100m"
+              memory: "400Mi"
+            limits:
+              # RAM peaks at ~515MB observed; 768Mi gives headroom.
+              # CPU observed spiking to ~150% during workflow runs; 2 cores gives headroom.
+              cpu: "2000m"
+              memory: "768Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: n8n-data

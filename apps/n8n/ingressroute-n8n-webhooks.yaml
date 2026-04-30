@@ -1,0 +1,41 @@
+# IngressRoute — n8n webhooks (external, n8n namespace)
+#
+# Exposes only the production webhook path (/webhook/) to the public internet.
+# Rate limited via n8n-webhook-ratelimit (60 req/min per IP, burst 30).
+#
+# IMPORTANT — webhook security is layered:
+#   1. Rate limiting (this file + middleware-n8n-webhook-ratelimit.yaml)
+#   2. Per-workflow authentication configured inside n8n itself — every workflow
+#      that exposes a public webhook MUST have Header Auth, Basic Auth, or JWT
+#      enabled in the Webhook node settings. UUID obscurity alone is insufficient
+#      and is not considered an adequate security control.
+#
+# Lives in the n8n namespace alongside certificate-n8n.yaml so Traefik can
+# resolve the TLS secret (cross-namespace secret access is not permitted).
+#
+# Traefik prioritises the more specific Host+PathPrefix rule over the catch-all
+# Host rule in ingressroute-n8n.yaml (traefik namespace), so webhook requests
+# correctly bypass the internal whitelist while all other traffic is restricted.
+#
+# Test webhooks (/webhook-test/) are intentionally excluded — they are only
+# needed during workflow development in the editor, which is internal-only.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: n8n-webhooks
+  namespace: n8n
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`n8n.home.diceninjagaming.com`) && PathPrefix(`/webhook/`)
+      kind: Rule
+      middlewares:
+        - name: n8n-webhook-ratelimit
+          namespace: n8n
+      services:
+        - name: n8n
+          namespace: n8n
+          port: 5678
+  tls:
+    secretName: n8n-home-diceninjagaming-com-tls

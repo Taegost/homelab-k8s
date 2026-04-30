@@ -1,0 +1,29 @@
+# Middleware — n8n-webhook-ratelimit
+#
+# Rate limits the public webhook entrypoint (/webhook/) to protect against
+# resource exhaustion. n8n has no built-in webhook rate limiting, so this
+# must be enforced at the proxy layer.
+#
+# Limits: 60 requests per minute per source IP, with a burst allowance of 30
+# to handle momentary spikes (e.g. a GitHub push that fans out multiple events).
+# Adjust if legitimate webhook traffic is consistently hitting the limit.
+#
+# Note: Traefik runs as 2 replicas and rate limit state is not shared between
+# them. In practice each replica tracks independently, so a client load-balanced
+# across both replicas sees up to 2× the stated limit. Acceptable at homelab
+# scale; if shared enforcement is needed, Traefik supports a Redis-backed
+# rate limit plugin.
+#
+# Source criterion: Traefik default (RemoteAddr). With externalTrafficPolicy: Local
+# set on the Traefik service, RemoteAddr is the real client IP — no X-Forwarded-For
+# depth tricks required.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: n8n-webhook-ratelimit
+  namespace: n8n
+spec:
+  rateLimit:
+    average: 60
+    burst: 30
+    period: 1m
