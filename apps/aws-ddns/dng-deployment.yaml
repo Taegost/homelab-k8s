@@ -34,7 +34,18 @@ spec:
           # patches. If you need to pin to a specific version for stability, use a
           # semver tag (e.g. taegost/aws-ddns:1.0.0) — see the repo for available tags.
           image: taegost/aws-ddns:latest
-
+          env:
+              # Space-separated list of all diceninjagaming.com records to keep updated.
+              # Add or remove entries here when new public-facing services are created/retired.
+              # Sensitive values (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID) live in
+              # dng-sealedsecret.yaml — kept separate so non-sensitive tuning can be
+              # changed without touching the sealed secret.
+            - name: DOMAIN
+              value: "argocd.home.diceninjagaming.com authentik.diceninjagaming.com diceninjagaming.com dropin.diceninjagaming.com gamepanel.diceninjagaming.com hass.home.diceninjagaming.com home.diceninjagaming.com immich.home.diceninjagaming.com jellyfin.home.diceninjagaming.com jellyseerr.home.diceninjagaming.com manyfold.diceninjagaming.com mealie.home.diceninjagaming.com n8n.diceninjagaming.com paperless.home.diceninjagaming.com seerr.home.diceninjagaming.com vikunja.diceninjagaming.com"
+              # All other env vars (DNS_TTL, RECHECK_SECS, MAX_RETRIES, RETRY_DELAY,
+              # LOG_LEVEL) are intentionally omitted — application defaults are correct
+              # for normal operation. See https://github.com/Taegost/aws-ddns-docker
+              # for the full list of available variables and their defaults.
           # This container doesn't use many resources. At idle it's approximately 60MB RAM and doesn't normally change,
           # and CPU rarely goes above 3% on a 4GHz max clock CPU
           resources:
