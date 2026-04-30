@@ -103,16 +103,12 @@ Replace `N8N_DEFAULT_BINARY_DATA_MODE: filesystem` with:
       key: secret-key
 ```
 
-Also remove the volume mount and volume entry for `n8n-data` from the Deployment,
-and delete `apps/n8n/persistentvolumeclaim-n8n-data.yaml`.
-
 **4. Commit, push, sync. Verify n8n starts and workflows run correctly.**
 
-After confirming S3 is working, manually delete the now-unused PVC:
+After confirming S3 is working, remove the volume mount and volume entry for `n8n-data` from the Deployment,
+and delete `apps/n8n/persistentvolumeclaim-n8n-data.yaml`. 
 
-```bash
-kubectl delete pvc -n n8n n8n-data
-```
+Make sure to sync ArgoCD after that.
 
 ---
 
