@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: firefly3-app
-          image: fireflyiii/core:v6.6.2
+          image: fireflyiii/core:version-6.6.2
           ports:
             - containerPort: 8080
           envFrom:
