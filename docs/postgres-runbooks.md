@@ -115,7 +115,7 @@ stringData:
   password: PLACEHOLDER_CHANGE_ME
 ```
 
-> **Password duplication:** If the application reads its database password from a separate app-level Secret (e.g. `apps/APPNAME/secret-APPNAME.yaml`), that secret's `database-password` key must contain the **same value** as the password above. Kubernetes pods cannot reference secrets across namespaces, so the credential must appear in both the `postgres`-namespace secret (for CNPG to set the role) and the app-namespace secret (for the pod to connect). Keep them in sync when rotating passwords.
+> **Password duplication:** If the application reads its database password from a separate app-level Secret (e.g. `apps/APPNAME/secret-APPNAME.yaml`), the key used by that app (for example `DB_PASSWORD`) must contain the **same value** as the password above. Kubernetes pods cannot reference secrets across namespaces, so the credential must appear in both the `postgres`-namespace secret (for CNPG to set the role) and the app-namespace secret (for the pod to connect). Keep them in sync when rotating passwords.
 
 **2. Add the role to `apps/postgres/cluster-postgres.yaml` under `spec.managed.roles`:**
 
