@@ -28,7 +28,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`argocd.home.diceninjagaming.com`) && PathPrefix(`/api/webhook/`)
+    - match: Host(`argocd.home.diceninjagaming.com`) && PathPrefix(`/api/webhook`)
       kind: Rule
       middlewares:
         - name: argocd-webhook-ratelimit

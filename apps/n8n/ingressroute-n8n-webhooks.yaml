@@ -28,7 +28,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`n8n.home.diceninjagaming.com`) && PathPrefix(`/webhook/`)
+    - match: Host(`n8n.home.diceninjagaming.com`) && PathPrefix(`/webhook`)
       kind: Rule
       middlewares:
         - name: n8n-webhook-ratelimit
