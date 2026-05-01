@@ -91,3 +91,12 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: n8n-db-credentials
+      - name: firefly3
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: firefly3-db-credentials
