@@ -1,6 +1,6 @@
 # IngressRoute — argocd webhooks (external, argocd namespace)
 #
-# Exposes only the production webhook path (/api/webhook/) to the public internet.
+# Exposes only the production webhook path (/api/webhook) to the public internet.
 # Rate limited via argocd-webhook-ratelimit (60 req/min per IP, burst 30).
 #
 # IMPORTANT — webhook security is layered:

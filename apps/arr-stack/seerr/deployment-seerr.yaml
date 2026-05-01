@@ -78,7 +78,7 @@ spec:
               memory: "1Gi"
           env:
             - name: LOG_LEVEL
-              value: "debug"
+              value: "info"
             - name: TZ
               value: "America/New_York"
           volumeMounts:
