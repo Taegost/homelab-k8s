@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: firefly3-importer
+  namespace: firefly3
+spec:
+  selector:
+    app: firefly3-importer
+  ports:
+    - port: 8080
+      targetPort: 8080

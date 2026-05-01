@@ -1,0 +1,20 @@
+# PersistentVolumeClaim — firefly3-upload
+#
+# Longhorn-backed storage for Firefly III's upload directory.
+# Stores transaction attachments (receipts, invoices, documents).
+#
+# RWO: only the firefly3-app pod attaches this volume.
+# The Deployment uses strategy: Recreate so the old pod releases the volume
+# before the new pod starts — required for RWO with single-replica deployments.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: firefly3-upload
+  namespace: firefly3
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

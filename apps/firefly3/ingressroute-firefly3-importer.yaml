@@ -1,0 +1,27 @@
+# IngressRoute — firefly3-importer (in traefik namespace)
+#
+# Internal-only route — restricted to internal subnets via default-whitelist.
+# Uses the shared wildcard cert, so this resource lives in the traefik
+# namespace even though the file is under apps/firefly3/ for discoverability.
+#
+# Backend service: firefly3-importer.firefly3.svc.cluster.local:8080
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: firefly3-importer
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`firefly3-importer.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: firefly3-importer
+          namespace: firefly3
+          port: 8080
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

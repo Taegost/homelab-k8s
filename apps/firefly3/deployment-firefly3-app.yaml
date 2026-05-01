@@ -1,0 +1,87 @@
+# Deployment — firefly3-app
+#
+# Firefly III v6.6.2 — personal finance manager.
+# Database: shared CNPG PostgreSQL cluster via PgBouncer pooler.
+# On startup, Laravel runs all pending migrations automatically.
+#
+# Recreate strategy required: firefly3-upload is RWO — only one pod can
+# attach it at a time. Recreate terminates the old pod first, releasing
+# the volume attachment before the new pod starts.
+#
+# Config: non-secret vars in configmap-firefly3-app, secrets in
+# sealedsecret-firefly3. Both injected via envFrom. After changing either,
+# manually restart: kubectl rollout restart deployment -n firefly3 firefly3-app
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefly3-app
+  namespace: firefly3
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firefly3-app
+  template:
+    metadata:
+      labels:
+        app: firefly3-app
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: firefly3-app
+          image: fireflyiii/core:v6.6.2
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: firefly3-app
+            - secretRef:
+                name: firefly3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW
+          volumeMounts:
+            - name: upload
+              mountPath: /var/www/html/storage/upload
+            - name: import
+              mountPath: /import
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            # Laravel runs DB migrations on first start — allow up to 5 minutes.
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              # Steady-state observed: ~103MB RAM, ~0% CPU
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              # Observed peak: ~202MB RAM, 126% CPU spike during login
+              cpu: 1500m
+              memory: 512Mi
+      volumes:
+        - name: upload
+          persistentVolumeClaim:
+            claimName: firefly3-upload
+        - name: import
+          persistentVolumeClaim:
+            claimName: firefly3-import
