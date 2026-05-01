@@ -197,6 +197,11 @@ full workflow including creating, updating, rotating, and backing up secrets.
 - When creating a new secret, write the plain `secret-*.yaml` with placeholder
   values and provide the `kubeseal` command alongside it. Do not fill in real
   values — the user fills those in before sealing.
+- Placeholder values must not contain dots (`.`) or dashes (`-`) — use underscores
+  only (e.g. `your_sonarr_api_key_here`). Dots and dashes break word-selection in
+  editors and terminals, making copy-paste harder.
+- The `kubeseal` command must always be written as a single line. Never split it
+  with backslash continuations — it needs to be copy-paste friendly.
 - Apps that use PostgreSQL require the database password in **two** secrets: one in
   the `postgres` namespace (for CNPG to set the role password) and one in the app
   namespace (for the pod to connect). Both must have identical values. See

@@ -1,0 +1,83 @@
+# CronJob — Configarr
+#
+# Configarr syncs custom format definitions from TRaSH-Guides into Sonarr
+# and Radarr. It runs on a schedule, connects to each arr instance via API,
+# pushes the format definitions, and exits — no long-running process needed.
+#
+# Configuration: config.yml mounted from configmap-configarr at /app/config/
+# Secrets: API keys in sealedsecret-configarr-env, injected as env vars and
+#          referenced in config.yml via the !env tag (e.g. !env SONARR_API_KEY)
+# Repo cache: configarr-repos PVC persists cloned TRaSH-Guides git repos
+#             between runs to avoid re-downloading ~300MB on every sync
+#
+# To test a config.yml change without applying it to Sonarr/Radarr:
+#   1. Update the SealedSecret to set DRY_RUN=true, re-seal, and sync
+#   2. Trigger a manual job run and check logs
+#   3. Revert DRY_RUN=false when satisfied
+#
+# Image: intentionally pinned to :latest — Configarr is a low-priority sync
+#        tool; automatic updates via imagePullPolicy: Always are acceptable.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: configarr
+  namespace: arr-stack
+spec:
+  schedule: "0 */12 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      # Only retry once before giving up — if it fails twice, wait for the
+      # next scheduled run rather than hammering the arr API endpoints.
+      backoffLimit: 1
+      template:
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          restartPolicy: Never
+          containers:
+            - name: configarr
+              image: ghcr.io/raydak-labs/configarr:latest
+              imagePullPolicy: Always
+              # tty required for colour log output
+              tty: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - NET_RAW
+              envFrom:
+                - secretRef:
+                    name: configarr-env
+              env:
+                - name: TZ
+                  value: "America/New_York"
+              resources:
+                requests:
+                  cpu: "10m"
+                  memory: "64Mi"
+                limits:
+                  # Headroom for git clone operations on first run or cache miss
+                  cpu: "500m"
+                  memory: "512Mi"
+              volumeMounts:
+                # Persisted repo cache — default CUSTOM_REPO_ROOT=./repos resolves
+                # to /app/repos, matching this mountPath without extra env vars
+                - name: repos
+                  mountPath: /app/repos
+                # Mount only the config.yml file, not the whole ConfigMap directory,
+                # so Configarr sees exactly /app/config/config.yml as expected by
+                # the default CONFIG_LOCATION=./config/config.yml
+                - name: config
+                  mountPath: /app/config/config.yml
+                  subPath: config.yml
+          volumes:
+            - name: repos
+              persistentVolumeClaim:
+                claimName: configarr-repos
+            - name: config
+              configMap:
+                name: configarr

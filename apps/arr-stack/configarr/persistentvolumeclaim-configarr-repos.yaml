@@ -1,0 +1,24 @@
+# PersistentVolumeClaim — configarr-repos
+#
+# Longhorn-backed cache for Configarr's cloned TRaSH-Guides git repository.
+# Without this, every CronJob run re-downloads the full repo (~150-300MB).
+# With it, Configarr does a fast incremental fetch instead.
+#
+# This volume holds only derived/downloaded data. If deleted, Configarr
+# re-clones from scratch on the next run — no configuration is stored here.
+# Real configuration lives in configmap-configarr and sealedsecret-configarr-env.
+#
+# 1Gi is sized for the TRaSH-Guides repo clone plus working space. The
+# repo itself is the dominant consumer; recyclarr/config-templates adds ~10MB.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: configarr-repos
+  namespace: arr-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
