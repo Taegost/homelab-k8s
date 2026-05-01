@@ -1,0 +1,64 @@
+# ConfigMap — firefly3-importer
+#
+# Non-secret environment variables for the Firefly III data importer.
+# Secret values (FIREFLY_III_ACCESS_TOKEN, SIMPLEFIN_TOKEN, AUTO_IMPORT_SECRET)
+# live in sealedsecret-firefly3-importer.yaml.
+#
+# FIREFLY_III_URL uses the short ClusterIP service name — both pods are in
+# the same namespace so CoreDNS resolves it without the full FQDN.
+# VANITY_URL is the external URL used in any links the importer generates
+# back to Firefly III.
+#
+# SimpleFIN settings are preserved from the Docker config. GoCardless and
+# Spectre are omitted — not configured.
+#
+# IMPORTANT: Changes to this ConfigMap are NOT applied automatically.
+# After ArgoCD syncs it, manually restart the deployment:
+#   kubectl rollout restart deployment -n firefly3 firefly3-importer
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: firefly3-importer
+  namespace: firefly3
+data:
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  FIREFLY_III_URL: "http://firefly3-app:8080"
+  VANITY_URL: "https://firefly3.home.diceninjagaming.com"
+  TRUSTED_PROXIES: "**"
+  TZ: "America/New_York"
+  LOG_CHANNEL: "stack"
+  LOG_LEVEL: "notice"
+  LOG_RETURN_JSON: "false"
+  VERIFY_TLS_SECURITY: "true"
+  CONNECTION_TIMEOUT: "31.41"
+  USE_CACHE: "true"
+  IGNORE_DUPLICATE_ERRORS: "true"
+  IGNORE_NOT_FOUND_TRANSACTIONS: "false"
+  CAN_POST_AUTOIMPORT: "true"
+  CAN_POST_FILES: "true"
+  IMPORT_DIR_ALLOWLIST: "/import"
+  FALLBACK_IN_DIR: "false"
+  SIMPLEFIN_CONNECTION_TIMEOUT: "30"
+  SIMPLEFIN_REQUEST_TIMEOUT: "60"
+  SIMPLEFIN_RETRY_ATTEMPTS: "3"
+  SIMPLEFIN_MAX_TRANSACTIONS: "10000"
+  SIMPLEFIN_DEFAULT_DATE_RANGE: "90"
+  SIMPLEFIN_ENABLE_CACHING: "true"
+  SIMPLEFIN_CACHE_DURATION: "3600"
+  SIMPLEFIN_SMART_EXPENSE_MATCHING: "true"
+  SIMPLEFIN_EXPENSE_MATCHING_THRESHOLD: "0.7"
+  SIMPLEFIN_AUTO_CREATE_EXPENSE_ACCOUNTS: "true"
+  SIMPLEFIN_ENABLE_TRANSACTION_CLUSTERING: "true"
+  SIMPLEFIN_CLUSTERING_SIMILARITY_THRESHOLD: "0.7"
+  # Mail is unconfigured — update when enabling ENABLE_MAIL_REPORT.
+  ENABLE_MAIL_REPORT: "false"
+  EXPECT_SECURE_URL: "false"
+  MAIL_MAILER: ""
+  MAIL_DESTINATION: "noreply@example.com"
+  MAIL_FROM_ADDRESS: "noreply@example.com"
+  MAIL_HOST: "smtp.mailtrap.io"
+  MAIL_PORT: "2525"
+  MAIL_USERNAME: "username"
+  MAIL_PASSWORD: "password"
+  MAIL_ENCRYPTION: "null"

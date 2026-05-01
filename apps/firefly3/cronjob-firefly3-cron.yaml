@@ -1,0 +1,55 @@
+# CronJob — firefly3-cron
+#
+# Triggers Firefly III's internal cron task nightly at 3:00 AM.
+# This handles recurring transactions, bill checks, and other scheduled work.
+#
+# Runs 20 minutes after the autoimport (2:40 AM) so imported data is
+# available when recurring rules and bills are evaluated.
+#
+# STATIC_CRON_TOKEN is sourced from sealedsecret-firefly3 and embedded
+# in the URL path to authenticate the request (32 characters exactly).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: firefly3-cron
+  namespace: firefly3
+spec:
+  schedule: "0 3 * * *"
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          restartPolicy: Never
+          containers:
+            - name: cron
+              image: alpine:3.21
+              command:
+                - sh
+                - -c
+                - wget -qO- "http://firefly3-app:8080/api/v1/cron/${STATIC_CRON_TOKEN}"
+              env:
+                - name: STATIC_CRON_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: firefly3
+                      key: STATIC_CRON_TOKEN
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 5m
+                  memory: 8Mi
+                limits:
+                  cpu: 100m
+                  memory: 32Mi

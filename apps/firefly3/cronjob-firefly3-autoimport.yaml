@@ -1,0 +1,60 @@
+# CronJob — firefly3-autoimport
+#
+# Triggers the data importer's autoimport endpoint nightly at 2:40 AM.
+# The importer reads JSON config + data files from the shared /import volume
+# (firefly3-import PVC, also mounted by the firefly3-importer Deployment)
+# and imports them into Firefly III.
+#
+# Runs 20 minutes before the Firefly III cron (3:00 AM) so SimpleFIN data
+# is ingested before Firefly processes it.
+#
+# AUTO_IMPORT_SECRET is sourced from sealedsecret-firefly3-importer and
+# appended to the URL as a query parameter to authenticate the request.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: firefly3-autoimport
+  namespace: firefly3
+spec:
+  schedule: "40 2 * * *"
+  timeZone: "America/New_York"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          restartPolicy: Never
+          containers:
+            - name: autoimport
+              image: alpine:3.21
+              command:
+                - sh
+                - -c
+                - |
+                  wget -qO - --post-data '' \
+                    --header 'Accept: application/json' \
+                    "http://firefly3-importer:8080/autoimport?directory=/import&secret=${AUTO_IMPORT_SECRET}"
+              env:
+                - name: AUTO_IMPORT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: firefly3-importer
+                      key: AUTO_IMPORT_SECRET
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 5m
+                  memory: 8Mi
+                limits:
+                  cpu: 100m
+                  memory: 32Mi

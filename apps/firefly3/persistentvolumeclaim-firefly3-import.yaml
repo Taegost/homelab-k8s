@@ -1,0 +1,21 @@
+# PersistentVolumeClaim — firefly3-import
+#
+# Longhorn RWX-backed storage for the /import directory.
+# Shared simultaneously by the firefly3-app and firefly3-importer pods.
+# Longhorn implements RWX via its built-in NFS mechanism.
+#
+# This directory holds import configuration JSON files and staged CSV/CAMT
+# files. The nightly autoimport CronJob triggers the importer endpoint, which
+# reads files from this volume directly.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: firefly3-import
+  namespace: firefly3
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

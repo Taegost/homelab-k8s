@@ -1,0 +1,64 @@
+# ConfigMap — firefly3-app
+#
+# Non-secret environment variables for the Firefly III core application.
+# Secret values (DB_PASSWORD, APP_KEY, STATIC_CRON_TOKEN) live in
+# sealedsecret-firefly3.yaml and are injected alongside this ConfigMap.
+#
+# DB_HOST points to the PgBouncer pooler. Firefly III uses standard Laravel
+# queries with no advisory locks or LISTEN/NOTIFY, so the pooler is fine.
+#
+# PGSQL_SCHEMA=public works correctly with CNPG because CNPG creates the
+# database with firefly3 as owner. The owner is implicitly a member of
+# pg_database_owner, which owns the public schema and has CREATE privilege —
+# the PostgreSQL 15+ revocation only affects non-owner users.
+#
+# IMPORTANT: Changes to this ConfigMap are NOT applied automatically.
+# After ArgoCD syncs it, manually restart the deployment:
+#   kubectl rollout restart deployment -n firefly3 firefly3-app
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: firefly3-app
+  namespace: firefly3
+data:
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  APP_NAME: "FireflyIII"
+  APP_URL: "https://firefly3.home.diceninjagaming.com"
+  SITE_OWNER: "taegost@gmail.com"
+  DEFAULT_LANGUAGE: "en_US"
+  DEFAULT_LOCALE: "equal"
+  TZ: "America/New_York"
+  TRUSTED_PROXIES: "**"
+  LOG_CHANNEL: "stack"
+  APP_LOG_LEVEL: "notice"
+  AUDIT_LOG_LEVEL: "emergency"
+  DB_CONNECTION: "pgsql"
+  DB_HOST: "postgres-pooler.postgres.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_DATABASE: "firefly3"
+  DB_USERNAME: "firefly3"
+  PGSQL_SCHEMA: "public"
+  CACHE_DRIVER: "file"
+  SESSION_DRIVER: "file"
+  QUEUE_DRIVER: "sync"
+  # Mail is unconfigured — MAIL_MAILER=log drops outbound mail into the
+  # application log rather than sending. Update these when configuring email.
+  MAIL_MAILER: "log"
+  MAIL_HOST: "null"
+  MAIL_PORT: "2525"
+  MAIL_FROM: "changeme@example.com"
+  MAIL_USERNAME: "null"
+  MAIL_PASSWORD: "null"
+  MAIL_ENCRYPTION: "null"
+  MAIL_SENDMAIL_COMMAND: ""
+  MAIL_ALLOW_SELF_SIGNED: "false"
+  MAIL_VERIFY_PEER: "true"
+  MAIL_VERIFY_PEER_NAME: "true"
+  SEND_ERROR_MESSAGE: "true"
+  SEND_REPORT_JOURNALS: "true"
+  AUTHENTICATION_GUARD: "web"
+  ALLOW_WEBHOOKS: "false"
+  USE_RUNNING_BALANCE: "false"
+  FIREFLY_III_LAYOUT: "v1"
+  QUERY_PARSER_IMPLEMENTATION: "new"

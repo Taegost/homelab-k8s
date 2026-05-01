@@ -1,0 +1,80 @@
+# Deployment — firefly3-importer
+#
+# Firefly III Data Importer v2.3.2.
+# Connects to the core app via the firefly3-app ClusterIP service (internal).
+# Shares the firefly3-import RWX volume with the app pod for the /import dir.
+#
+# This pod is mostly idle — it serves the importer UI and handles the nightly
+# autoimport triggered by cronjob-firefly3-autoimport.
+#
+# Config: non-secret vars in configmap-firefly3-importer, secrets in
+# sealedsecret-firefly3-importer. After changing either, manually restart:
+#   kubectl rollout restart deployment -n firefly3 firefly3-importer
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefly3-importer
+  namespace: firefly3
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firefly3-importer
+  template:
+    metadata:
+      labels:
+        app: firefly3-importer
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: firefly3-importer
+          image: fireflyiii/data-importer:v2.3.2
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: firefly3-importer
+            - secretRef:
+                name: firefly3-importer
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW
+          volumeMounts:
+            - name: import
+              mountPath: /import
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            failureThreshold: 18
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              # Idle observed: minimal CPU, ~0MB above base
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              # Max observed at startup: ~120MB RAM, 5% CPU
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: import
+          persistentVolumeClaim:
+            claimName: firefly3-import
