@@ -30,7 +30,7 @@ data:
   LOG_CHANNEL: "stack"
   LOG_LEVEL: "notice"
   LOG_RETURN_JSON: "false"
-  VERIFY_TLS_SECURITY: "true"
+  VERIFY_TLS_SECURITY: "false"
   CONNECTION_TIMEOUT: "31.41"
   USE_CACHE: "true"
   IGNORE_DUPLICATE_ERRORS: "true"
