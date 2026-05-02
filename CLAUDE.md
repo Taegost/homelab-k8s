@@ -459,11 +459,11 @@ kubectl patch application <app-name> -n argocd \
 
 1. **Wrong cluster key** — re-seal with `kubeseal` using the current cluster's key
 2. **Controller not running** —
-   `kubectl get pods -n kube-system -l app.kubernetes.io/name=sealed-secrets`
+   `kubectl get pods -n kube-system -l name=sealed-secrets-controller`
 3. **Namespace mismatch** — the SealedSecret must be in the namespace it was sealed for
 
 ```bash
-kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets
+kubectl logs -n kube-system -l name=sealed-secrets-controller
 ```
 
 ### Pod stuck in CreateContainerConfigError

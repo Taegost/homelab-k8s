@@ -86,7 +86,7 @@ All three CRDs (`Database`, `User`, `Grant`) go in the **app's own folder** with
 **1. Create the database, user, and grant manifests in the app folder:**
 
 ```yaml
-# apps/APPNAME/mariadb-database-APPNAME.yaml
+# apps/APPNAME/database-APPNAME.yaml
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Database
 metadata:
@@ -100,7 +100,7 @@ spec:
 ```
 
 ```yaml
-# apps/APPNAME/mariadb-user-APPNAME.yaml
+# apps/APPNAME/user-APPNAME.yaml
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: User
 metadata:
@@ -118,7 +118,7 @@ spec:
 ```
 
 ```yaml
-# apps/APPNAME/mariadb-grant-APPNAME.yaml
+# apps/APPNAME/grant-APPNAME.yaml
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Grant
 metadata:
@@ -280,5 +280,5 @@ kubectl get secret APPNAME-db-credentials -n mariadb
 Same troubleshooting steps as Postgres — see `docs/troubleshooting.md` and check the sealed-secrets controller logs:
 
 ```bash
-kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets
+kubectl logs -n kube-system -l name=sealed-secrets-controller
 ```

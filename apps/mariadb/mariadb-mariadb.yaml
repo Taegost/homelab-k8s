@@ -72,7 +72,7 @@ spec:
       # maxLagSeconds: 0 means no lag tolerance — the replica must stay fully
       # caught up. Increase this only if the replica consistently falls behind
       # on write-heavy workloads.
-      maxLagSeconds: 30
+      maxLagSeconds: 0
       syncTimeout: 10s
 
   # Spread primary and replica across different nodes. With only 2 nodes,
