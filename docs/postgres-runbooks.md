@@ -172,8 +172,13 @@ spec:
 **4. Seal the credentials, commit, and sync:**
 
 ```bash
-kubeseal --format yaml < apps/APPNAME/secret-APPNAME-db-credentials.yaml \
-  > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
+# Create the app namespace and postgres namespace if they don't already exist —
+# required before sealing. kubeseal hashes the namespace into the ciphertext;
+# sealing before the namespace exists produces a secret the controller cannot decrypt.
+kubectl create namespace APPNAME --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace postgres --dry-run=client -o yaml | kubectl apply -f -
+
+kubeseal --format yaml < apps/APPNAME/secret-APPNAME-db-credentials.yaml > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
 rm apps/APPNAME/secret-APPNAME-db-credentials.yaml
 
 git add apps/

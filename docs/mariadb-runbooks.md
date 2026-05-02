@@ -43,6 +43,11 @@ Unlike the Postgres cluster (where CNPG has no standalone Role CRD and forces ro
 Fill in real passwords, seal the root secret, then commit:
 
 ```bash
+# The mariadb namespace must exist before sealing — kubeseal uses the namespace
+# as part of the authenticated encryption and will produce an undecrpytable secret
+# if the namespace doesn't exist in the cluster at sealing time.
+kubectl create namespace mariadb
+
 # Edit apps/mariadb/secret-mariadb-root.yaml and replace both PLACEHOLDER_CHANGE_ME values
 # root-password and repl-password must be different from each other
 
@@ -133,8 +138,7 @@ spec:
 ```yaml
 # apps/APPNAME/secret-APPNAME-db-credentials.yaml
 # Fill in a strong password, then seal:
-#   kubeseal --format yaml < apps/APPNAME/secret-APPNAME-db-credentials.yaml \
-#     > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
+#   kubeseal --format yaml < apps/APPNAME/secret-APPNAME-db-credentials.yaml > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
 #   rm apps/APPNAME/secret-APPNAME-db-credentials.yaml
 apiVersion: v1
 kind: Secret
@@ -181,6 +185,11 @@ spec:
 **3. Seal the credentials, commit, and sync:**
 
 ```bash
+# Create the mariadb namespace if it doesn't already exist — required before sealing.
+# kubeseal hashes the namespace into the ciphertext; sealing before the namespace
+# exists produces a secret the controller cannot decrypt.
+kubectl create namespace mariadb --dry-run=client -o yaml | kubectl apply -f -
+
 kubeseal --format yaml < apps/APPNAME/secret-APPNAME-db-credentials.yaml > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
 rm apps/APPNAME/secret-APPNAME-db-credentials.yaml
 
@@ -199,7 +208,7 @@ kubectl get database,user,grant -n mariadb
 
 Add the application's `Deployment`, `Service`, `IngressRoute`, and any other manifests to `apps/APPNAME/`. The connection string for the app:
 
-```
+```text
 host:     mariadb-primary.mariadb.svc.cluster.local
 port:     3306
 database: APPNAME
@@ -230,7 +239,7 @@ mariadb-operator supports scheduled backups via the `Backup` CRD with S3-compati
 Longhorn supports online PVC expansion without downtime:
 
 ```bash
-# Patch the MariaDB CRD to request more storage
+# Patch the MariaDB resource to request more storage
 kubectl patch mariadb mariadb -n mariadb --type=merge \
   -p '{"spec":{"storage":{"size":"50Gi"}}}'
 
