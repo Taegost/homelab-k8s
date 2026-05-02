@@ -1,6 +1,6 @@
 # MariaDB Runbooks
 
-This document covers day-two operations for the shared MariaDB 12.2.2 instance managed by mariadb-operator.
+This document covers day-two operations for the shared MariaDB instance managed by mariadb-operator. For the current MariaDB server version, see the image tag in `apps/mariadb/mariadb-mariadb.yaml`.
 
 ---
 
@@ -8,9 +8,9 @@ This document covers day-two operations for the shared MariaDB 12.2.2 instance m
 
 | Component | Detail |
 |-----------|--------|
-| CRD chart | mariadb-operator-crds (Helm chart v26.3.0, wave -3) |
-| Operator | mariadb-operator (Helm chart v26.3.0, wave -2) |
-| MariaDB version | 12.2.2 |
+| CRD chart | mariadb-operator-crds (Helm, wave -3) — version: see `apps/manifests/mariadb-operator-crds.yaml` `targetRevision` |
+| Operator | mariadb-operator (Helm, wave -2) — version: see `apps/manifests/mariadb-operator.yaml` `targetRevision` |
+| MariaDB version | see `image` tag in `apps/mariadb/mariadb-mariadb.yaml` |
 | Instances | 2 (primary + 1 replica, anti-affinity across nodes) |
 | Storage | `longhorn` PVCs — see rationale below |
 | Connection (writes) | `mariadb-primary.mariadb.svc.cluster.local:3306` |
