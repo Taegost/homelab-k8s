@@ -44,7 +44,7 @@ Fill in real passwords, seal the root secret, then commit:
 
 ```bash
 # The mariadb namespace must exist before sealing — kubeseal uses the namespace
-# as part of the authenticated encryption and will produce an undecrpytable secret
+# as part of the authenticated encryption and will produce an undecryptable secret
 # if the namespace doesn't exist in the cluster at sealing time.
 kubectl create namespace mariadb
 
@@ -257,6 +257,10 @@ kubectl get pvc -n mariadb
 ```bash
 kubectl describe mariadb mariadb -n mariadb
 kubectl get events -n mariadb --sort-by='.lastTimestamp'
+
+# Operator logs — installed in the mariadb-operator namespace (see apps/manifests/mariadb-operator.yaml).
+# If unsure, locate the operator pod first with the portable label selector:
+#   kubectl get pods -A -l app.kubernetes.io/name=mariadb-operator
 kubectl logs -n mariadb-operator -l app.kubernetes.io/name=mariadb-operator
 ```
 

@@ -75,11 +75,23 @@ spec:
       maxLagSeconds: 0
       syncTimeout: 10s
 
-  # Spread primary and replica across different nodes. With only 2 nodes,
-  # this is a preferred (not required) constraint so the cluster can still
-  # self-heal onto a single node if one goes down.
+  # Prefer spreading primary and replica across different nodes, but do not
+  # require it. antiAffinityEnabled: true would enforce required anti-affinity
+  # (requiredDuringSchedulingIgnoredDuringExecution), making pods unschedulable
+  # if the cluster has fewer nodes than replicas: 2. With only 2 nodes, a hard
+  # requirement would leave the cluster unable to self-heal onto a single
+  # surviving node after a failure. preferredDuringSchedulingIgnoredDuringExecution
+  # with weight 100 strongly encourages separate nodes while still allowing
+  # both pods to colocate if necessary.
   affinity:
-    antiAffinityEnabled: true
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: mariadb
+            topologyKey: kubernetes.io/hostname
 
   service:
     type: ClusterIP
