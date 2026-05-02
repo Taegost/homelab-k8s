@@ -1,0 +1,93 @@
+# MariaDB Cluster — Shared MariaDB 12.2.2 instance
+#
+# This is the shared MariaDB instance used by applications that require MySQL-
+# compatible storage (primarily WordPress sites). New databases are provisioned
+# via the Database CRD, users via the User CRD, and permissions via the Grant
+# CRD — all placed in the owning app's folder with namespace: mariadb.
+# See docs/mariadb-runbooks.md.
+#
+# Storage: Longhorn PVCs on each node. Unlike the Postgres cluster (which uses
+# local-path because CNPG streaming replication is the intended redundancy
+# model), MariaDB uses Longhorn so that if a node fails, the operator can
+# reschedule the primary pod on any surviving node immediately without manual
+# PV/PVC cleanup. See docs/mariadb-runbooks.md for the full rationale.
+#
+# Replication: Async replication (primary + 1 replica) with GTID strict mode.
+# Pod anti-affinity ensures primary and replica land on different nodes.
+# autoFailover promotes the replica automatically if the primary becomes
+# unreachable.
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb
+  namespace: mariadb
+spec:
+  # MariaDB 12.2.2 — pin the patch version for reproducibility.
+  # To upgrade: update this tag and check the mariadb-operator release notes
+  # for any required migration steps.
+  image: mariadb:12.2.2
+
+  # 2 instances = 1 primary + 1 replica. Pod anti-affinity (below) ensures
+  # they land on different nodes. When a third node is added, consider
+  # increasing to 3 for an additional read replica.
+  replicas: 2
+
+  rootPasswordSecretKeyRef:
+    # Secret lives in the mariadb namespace — see sealedsecret-mariadb-root.yaml
+    name: mariadb-root
+    key: root-password
+
+  storage:
+    # Longhorn for storage-level HA: PVCs are not node-pinned, so the operator
+    # can bring pods up on any surviving node after a node failure without
+    # manual intervention. 20Gi shared across all databases — expand via
+    # Longhorn volume resize if needed (no downtime required).
+    size: 20Gi
+    storageClassName: longhorn
+
+  replication:
+    enabled: true
+    # Fully async replication. semiSyncEnabled: true would require the primary
+    # to wait for at least one replica to acknowledge each transaction before
+    # committing — stronger durability guarantee but higher write latency.
+    # For homelab WordPress workloads, fully async is acceptable.
+    semiSyncEnabled: false
+    # GTID strict mode rejects transactions with gaps, preventing split-brain
+    # scenarios where a promoted replica diverges from the old primary.
+    gtidStrictMode: true
+    primary:
+      podIndex: 0
+      # Automatically promote the replica if the primary is unreachable.
+      autoFailover: true
+      autoFailoverDelay: 0s
+    replica:
+      replPasswordSecretKeyRef:
+        # Replication user password — separate key in the same secret as root.
+        name: mariadb-root
+        key: repl-password
+      # CurrentPos: replica starts replicating from the current GTID position
+      # of the primary at the time it joins. Correct for initial setup.
+      gtid: CurrentPos
+      connectionRetrySeconds: 10
+      # maxLagSeconds: 0 means no lag tolerance — the replica must stay fully
+      # caught up. Increase this only if the replica consistently falls behind
+      # on write-heavy workloads.
+      maxLagSeconds: 30
+      syncTimeout: 10s
+
+  # Spread primary and replica across different nodes. With only 2 nodes,
+  # this is a preferred (not required) constraint so the cluster can still
+  # self-heal onto a single node if one goes down.
+  affinity:
+    antiAffinityEnabled: true
+
+  service:
+    type: ClusterIP
+  # Apps should connect to the primary service for writes.
+  # Service: mariadb-primary.mariadb.svc.cluster.local:3306
+  primaryService:
+    type: ClusterIP
+  # Secondary service available for read-only queries if needed.
+  # Service: mariadb-secondary.mariadb.svc.cluster.local:3306
+  secondaryService:
+    type: ClusterIP

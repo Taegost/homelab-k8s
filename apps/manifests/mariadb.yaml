@@ -1,0 +1,40 @@
+# ArgoCD Application — Shared MariaDB Cluster
+#
+# Deploys the MariaDB cluster CRD and sealed root credentials for the shared
+# MariaDB instance used by WordPress and any other MySQL-compatible applications.
+#
+# New per-application databases, users, and grants are added to the owning
+# app's folder (e.g. apps/wordpress-sitename/) with namespace: mariadb set
+# on each resource — ArgoCD deploys them to the mariadb namespace via the
+# app's own Application manifest. See docs/mariadb-runbooks.md.
+#
+# Sync wave -1: Runs alongside Traefik and storage drivers — all are platform
+# services that applications consume. Must run after the mariadb-operator
+# (wave -2) has installed its CRDs. If this Application syncs before the
+# CRDs exist, ArgoCD will surface "no matches for kind MariaDB" errors and
+# retry — it will self-heal once the operator is ready, but wave -1 avoids
+# the noise.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mariadb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/mariadb
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mariadb
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

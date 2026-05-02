@@ -1,0 +1,12 @@
+# mariadb-operator Helm values
+# Chart: mariadb-operator/mariadb-operator  Version: 26.3.0
+# Full values reference: helm show values mariadb-operator/mariadb-operator --version 26.3.0
+
+# Monitoring is disabled until Prometheus/Grafana is added to the stack.
+# When that happens, enable metrics and configure a ServiceMonitor.
+metrics:
+  enabled: false
+
+# Operator watches all namespaces by default (currentNamespaceOnly: false).
+# Leave as-is — the MariaDB cluster lives in the mariadb namespace and the
+# operator needs cluster-wide access to reconcile CRDs in any namespace.

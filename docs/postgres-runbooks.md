@@ -21,6 +21,14 @@ For disaster recovery (cluster loss, full restore from backup), see [disaster-re
 
 Applications must connect through PgBouncer (`postgres-pooler`), not directly to the cluster. The only exception is applications that use `SET LOCAL`, advisory locks, or `LISTEN/NOTIFY`, which are incompatible with PgBouncer's transaction pooling mode.
 
+### Why local-path instead of Longhorn
+
+CNPG's streaming replication is explicitly designed to be the redundancy layer. Each instance gets its own `local-path` PVC on its local node; CNPG streams WAL continuously between them so both nodes always have a complete, up-to-date copy of the data.
+
+If the primary's node fails, CNPG promotes the replica on the surviving node to primary. The old primary's pod sits `Pending` on the dead node (local-path PVCs are node-pinned by `nodeAffinity`) until the node returns, at which point CNPG resyncs it as the new replica. This is the documented, intended operational model — no manual intervention required in the normal case.
+
+Using Longhorn here would add a second replication layer (block-level across nodes) on top of CNPG's WAL streaming, doubling the write overhead for no practical benefit. The MariaDB cluster uses Longhorn instead because mariadb-operator does not have the same tight coupling to local-path, and Longhorn allows the operator to reschedule pods on any surviving node after a failure without manual PV cleanup. See `docs/mariadb-runbooks.md` for the full comparison.
+
 ### Per-application roles
 
 Every application gets its own PostgreSQL role (user) and owns its own database. This is not optional — it enforces isolation at the database layer: an application's credentials only grant access to its own database, so a misconfiguration or credential leak in one app cannot expose another app's data.
