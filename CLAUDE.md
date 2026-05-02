@@ -10,6 +10,7 @@ It is the authoritative source for conventions, patterns, and standards.
 Before implementing any change, read the relevant documentation first:
 
 - **New app deployment or Postgres migration** → `docs/postgres-runbooks.md`
+- **New app deployment with MariaDB database** → `docs/mariadb-runbooks.md`
 - **Secrets workflow** → `docs/sealed-secrets.md`
 - **Cluster recovery or node loss** → `docs/disaster-recovery.md`
 - **DNS or networking issues** → `docs/troubleshooting.md`
@@ -412,6 +413,26 @@ Every app gets its own database and role. Roles are declared in
 
 ---
 
+## Shared MariaDB (mariadb-operator)
+
+The shared MariaDB instance is managed by mariadb-operator. See
+`docs/mariadb-runbooks.md` for all operational procedures.
+
+| Detail | Value |
+|---|---|
+| Operator | mariadb-operator (Helm chart v26.3.0) |
+| Version | MariaDB 12.2.2 |
+| Instances | 2 (primary + replica, async replication with GTID) |
+| Storage | `longhorn` PVCs — see mariadb-runbooks.md for why Longhorn not local-path |
+| Write connection | `mariadb-primary.mariadb.svc.cluster.local:3306` |
+| Read connection | `mariadb-secondary.mariadb.svc.cluster.local:3306` |
+
+Every app gets its own database, user, and grant. Unlike Postgres (where roles are forced into the Cluster spec), MariaDB uses standalone `Database`, `User`, and `Grant` CRDs — these live in **the app's own folder** (e.g. `apps/wordpress-sitename/`) with `namespace: mariadb` on each resource. The app's ArgoCD Application deploys them to the `mariadb` namespace automatically.
+
+**For new apps, follow `docs/mariadb-runbooks.md` exactly.**
+
+---
+
 ## WordPress Sites (Planned)
 
 Not yet implemented. Intended pattern when deployed:
@@ -438,11 +459,11 @@ kubectl patch application <app-name> -n argocd \
 
 1. **Wrong cluster key** — re-seal with `kubeseal` using the current cluster's key
 2. **Controller not running** —
-   `kubectl get pods -n kube-system -l app.kubernetes.io/name=sealed-secrets`
+   `kubectl get pods -n kube-system -l name=sealed-secrets-controller`
 3. **Namespace mismatch** — the SealedSecret must be in the namespace it was sealed for
 
 ```bash
-kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets
+kubectl logs -n kube-system -l name=sealed-secrets-controller
 ```
 
 ### Pod stuck in CreateContainerConfigError

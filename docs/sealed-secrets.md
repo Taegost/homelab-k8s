@@ -44,15 +44,27 @@ If you do use `pub-cert.pem` for offline sealing, be aware it will go stale when
 
 ## Creating a Sealed Secret
 
+### Step 0 — Create the namespace if it doesn't exist yet
+
+kubeseal uses the namespace as part of the authenticated encryption (AEAD). If the target namespace doesn't exist in the cluster at sealing time, the secret will not hash correctly and the controller will be unable to decrypt it when deployed.
+
+**Always ensure the namespace is created before running kubeseal. If you need to do it manually:**
+
+```bash
+kubectl create namespace APPNAME
+```
+
+If the namespace already exists (e.g. for an update to an existing app), skip this step.
+
 ### Step 1 — Write a normal Secret manifest (do NOT commit this file)
 
 ```yaml
-# my-app-secret.yaml  <-- local only, never commit
+# APPNAME-secret.yaml  <-- local only, never commit
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-app-secret
-  namespace: my-app
+  name: APPNAME-secret
+  namespace: APPNAME
 type: Opaque
 stringData:
   API_KEY: "supersecretvalue"
@@ -65,14 +77,10 @@ Note the `-sealedsecret.yaml` suffix — this is the required naming convention 
 
 ```bash
 # With live cluster access (kubeseal fetches the cert automatically)
-kubeseal --format yaml \
-  < my-app-secret.yaml \
-  > apps/my-app/my-app-sealedsecret.yaml
+kubeseal --format yaml < APPNAME-secret.yaml > apps/APPNAME/APPNAME-sealedsecret.yaml
 
 # Alternatively, using a locally fetched cert for offline use
-kubeseal --cert pub-cert.pem --format yaml \
-  < my-app-secret.yaml \
-  > apps/my-app/my-app-sealedsecret.yaml
+kubeseal --cert pub-cert.pem --format yaml < APPNAME-secret.yaml > apps/APPNAME/APPNAME-sealedsecret.yaml
 ```
 
 ### Step 2.5 — Verify it is safe to commit
@@ -81,17 +89,17 @@ Before staging the file, confirm it contains a `SealedSecret` resource and not a
 
 ```bash
 # Should output "SealedSecret" — if it outputs "Secret", do NOT commit the file
-grep "kind:" apps/my-app/my-app-sealedsecret.yaml
+grep "kind:" apps/APPNAME/APPNAME-sealedsecret.yaml
 
 # Optionally, validate the sealed secret against the live cluster
-kubeseal --validate < apps/my-app/my-app-sealedsecret.yaml && echo "Valid"
+kubeseal --validate < apps/APPNAME/APPNAME-sealedsecret.yaml && echo "Valid"
 ```
 
 ### Step 3 — Commit the sealed secret
 
 ```bash
-git add apps/my-app/my-app-sealedsecret.yaml
-git commit -m "feat(my-app): add sealed secret"
+git add apps/APPNAME/APPNAME-sealedsecret.yaml
+git commit -m "feat(APPNAME): add sealed secret"
 git push
 ```
 
@@ -175,7 +183,7 @@ If you use `pub-cert.pem` for offline sealing, re-fetch it after each rotation a
 
 ## Scope and Namespace Binding
 
-By default, `kubeseal` creates secrets that are **namespace-scoped** — a `SealedSecret` encrypted for namespace `my-app` cannot be decrypted in namespace `other-app`. This is a security feature.
+By default, `kubeseal` creates secrets that are **namespace-scoped** — a `SealedSecret` encrypted for namespace `APPNAME` cannot be decrypted in namespace `other-app`. This is a security feature.
 
 If you need a cluster-scoped secret (rare), use `--scope cluster-wide`:
 

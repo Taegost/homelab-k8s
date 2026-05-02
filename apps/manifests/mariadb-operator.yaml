@@ -1,0 +1,48 @@
+# ArgoCD Application — mariadb-operator
+#
+# Installs the mariadb-operator, which manages MariaDB clusters as
+# Kubernetes-native CRDs. All MariaDB, Database, User, and Grant resources
+# depend on the CRDs this operator installs.
+#
+# Sync wave -2: Runs alongside cert-manager, MetalLB, and CNPG — all cluster
+# operators that install CRDs and enable higher-level resources. Must be fully
+# ready before the mariadb Application (wave -1) attempts to create any
+# mariadb-operator CRD resources.
+#
+# ServerSideApply is required: mariadb-operator CRDs contain fields that
+# exceed the kubectl annotation size limit under client-side apply.
+#
+# To upgrade the operator: update targetRevision and check the changelog at
+# https://github.com/mariadb-operator/mariadb-operator/releases
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mariadb-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  sources:
+    # Source 1: The mariadb-operator Helm chart
+    - repoURL: https://mariadb-operator.github.io/mariadb-operator
+      chart: mariadb-operator
+      targetRevision: 26.3.0
+      helm:
+        valueFiles:
+          - $values/apps/mariadb-operator/values.yaml
+    # Source 2: This repo, used only as a $values reference for the Helm
+    # chart above.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mariadb-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

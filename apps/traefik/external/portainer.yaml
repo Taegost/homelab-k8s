@@ -9,7 +9,7 @@ metadata:
   namespace: traefik
 spec:
   type: ExternalName
-  externalName: 192.168.5.12
+  externalName: 192.168.5.9
   ports:
     - port: 9443
       targetPort: 9443
