@@ -8,7 +8,8 @@ This document covers day-two operations for the shared MariaDB 12.2.2 instance m
 
 | Component | Detail |
 |-----------|--------|
-| Operator | mariadb-operator (Helm chart v26.3.0) |
+| CRD chart | mariadb-operator-crds (Helm chart v26.3.0, wave -3) |
+| Operator | mariadb-operator (Helm chart v26.3.0, wave -2) |
 | MariaDB version | 12.2.2 |
 | Instances | 2 (primary + 1 replica, anti-affinity across nodes) |
 | Storage | `longhorn` PVCs — see rationale below |
@@ -59,7 +60,7 @@ git commit -m "Add shared MariaDB cluster with mariadb-operator"
 git push
 ```
 
-ArgoCD will sync in wave order: mariadb-operator (wave -2) → MariaDB cluster (wave -1). The cluster takes 2–3 minutes to initialize on first sync as it sets up replication.
+ArgoCD will sync in wave order: mariadb-operator-crds (wave -3) → mariadb-operator (wave -2) → MariaDB cluster (wave -1). The CRDs must be registered before the operator starts — the separate CRDs chart ensures this ordering. The cluster takes 2–3 minutes to initialize on first sync as it sets up replication.
 
 Verify the cluster is healthy:
 

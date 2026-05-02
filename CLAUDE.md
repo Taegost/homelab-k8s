@@ -420,7 +420,8 @@ The shared MariaDB instance is managed by mariadb-operator. See
 
 | Detail | Value |
 |---|---|
-| Operator | mariadb-operator (Helm chart v26.3.0) |
+| CRD chart | mariadb-operator-crds (Helm chart v26.3.0, wave -3) |
+| Operator | mariadb-operator (Helm chart v26.3.0, wave -2) |
 | Version | MariaDB 12.2.2 |
 | Instances | 2 (primary + replica, async replication with GTID) |
 | Storage | `longhorn` PVCs — see mariadb-runbooks.md for why Longhorn not local-path |
