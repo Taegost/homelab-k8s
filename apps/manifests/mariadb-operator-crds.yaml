@@ -1,0 +1,41 @@
+# ArgoCD Application — mariadb-operator CRDs
+#
+# Installs the mariadb-operator CRDs as a separate Helm chart. CRDs are
+# deliberately decoupled from the operator chart (crds.enabled: false in
+# apps/mariadb-operator/values.yaml) so that removing or upgrading the
+# operator chart never triggers Helm to cascade-delete the CRDs and destroy
+# all MariaDB instances along with them.
+#
+# Sync wave -3: Must run before the mariadb-operator (wave -2) so the
+# k8s.mariadb.com/v1alpha1 API group is registered before the operator
+# starts. Without this, the operator crashes immediately on startup because
+# it cannot set up its controllers for resources that don't exist yet.
+#
+# ServerSideApply is required: CRD resources are large and exceed the
+# kubectl annotation size limit under client-side apply.
+#
+# To upgrade: update targetRevision here AND in apps/manifests/mariadb-operator.yaml
+# — both charts must stay on the same version.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mariadb-operator-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: default
+  source:
+    repoURL: https://mariadb-operator.github.io/mariadb-operator
+    chart: mariadb-operator-crds
+    targetRevision: 26.3.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mariadb-operator
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -4,10 +4,11 @@
 # Kubernetes-native CRDs. All MariaDB, Database, User, and Grant resources
 # depend on the CRDs this operator installs.
 #
-# Sync wave -2: Runs alongside cert-manager, MetalLB, and CNPG — all cluster
-# operators that install CRDs and enable higher-level resources. Must be fully
-# ready before the mariadb Application (wave -1) attempts to create any
-# mariadb-operator CRD resources.
+# Sync wave -2: Runs after the mariadb-operator-crds Application (wave -3)
+# which installs the k8s.mariadb.com/v1alpha1 CRDs. The operator crashes on
+# startup if those CRDs are not registered — see mariadb-operator-crds.yaml.
+# Must be fully ready before the mariadb Application (wave -1) attempts to
+# create any mariadb-operator CRD resources.
 #
 # ServerSideApply is required: mariadb-operator CRDs contain fields that
 # exceed the kubectl annotation size limit under client-side apply.

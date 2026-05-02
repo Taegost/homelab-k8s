@@ -144,7 +144,11 @@ homelab-k8s/
   values are real values in manifests. Do not suggest placeholder values for things
   that are already implemented.
 - **Single source of truth** — avoid situations where the same value exists in two
-  places. Always identify the canonical location and reference it from there.
+  places. Always identify the canonical location and reference it from there. This
+  applies to versions in documentation: do not hardcode app or chart versions in
+  runbooks or docs — reference the `image` tag in the deployment/CRD manifest or
+  `targetRevision` in `apps/manifests/<app-name>.yaml` instead. Hardcoded versions
+  drift the moment the manifest is updated.
 
 ---
 
@@ -420,7 +424,8 @@ The shared MariaDB instance is managed by mariadb-operator. See
 
 | Detail | Value |
 |---|---|
-| Operator | mariadb-operator (Helm chart v26.3.0) |
+| CRD chart | mariadb-operator-crds (Helm chart v26.3.0, wave -3) |
+| Operator | mariadb-operator (Helm chart v26.3.0, wave -2) |
 | Version | MariaDB 12.2.2 |
 | Instances | 2 (primary + replica, async replication with GTID) |
 | Storage | `longhorn` PVCs — see mariadb-runbooks.md for why Longhorn not local-path |
