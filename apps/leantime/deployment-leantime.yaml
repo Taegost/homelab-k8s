@@ -141,11 +141,14 @@ spec:
               port: 80
             periodSeconds: 30
             failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 80
-            periodSeconds: 10
+          # readinessProbe is commented out during initial install — Leantime
+          # returns 5xx at / before the DB schema exists, which would prevent
+          # the pod ever becoming ready. Uncomment after running /install.
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 80
+          #   periodSeconds: 10
           resources:
             requests:
               cpu: 100m
