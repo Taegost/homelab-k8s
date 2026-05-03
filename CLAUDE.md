@@ -131,6 +131,12 @@ homelab-k8s/
   `DAC_OVERRIDE`, `SETUID`, or `SETGID` are actually required. Use the minimum
   necessary; if the image is fully non-root with no runtime drops, drop ALL
   capabilities and add none.
+- **Never assume port 80 for non-root containers** — processes running as
+  non-root cannot bind to privileged ports (< 1024). Always check the image's
+  Dockerfile for the actual listen port (commonly 8080, 8000, 3000, 9000).
+  Set `containerPort` and the Service `targetPort` to that port. Health probe
+  ports must also match the actual container port. Getting this wrong produces
+  a 502 Bad Gateway with no obvious cause in the logs.
 
 ### Communication
 - **Only render changed sections of documentation** — when updating existing docs,
