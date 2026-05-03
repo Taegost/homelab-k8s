@@ -1,0 +1,17 @@
+# PersistentVolumeClaim — leantime-public-userfiles
+#
+# Longhorn-backed storage for /var/www/html/public/userfiles.
+# Stores publicly accessible user-uploaded files: profile images,
+# project logos, and other assets served directly by the web server.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: leantime-public-userfiles
+  namespace: leantime
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

@@ -1,0 +1,30 @@
+# IngressRoute — leantime.diceninjagaming.com
+#
+# Publicly exposed business app — per-app certificate, leantime namespace.
+#
+# default-whitelist is applied during initial setup to restrict access while
+# configuring the application. Once initial setup is complete and OIDC is
+# verified, replace default-whitelist with default-headers to open it publicly.
+#
+# TLS secret (leantime-diceninjagaming-com-tls) is issued by certificate-leantime.yaml
+# in this same namespace.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: leantime
+  namespace: leantime
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`leantime.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: leantime
+          namespace: leantime
+          port: 80
+  tls:
+    secretName: leantime-diceninjagaming-com-tls

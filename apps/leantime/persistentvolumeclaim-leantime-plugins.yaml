@@ -1,0 +1,17 @@
+# PersistentVolumeClaim — leantime-plugins
+#
+# Longhorn-backed storage for /var/www/html/app/Plugins.
+# Stores installed Leantime plugins. Without persistence, any plugin
+# installed via the UI would be lost on pod restart.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: leantime-plugins
+  namespace: leantime
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

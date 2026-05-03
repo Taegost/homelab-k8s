@@ -41,7 +41,7 @@ spec:
               # dng-sealedsecret.yaml — kept separate so non-sensitive tuning can be
               # changed without touching the sealed secret.
             - name: DOMAIN
-              value: "argocd.home.diceninjagaming.com authentik.diceninjagaming.com diceninjagaming.com dropin.diceninjagaming.com gamepanel.diceninjagaming.com hass.home.diceninjagaming.com home.diceninjagaming.com immich.home.diceninjagaming.com jellyfin.home.diceninjagaming.com jellyseerr.home.diceninjagaming.com manyfold.diceninjagaming.com mealie.home.diceninjagaming.com n8n.diceninjagaming.com paperless.home.diceninjagaming.com seerr.home.diceninjagaming.com vikunja.diceninjagaming.com"
+              value: "argocd.home.diceninjagaming.com authentik.diceninjagaming.com diceninjagaming.com dropin.diceninjagaming.com gamepanel.diceninjagaming.com hass.home.diceninjagaming.com home.diceninjagaming.com immich.home.diceninjagaming.com jellyfin.home.diceninjagaming.com jellyseerr.home.diceninjagaming.com leantime.diceninjagaming.com manyfold.diceninjagaming.com mealie.home.diceninjagaming.com n8n.diceninjagaming.com paperless.home.diceninjagaming.com seerr.home.diceninjagaming.com"
               # All other env vars (DNS_TTL, RECHECK_SECS, MAX_RETRIES, RETRY_DELAY,
               # LOG_LEVEL) are intentionally omitted — application defaults are correct
               # for normal operation. See https://github.com/Taegost/aws-ddns-docker

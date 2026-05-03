@@ -1,0 +1,17 @@
+# PersistentVolumeClaim — leantime-userfiles
+#
+# Longhorn-backed storage for /var/www/html/userfiles.
+# Stores private user-uploaded files (attachments, documents) that are
+# served via Leantime's file controller rather than directly by Apache.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: leantime-userfiles
+  namespace: leantime
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
