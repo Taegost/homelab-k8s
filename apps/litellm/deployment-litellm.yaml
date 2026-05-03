@@ -86,9 +86,16 @@ spec:
               readOnly: true
           startupProbe:
             httpGet:
-              path: /health/liveliness
+              # /health/readiness checks DB connectivity and full initialization —
+              # startup is not declared complete until the database is reachable
+              # and migrations have finished. LiteLLM holds port 4000 closed
+              # until this point, so early probes get "connection refused"; that
+              # is expected and counts against the failureThreshold budget.
+              # Budget: 30 × 10s = 300s. Matches the LiteLLM Helm chart defaults.
+              # Kubernetes gates liveness and readiness probes on startupProbe
+              # completion, so no initialDelaySeconds is needed on those probes.
+              path: /health/readiness
               port: 4000
-            # Allow time for Prisma migrations on first start (new database schema).
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
@@ -99,8 +106,6 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              # readiness also checks DB connectivity — pod stays out of rotation
-              # until Postgres is reachable and migrations are complete.
               path: /health/readiness
               port: 4000
             periodSeconds: 10
