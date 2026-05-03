@@ -31,7 +31,9 @@ spec:
         - name: leantime
           image: leantime/leantime:3.7.3
           ports:
-            - containerPort: 80
+            # serversideup/php base image runs nginx on 8080 — port 80 requires
+            # root to bind, and this container runs as www-data (UID 1000).
+            - containerPort: 8080
           env:
             # --- Database (MariaDB) ---
             - name: LEAN_DB_HOST

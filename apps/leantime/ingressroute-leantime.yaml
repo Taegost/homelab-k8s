@@ -26,5 +26,6 @@ spec:
         - name: leantime
           namespace: leantime
           port: 80
+          # Service exposes 80 → targetPort 8080 (nginx in non-root container)
   tls:
     secretName: leantime-diceninjagaming-com-tls
