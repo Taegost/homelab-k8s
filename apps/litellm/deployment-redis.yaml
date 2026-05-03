@@ -15,12 +15,13 @@ spec:
       labels:
         app: redis
     spec:
+      automountServiceAccountToken: false
       securityContext:
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: redis
-          image: redis:7-alpine
+          image: redis:8.6.2-alpine
           # --save "": disables RDB snapshots — all LiteLLM state (rate limits,
           # health checks, spend counters) is ephemeral by design; durable state
           # lives in Postgres. Disabling persistence avoids write errors when
@@ -30,7 +31,7 @@ spec:
           ports:
             - containerPort: 6379
           securityContext:
-            # redis:7-alpine entrypoint checks id -u; if not root it skips the
+            # redis:*-alpine entrypoint checks id -u; if not root it skips the
             # gosu drop and runs redis directly. Setting runAsUser: 999 (the
             # redis user baked into the image) avoids any root→drop dance.
             runAsUser: 999

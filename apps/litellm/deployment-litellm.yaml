@@ -21,6 +21,7 @@ spec:
       labels:
         app: litellm
     spec:
+      automountServiceAccountToken: false
       securityContext:
         seccompProfile:
           type: RuntimeDefault
