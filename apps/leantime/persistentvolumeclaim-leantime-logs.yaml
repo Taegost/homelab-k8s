@@ -1,0 +1,17 @@
+# PersistentVolumeClaim — leantime-logs
+#
+# Longhorn-backed storage for /var/www/html/storage/logs.
+# Persisting logs makes troubleshooting possible after pod restarts
+# without needing to catch failures in a live kubectl logs stream.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: leantime-logs
+  namespace: leantime
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

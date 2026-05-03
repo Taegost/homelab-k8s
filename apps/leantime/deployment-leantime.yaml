@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leantime
+  namespace: leantime
+spec:
+  replicas: 1
+  # Recreate required — all four Longhorn PVCs are RWO. RollingUpdate would
+  # attempt to bring up a new pod before terminating the old one; if the new
+  # pod lands on a different node it cannot attach volumes still held by the
+  # old pod. Recreate releases all attachments before the new pod starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: leantime
+  template:
+    metadata:
+      labels:
+        app: leantime
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: leantime
+          image: leantime/leantime:3.7.3
+          ports:
+            - containerPort: 80
+          env:
+            # --- Database (MariaDB) ---
+            - name: LEAN_DB_HOST
+              value: mariadb-primary.mariadb.svc.cluster.local
+            - name: LEAN_DB_PORT
+              value: "3306"
+            - name: LEAN_DB_USER
+              value: leantime
+            - name: LEAN_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: leantime
+                  key: database-password
+            - name: LEAN_DB_DATABASE
+              value: leantime
+
+            # --- Application ---
+            - name: LEAN_APP_URL
+              value: https://leantime.diceninjagaming.com
+            - name: LEAN_DEFAULT_TIMEZONE
+              value: America/New_York
+            - name: LEAN_SESSION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: leantime
+                  key: session-password
+            # HTTPS-only session cookies — required since traffic arrives via TLS
+            - name: LEAN_SESSION_SECURE
+              value: "true"
+
+            # --- SMTP (Zoho) ---
+            - name: LEAN_EMAIL_USE_SMTP
+              value: "true"
+            - name: LEAN_EMAIL_SMTP_HOSTS
+              value: smtp.zoho.com
+            - name: LEAN_EMAIL_SMTP_PORT
+              value: "587"
+            # STARTTLS on port 587
+            - name: LEAN_EMAIL_SMTP_SECURE
+              value: tls
+            - name: LEAN_EMAIL_SMTP_AUTH
+              value: "true"
+            - name: LEAN_EMAIL_SMTP_USERNAME
+              value: admin@diceninjagaming.com
+            - name: LEAN_EMAIL_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: leantime
+                  key: smtp-password
+            - name: LEAN_EMAIL_RETURN
+              value: no-reply@diceninjagaming.com
+
+            # --- Authentik OIDC ---
+            - name: LEAN_OIDC_ENABLE
+              value: "true"
+            - name: LEAN_OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: leantime
+                  key: oidc-client-id
+            - name: LEAN_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: leantime
+                  key: oidc-client-secret
+            # Issuer root — Leantime appends /.well-known/openid-configuration itself
+            - name: LEAN_OIDC_PROVIDER_URL
+              value: https://authentik.diceninjagaming.com/application/o/leantime/
+            # Allow Authentik users to be created in Leantime on first OIDC login
+            - name: LEAN_OIDC_CREATE_USER
+              value: "true"
+            # Hides the local password form — OIDC is the only login path.
+            # If OIDC is misconfigured and you get locked out, change the value to false,
+            # sync ArgoCD, and log in with the local admin account to fix it.
+            - name: LEAN_DISABLE_LOGIN_FORM
+              value: "false"
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Image runs as www-data (UID/GID 1000) from the start — tini + supervisord
+            # launch Nginx and PHP-FPM as www-data with no root-to-user drop at runtime.
+            # All capabilities can be dropped; none need to be added.
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: public-userfiles
+              mountPath: /var/www/html/public/userfiles
+            - name: userfiles
+              mountPath: /var/www/html/userfiles
+            - name: plugins
+              mountPath: /var/www/html/app/Plugins
+            - name: logs
+              mountPath: /var/www/html/storage/logs
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            # Allow time for DB schema initialization on first boot
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: public-userfiles
+          persistentVolumeClaim:
+            claimName: leantime-public-userfiles
+        - name: userfiles
+          persistentVolumeClaim:
+            claimName: leantime-userfiles
+        - name: plugins
+          persistentVolumeClaim:
+            claimName: leantime-plugins
+        - name: logs
+          persistentVolumeClaim:
+            claimName: leantime-logs

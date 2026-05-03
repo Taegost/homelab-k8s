@@ -1,0 +1,23 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: leantime
+  namespace: mariadb
+  annotations:
+    # Provision DB before the Deployment (wave 0) so the operator has created
+    # the database by the time the Leantime pod first connects.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  mariaDbRef:
+    name: mariadb
+  # utf8mb4 is required — Leantime issues `SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci`
+  # on every connection via PDO MYSQL_ATTR_INIT_COMMAND (laravelConfig.php). Using
+  # plain `utf8` here would cause collation mismatches on any column that doesn't
+  # override the database default, and would silently truncate 4-byte Unicode
+  # characters (emoji, some CJK) on INSERT.
+  characterSet: utf8mb4
+  # utf8mb4_unicode_ci matches Leantime's PDO init command exactly. Using a
+  # different collation (e.g. utf8mb4_general_ci or utf8mb4_0900_ai_ci) would
+  # cause implicit collation coercions on every JOIN against a string column,
+  # which can produce incorrect sort/compare results or index-miss penalties.
+  collate: utf8mb4_unicode_ci

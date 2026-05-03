@@ -1,0 +1,22 @@
+# Certificate — leantime.diceninjagaming.com
+#
+# Leantime is publicly exposed (business project management), so it gets a
+# dedicated per-app certificate rather than the shared wildcard. The secret
+# lands in the leantime namespace alongside the IngressRoute that references
+# it — Traefik resolves tls.secretName in the same namespace as the
+# IngressRoute, so both resources must share the same namespace.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: leantime-diceninjagaming-com
+  namespace: leantime
+spec:
+  secretName: leantime-diceninjagaming-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - leantime.diceninjagaming.com
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

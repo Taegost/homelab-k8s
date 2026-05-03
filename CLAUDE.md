@@ -124,6 +124,13 @@ homelab-k8s/
   exists before proposing a custom solution.
 - **Don't repeat failed steps** — if something didn't work, think through what is
   actually different before proposing a next step.
+- **Research container security context per app** — never copy `securityContext`
+  from an existing app. Always fetch the target image's Dockerfile and entrypoint
+  to determine: what USER it runs as, whether it does a root→non-root drop at
+  runtime (gosu, su-exec, etc.), and whether capabilities like `CHOWN`,
+  `DAC_OVERRIDE`, `SETUID`, or `SETGID` are actually required. Use the minimum
+  necessary; if the image is fully non-root with no runtime drops, drop ALL
+  capabilities and add none.
 
 ### Communication
 - **Only render changed sections of documentation** — when updating existing docs,
