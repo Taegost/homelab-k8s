@@ -1,0 +1,16 @@
+# Per-app cert for litellm.diceninjagaming.com.
+# Lives in the litellm namespace alongside the IngressRoute so that Traefik
+# can read the TLS secret directly — secrets must be in the same namespace
+# as the IngressRoute that references them.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: litellm
+  namespace: litellm
+spec:
+  secretName: litellm-tls
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - litellm.diceninjagaming.com

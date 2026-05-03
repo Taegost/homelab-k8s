@@ -1,0 +1,25 @@
+# IngressRoute for litellm.diceninjagaming.com.
+# Uses a per-app cert (certificate-litellm.yaml in this namespace) because this
+# is a public domain rather than the internal *.home.diceninjagaming.com wildcard.
+# Restricted to internal subnets via default-whitelist until public access is needed.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: litellm
+  namespace: litellm
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`litellm.diceninjagaming.com`)
+      kind: Rule
+      services:
+        - name: litellm
+          port: 4000
+      middlewares:
+        # Restricts to internal subnets (192.168.5.0/24, 192.168.6.0/24).
+        # Remove this middleware and add default-headers when opening to the public.
+        - name: default-whitelist
+          namespace: traefik
+  tls:
+    secretName: litellm-tls
