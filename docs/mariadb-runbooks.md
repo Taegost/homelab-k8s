@@ -86,6 +86,14 @@ All three CRDs (`Database`, `User`, `Grant`) go in the **app's own folder** with
 
 **1. Create the database, user, and grant manifests in the app folder:**
 
+**Wave ordering within the ArgoCD Application:**
+
+| Wave | Resources | Reason |
+|---|---|---|
+| `-2` | `sealedsecret-APPNAME-db-credentials` | Secret must exist before the User CRD tries to read it |
+| `-1` | `Database`, `User`, `Grant` | Operator provisions DB before the Deployment starts |
+| `0` | `Deployment`, `Service`, `IngressRoute`, PVCs, app secret | Default — everything else |
+
 ```yaml
 # apps/APPNAME/database-APPNAME.yaml
 apiVersion: k8s.mariadb.com/v1alpha1
@@ -93,6 +101,8 @@ kind: Database
 metadata:
   name: APPNAME
   namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   mariaDbRef:
     name: mariadb
@@ -107,6 +117,8 @@ kind: User
 metadata:
   name: APPNAME
   namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   mariaDbRef:
     name: mariadb
@@ -125,6 +137,8 @@ kind: Grant
 metadata:
   name: APPNAME
   namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   mariaDbRef:
     name: mariadb
@@ -141,11 +155,16 @@ spec:
 # Fill in a strong password, then seal:
 #   kubeseal --format yaml < apps/APPNAME/secret-APPNAME-db-credentials.yaml > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
 #   rm apps/APPNAME/secret-APPNAME-db-credentials.yaml
+#
+# Wave -2 — must be decrypted into a real Secret before the User CRD (wave -1)
+# attempts to read it. kubeseal preserves this annotation in the SealedSecret output.
 apiVersion: v1
 kind: Secret
 metadata:
   name: APPNAME-db-credentials
   namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 type: Opaque
 stringData:
   password: PLACEHOLDER_CHANGE_ME
