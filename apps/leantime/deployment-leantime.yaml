@@ -132,23 +132,24 @@ spec:
               mountPath: /var/www/html/storage/logs
           startupProbe:
             httpGet:
-              path: /
+              # healthCheck.php is a purpose-built file in Leantime's webroot
+              # that returns 200 "Ok" without entering the Laravel kernel — it
+              # bypasses auth middleware entirely and works regardless of OIDC
+              # config. Also exercises PHP-FPM, so it catches worker crashes.
+              path: /healthCheck.php
               port: 8080
             # Allow time for DB schema initialization on first boot
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthCheck.php
               port: 8080
             periodSeconds: 30
             failureThreshold: 3
-          # readinessProbe is commented out during initial install — Leantime
-          # returns 5xx at / before the DB schema exists, which would prevent
-          # the pod ever becoming ready. Uncomment after running /install.
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthCheck.php
               port: 8080
             periodSeconds: 10
           resources:
