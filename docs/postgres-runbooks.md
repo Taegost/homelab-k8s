@@ -197,6 +197,12 @@ kubectl get cluster postgres -n postgres -o jsonpath='{.status.managedRolesStatu
 
 Add the application's `Deployment`, `Service`, `IngressRoute`, and any other manifests to `apps/APPNAME/`. The connection string for the app to use:
 
+> **`fsGroup` is required for any Deployment that mounts a Longhorn PVC.** Fresh
+> Longhorn volumes are provisioned owned by root — a non-root container cannot
+> write to them without it. Set `fsGroup` in `spec.template.spec.securityContext`
+> to the GID the container runs as. Check the image's Dockerfile first; do not
+> assume it matches another app in the stack.
+
 ```
 host:     postgres-pooler.postgres.svc.cluster.local
 port:     5432

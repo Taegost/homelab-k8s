@@ -30,6 +30,11 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        # Image runs as www-data (UID/GID 33 — Debian standard). Fresh Longhorn
+        # PVCs are created owned by root; fsGroup causes Kubernetes to chown
+        # mounted volumes to GID 33 before the container starts so www-data
+        # can write to them.
+        fsGroup: 33
       containers:
         - name: firefly3-importer
           image: fireflyiii/data-importer:version-2.3.2

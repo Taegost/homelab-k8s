@@ -22,6 +22,11 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        # Fresh Longhorn PVCs are created owned by root. Leantime runs as
+        # www-data (UID/GID 1000) and cannot write to root-owned mount points.
+        # fsGroup causes Kubernetes to chown all mounted volumes to GID 1000
+        # before the container starts, making them writable by www-data.
+        fsGroup: 1000
       containers:
         - name: leantime
           image: leantime/leantime:3.7.3

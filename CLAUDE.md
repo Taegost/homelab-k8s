@@ -303,6 +303,14 @@ because the old pod still holds it. `Recreate` terminates the old pod first,
 releasing the attachment. This applies to all single-replica apps — arr-stack,
 Mealie, and any future single-replica app with a Longhorn RWO PVC.
 
+**Deployments mounting Longhorn PVCs must set `fsGroup` in the pod `securityContext`.**
+Fresh Longhorn volumes are provisioned owned by root. If the container runs as a
+non-root user, it cannot write to the volume on first start. Setting `fsGroup` to
+the container's GID causes Kubernetes to chown all mounted volumes to that group
+before the container starts. The correct value depends on what GID the image runs
+as — always check the image's Dockerfile (see Research and correctness rules).
+Do not assume it matches any other app in the stack.
+
 ### SMB CSI Driver (`csi-driver-smb`)
 - Installed via Helm through ArgoCD, managed by `apps/manifests/smb-csi.yaml`
 - Provides dynamic SMB provisioning — no manual PVs required
