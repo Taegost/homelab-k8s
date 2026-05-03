@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: litellm
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Keep all running pods healthy during rollout — briefly allows 3 pods
+      # while new one starts before old one is taken down. Critical service;
+      # zero unavailability during upgrades is worth the temporary extra pod.
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          # Prefer spreading replicas across nodes but don't hard-require it —
+          # a hard requirement would leave one pod Pending if a node is lost,
+          # which defeats the purpose of HA on a 2-node cluster.
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: litellm
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: litellm
+          # non_root variant runs as saasapi (UID 1000) — no root-drop at runtime,
+          # no capabilities required. Port 4000 is non-privileged.
+          image: ghcr.io/berriai/litellm-non_root:main-v1.83.10-stable
+          args:
+            - "--config"
+            - "/app/config.yaml"
+            - "--port"
+            - "4000"
+          ports:
+            - containerPort: 4000
+          env:
+            # Full connection string including password. Uses postgres-rw (direct,
+            # bypasses PgBouncer) because Prisma takes advisory locks during
+            # schema migrations on startup — incompatible with transaction pooling.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: database-url
+            # Master key for the LiteLLM UI and API admin operations.
+            # Referenced from config.yaml via os.environ/LITELLM_MASTER_KEY.
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: master-key
+            - name: NVIDIA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: nvidia-api-key
+
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health/liveliness
+              port: 4000
+            # Allow time for Prisma migrations on first start (new database schema).
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: 4000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              # readiness also checks DB connectivity — pod stays out of rotation
+              # until Postgres is reachable and migrations are complete.
+              path: /health/readiness
+              port: 4000
+            periodSeconds: 10
+          resources:
+            requests:
+              # LiteLLM is a thin proxy — compute stays with the upstream provider.
+              # Python process at rest sits around 200–300MB.
+              cpu: 100m
+              memory: 300Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
