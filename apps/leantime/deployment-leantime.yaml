@@ -128,22 +128,22 @@ spec:
               mountPath: /var/www/html/app/Plugins
             - name: logs
               mountPath: /var/www/html/storage/logs
-          startupProbe:
-            httpGet:
-              path: /
-              port: 80
-            # Allow time for DB schema initialization on first boot
-            failureThreshold: 30
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 80
-            periodSeconds: 30
-            failureThreshold: 3
-          # readinessProbe is commented out during initial install — Leantime
-          # returns 5xx at / before the DB schema exists, which would prevent
-          # the pod ever becoming ready. Uncomment after running /install.
+          # startupProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 80
+          #   # Allow time for DB schema initialization on first boot
+          #   failureThreshold: 30
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 80
+          #   periodSeconds: 30
+          #   failureThreshold: 3
+          # # readinessProbe is commented out during initial install — Leantime
+          # # returns 5xx at / before the DB schema exists, which would prevent
+          # # the pod ever becoming ready. Uncomment after running /install.
           # readinessProbe:
           #   httpGet:
           #     path: /
