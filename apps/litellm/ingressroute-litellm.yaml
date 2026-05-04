@@ -1,7 +1,11 @@
 # IngressRoute for litellm.diceninjagaming.com.
 # Uses a per-app cert (certificate-litellm.yaml in this namespace) because this
 # is a public domain rather than the internal *.home.diceninjagaming.com wildcard.
-# Restricted to internal subnets via default-whitelist until public access is needed.
+#
+# Route structure (evaluated highest priority first):
+#   1. /fallback/login — ALWAYS internal-only; never change this rule
+#   2. everything else — currently internal-only; when going public, swap
+#                        default-whitelist → default-headers on rule 2 only
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -11,14 +15,27 @@ spec:
   entryPoints:
     - websecure
   routes:
+    # Break-glass emergency login — must remain restricted to internal subnets
+    # permanently, even after the main route is opened to the public.
+    # Higher priority ensures this rule wins before the catch-all below.
+    - match: Host(`litellm.diceninjagaming.com`) && PathPrefix(`/fallback/login`)
+      kind: Rule
+      priority: 10
+      services:
+        - name: litellm
+          port: 4000
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+    # Main catch-all route — currently internal-only.
+    # When opening to the public: replace default-whitelist with default-headers
+    # on THIS rule only. Leave the /fallback/login rule above untouched.
     - match: Host(`litellm.diceninjagaming.com`)
       kind: Rule
       services:
         - name: litellm
           port: 4000
       middlewares:
-        # Restricts to internal subnets (192.168.5.0/24, 192.168.6.0/24).
-        # Remove this middleware and add default-headers when opening to the public.
         - name: default-whitelist
           namespace: traefik
   tls:
