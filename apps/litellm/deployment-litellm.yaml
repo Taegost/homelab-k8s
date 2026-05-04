@@ -76,6 +76,66 @@ spec:
             - name: MAX_REQUESTS_BEFORE_RESTART
               value: "1000"
 
+            # ── Authentik SSO (Generic OIDC) ─────────────────────────────────
+            # Client credentials from the Authentik OAuth2/OIDC application.
+            - name: GENERIC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: sso-client-id
+            - name: GENERIC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: sso-client-secret
+            # Standard Authentik OIDC endpoints — same for every provider on
+            # this Authentik instance regardless of application slug.
+            - name: GENERIC_AUTHORIZATION_ENDPOINT
+              value: "https://authentik.diceninjagaming.com/application/o/authorize/"
+            - name: GENERIC_TOKEN_ENDPOINT
+              value: "https://authentik.diceninjagaming.com/application/o/token/"
+            - name: GENERIC_USERINFO_ENDPOINT
+              value: "https://authentik.diceninjagaming.com/application/o/userinfo/"
+            # litellm_role is a custom Scope Mapping created in Authentik
+            # (Customization → Property Mappings → Scope Mapping). The mapping
+            # expression returns {"litellm_role": "proxy_admin"} for admins and
+            # {"litellm_role": "internal_user"} for normal users. That custom
+            # scope must also be added to the LiteLLM OIDC provider in Authentik.
+            - name: GENERIC_SCOPE
+              value: "openid profile email litellm_role"
+            # Tells LiteLLM which field in the userinfo response holds the role.
+            # Must match the key returned by the Authentik scope mapping above.
+            - name: GENERIC_USER_ROLE_ATTRIBUTE
+              value: "litellm_role"
+            # Base URL used to construct the SSO callback URI:
+            # https://litellm.diceninjagaming.com/sso/callback
+            # Must be registered as an allowed redirect URI in the Authentik app.
+            - name: PROXY_BASE_URL
+              value: "https://litellm.diceninjagaming.com"
+            # Redirect to Authentik's end-session endpoint on logout so the
+            # Authentik session is also cleared. Replace 'litellm' with the
+            # actual slug if the Authentik application was named differently.
+            - name: PROXY_LOGOUT_URL
+              value: "https://authentik.diceninjagaming.com/application/o/litellm/end-session/"
+            # Skip the LiteLLM login form and go directly to Authentik.
+            # Fallback credentials below remain accessible at /fallback/login.
+            - name: AUTO_REDIRECT_UI_LOGIN_TO_SSO
+              value: "true"
+
+            # ── Fallback UI credentials ───────────────────────────────────────
+            # Emergency access if Authentik is unavailable. Accessible at
+            # /fallback/login — not shown on the normal login page.
+            - name: UI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: ui-username
+            - name: UI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: litellm
+                  key: ui-password
+
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
