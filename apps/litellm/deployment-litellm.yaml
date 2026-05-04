@@ -70,6 +70,11 @@ spec:
                 secretKeyRef:
                   name: litellm
                   key: nvidia-api-key
+            # Mitigates a known long-running memory leak — LiteLLM memory grows
+            # continuously over days without levelling off. Recycling workers
+            # periodically keeps RSS bounded without requiring a full pod restart.
+            - name: MAX_REQUESTS_BEFORE_RESTART
+              value: "1000"
 
           securityContext:
             runAsUser: 1000
@@ -111,13 +116,16 @@ spec:
             periodSeconds: 10
           resources:
             requests:
-              # LiteLLM is a thin proxy — compute stays with the upstream provider.
-              # Python process at rest sits around 200–300MB.
               cpu: 100m
-              memory: 300Mi
+              # LiteLLM production docs set 1500Mi as the minimum safe request —
+              # below 512Mi is documented to cause OOMKilled on startup.
+              memory: 1500Mi
             limits:
-              cpu: 1000m
-              memory: 1Gi
+              cpu: 2000m
+              # 4Gi per the LiteLLM production docs baseline. LiteLLM has a known
+              # long-running memory leak (grows continuously over days); mitigated
+              # by MAX_REQUESTS_BEFORE_RESTART below rather than by a tighter limit.
+              memory: 4Gi
       volumes:
         - name: config
           configMap:
