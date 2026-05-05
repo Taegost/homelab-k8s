@@ -85,7 +85,6 @@ spec:
             # - Rate limits are tracked per-pod (limits can be exceeded cluster-wide)
             # - Both pods run health checks against every upstream model independently
             # - Spend tracking emits duplicate events
-            # - Prisma migration lock is unavailable (falling back to Postgres advisory locks)
             # Use host/port (not redis_url) — documented to be ~80 RPS faster.
             - name: REDIS_HOST
               value: "redis.litellm.svc.cluster.local"
