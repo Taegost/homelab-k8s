@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: open-webui
+  template:
+    metadata:
+      labels:
+        app: open-webui
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: open-webui
+          # Pin to specific version — update as needed.
+          image: ghcr.io/open-webui/open-webui:v0.5.0
+          ports:
+            - containerPort: 8080
+          env:
+            # ── Backend Configuration ─────────────────────────────────────────
+            # Point to the internal LiteLLM service. The /v1 suffix is required
+            # for OpenAI-compatible API calls.
+            - name: OLLAMA_BASE_URL
+              value: "http://litellm.litellm.svc.cluster.local:4000/v1"
+            # Disable local Ollama — we're using LiteLLM as the backend.
+            - name: ENABLE_OLLAMA
+              value: "False"
+            # Custom name for the UI (optional).
+            - name: WEBUI_NAME
+              value: "Dice Ninja Gaming AI"
+            # Limit concurrent sessions per user to prevent abuse.
+            - name: SESSION_LIMIT
+              value: "10"
+
+            # ── Database ───────────────────────────────────────────────────────
+            # Full Postgres connection string. Uses postgres-rw (direct connection)
+            # for simplicity — Open WebUI doesn't need PgBouncer's connection
+            # pooling since it maintains relatively few persistent connections.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui
+                  key: database-url
+
+            # ── LiteLLM Authentication ──────────────────────────────────────────
+            # Open WebUI sends this as the Bearer token when calling LiteLLM's API.
+            # Must match LITELLM_MASTER_KEY in the litellm sealedsecret.
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui
+                  key: litellm-master-key
+
+            # ── Session Security ───────────────────────────────────────────────
+            # Random session secret for Open WebUI's internal sessions.
+            - name: WEBUI_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui
+                  key: webui-session-secret
+
+            # ── OIDC/Authentik SSO ──────────────────────────────────────────────
+            # Open WebUI has built-in OIDC support. Configure Authentik as the
+            # provider in Authentik first, then fill in the values below.
+            # See apps/open-webui/README.md for setup instructions.
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui
+                  key: oidc-client-id
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui
+                  key: oidc-client-secret
+            - name: OIDC_CONFIGURATION_URL
+              value: "https://authentik.diceninjagaming.com/application/o/open-webui/.well-known/openid-configuration"
+            # Auto-create accounts for any authenticated user.
+            - name: OIDC_SIGNUP_ENABLED
+              value: "True"
+            # Immediately redirect to Authentik for login (no intermediate page).
+            - name: OIDC_AUTO_REDIRECT
+              value: "True"
+            - name: OIDC_PROVIDER_NAME
+              value: "Authentik"
+            # Role names that must be present in the Authentik token for admin/user access.
+            # These should match the group names in Authentik that you assign to users.
+            - name: OIDC_ADMIN_ROLES
+              value: "Open-WebUI Admin"
+            - name: OIDC_USER_ROLES
+              value: "Open-WebUI User"
+
+            # ── Placeholder (required by env but not used) ─────────────────────
+            - name: OLLAMA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui
+                  key: ollama-api-key
+
+          securityContext:
+            runAsUser: 1014
+            runAsGroup: 1014
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 500Mi
+            limits:
+              cpu: 1000m
+              memory: 2000Mi

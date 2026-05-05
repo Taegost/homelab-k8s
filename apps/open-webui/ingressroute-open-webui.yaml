@@ -1,0 +1,25 @@
+# IngressRoute for open-webui.diceninjagaming.com.
+# Uses a per-app cert (certificate-open-webui.yaml in this namespace) because this
+# is a public domain rather than the internal *.home.diceninjagaming.com wildcard.
+#
+# Currently restricted to internal subnets via default-whitelist.
+# To open to public: replace default-whitelist with default-headers.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`open-webui.diceninjagaming.com`)
+      kind: Rule
+      services:
+        - name: open-webui
+          port: 8080
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+  tls:
+    secretName: open-webui-tls

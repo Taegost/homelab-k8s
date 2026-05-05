@@ -1,0 +1,14 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: open-webui
+  namespace: postgres
+  annotations:
+    # Provision DB before the Deployment (wave 0) so the operator has created
+    # the database by the time the Leantime pod first connects.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  name: open_webui
+  owner: open-webui
+  cluster:
+    name: postgres
