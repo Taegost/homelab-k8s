@@ -18,10 +18,6 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
-        # Required: Longhorn volumes are provisioned root-owned. fsGroup causes
-        # Kubernetes to chown all mounts to this GID before the container starts,
-        # allowing the non-root process (uid/gid 1014) to write on first boot.
-        fsGroup: 1014
       containers:
         - name: open-webui
           # Pin to specific version — update as needed.
@@ -113,9 +109,11 @@ spec:
               value: "Open-WebUI User"
 
           securityContext:
-            runAsUser: 1014
-            runAsGroup: 1014
-            runAsNonRoot: true
+            # Image defaults to root (UID/GID are build-time ARGs defaulting to 0).
+            # All files in /app are owned by root at build time — overriding
+            # runAsUser at runtime causes write failures on /app/backend/open_webui/static
+            # and other paths the app needs to modify. Run as root; limit blast
+            # radius via no_new_privs and capability drops instead.
             allowPrivilegeEscalation: false
             capabilities:
               drop:
