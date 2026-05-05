@@ -1,0 +1,20 @@
+# PersistentVolumeClaim — open-webui-data
+#
+# Longhorn-backed storage for Open WebUI's /app/backend/data directory.
+# Stores: uploaded documents (RAG pipeline), file attachments, and app state.
+#
+# ReadWriteMany so the volume can be attached by multiple pods simultaneously
+# if replicas are scaled beyond 1 in future. Longhorn RWX uses an internal
+# NFS server per volume — one extra pod per volume node, negligible overhead.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-data
+  namespace: open-webui
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

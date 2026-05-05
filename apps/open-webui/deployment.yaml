@@ -18,6 +18,10 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        # Required: Longhorn volumes are provisioned root-owned. fsGroup causes
+        # Kubernetes to chown all mounts to this GID before the container starts,
+        # allowing the non-root process (uid/gid 1014) to write on first boot.
+        fsGroup: 1014
       containers:
         - name: open-webui
           # Pin to specific version — update as needed.
@@ -133,6 +137,9 @@ spec:
               path: /health
               port: 8080
             periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /app/backend/data
           resources:
             requests:
               cpu: 100m
@@ -140,3 +147,7 @@ spec:
             limits:
               cpu: 1000m
               memory: 2000Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: open-webui-data

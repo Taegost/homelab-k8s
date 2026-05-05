@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: open-webui-tls
   issuerRef:
-    name: diceninjagaming-prod
+    name: letsencrypt-diceninjagaming-prod
     kind: ClusterIssuer
   dnsNames:
     - open-webui.diceninjagaming.com

@@ -5,7 +5,7 @@ metadata:
   namespace: postgres
   annotations:
     # Provision DB before the Deployment (wave 0) so the operator has created
-    # the database by the time the Leantime pod first connects.
+    # the database by the time the Open WebUI pod first connects.
     argocd.argoproj.io/sync-wave: "-1"
 spec:
   name: open-webui
