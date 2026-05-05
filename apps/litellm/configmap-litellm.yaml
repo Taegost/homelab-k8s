@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: litellm
+data:
+  config.yaml: |
+    litellm_settings:
+      # Drop unknown/unsupported parameters instead of returning a 400. Needed
+      # because OpenAI-native clients often send fields NVIDIA NIM ignores.
+      drop_params: true
