@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  secretName: open-webui-tls
+  issuerRef:
+    name: diceninjagaming-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - open-webui.diceninjagaming.com
