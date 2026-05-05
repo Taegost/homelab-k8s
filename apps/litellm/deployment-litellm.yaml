@@ -43,8 +43,6 @@ spec:
           # no capabilities required. Port 4000 is non-privileged.
           image: ghcr.io/berriai/litellm-non_root:main-v1.83.10-stable
           args:
-            - "--config"
-            - "/app/config.yaml"
             - "--port"
             - "4000"
           ports:
@@ -59,7 +57,7 @@ spec:
                   name: litellm
                   key: database-url
             # Master key for the LiteLLM UI and API admin operations.
-            # Referenced from config.yaml via os.environ/LITELLM_MASTER_KEY.
+            # Must start with "sk-".
             - name: LITELLM_MASTER_KEY
               valueFrom:
                 secretKeyRef:
@@ -75,6 +73,30 @@ spec:
             # periodically keeps RSS bounded without requiring a full pod restart.
             - name: MAX_REQUESTS_BEFORE_RESTART
               value: "1000"
+
+            # ── LiteLLM Settings (formerly in config.yaml) ───────────────────────
+            # Drop unknown/unsupported parameters instead of returning a 400. Needed
+            # because OpenAI-native clients often send fields NVIDIA NIM ignores.
+            - name: LITELLM_SETTINGS_DROP_PARAMS
+              value: "true"
+            # Persist model additions and key management state to Postgres so changes
+            # made via the UI survive pod restarts.
+            - name: LITELLM_GENERAL_SETTINGS_STORE_MODEL_IN_DB
+              value: "true"
+            # Redis is required for correct multi-replica behaviour. Without it:
+            # - Rate limits are tracked per-pod (limits can be exceeded cluster-wide)
+            # - Both pods run health checks against every upstream model independently
+            # - Spend tracking emits duplicate events
+            # - Prisma migration lock is unavailable (falling back to Postgres advisory locks)
+            # Use host/port (not redis_url) — documented to be ~80 RPS faster.
+            - name: LITELLM_GENERAL_SETTINGS_REDIS_HOST
+              value: "redis.litellm.svc.cluster.local"
+            - name: LITELLM_GENERAL_SETTINGS_REDIS_PORT
+              value: "6379"
+            # Share health check state across replicas so only one pod per interval
+            # actually pings upstream models.
+            - name: LITELLM_GENERAL_SETTINGS_USE_SHARED_HEALTH_CHECK
+              value: "true"
 
             # ── Authentik SSO (Generic OIDC) ─────────────────────────────────
             # Client credentials from the Authentik OAuth2/OIDC application.
@@ -152,11 +174,8 @@ spec:
             capabilities:
               drop:
                 - ALL
-          volumeMounts:
-            - name: config
-              mountPath: /app/config.yaml
-              subPath: config.yaml
-              readOnly: true
+          # No config volume mount — all settings are via environment variables.
+          # Models are managed via the LiteLLM UI and persisted to the database.
           startupProbe:
             httpGet:
               # /health/readiness checks DB connectivity and full initialization —
@@ -194,7 +213,5 @@ spec:
               # long-running memory leak (grows continuously over days); mitigated
               # by MAX_REQUESTS_BEFORE_RESTART below rather than by a tighter limit.
               memory: 4Gi
-      volumes:
-        - name: config
-          configMap:
-            name: litellm-config
+      # No volumes — all settings are via environment variables.
+      # Models are managed via the LiteLLM UI and persisted to the database.
