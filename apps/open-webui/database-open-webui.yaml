@@ -8,7 +8,7 @@ metadata:
     # the database by the time the Leantime pod first connects.
     argocd.argoproj.io/sync-wave: "-1"
 spec:
-  name: open_webui
+  name: open-webui
   owner: open-webui
   cluster:
     name: postgres

@@ -94,7 +94,7 @@ Before deploying Open WebUI, you must add the role to the shared Postgres cluste
    - **Client ID:** (auto-generated, copy this)
    - **Client Secret:** (auto-generated, copy this)
    - **Signing Key:** Select default
-   - **Redirect URIs:** `https://open-webui.diceninjagaming.com/authorization-code/callback`
+   - **Redirect URIs:** `https://open-webui.diceninjagaming.com/oauth/oidc/callback`
    - **Scopes:** Include `openid`, `profile`, `email`, `groups`
 
 4. **Bind Provider to Application:**
@@ -138,14 +138,17 @@ Before deploying Open WebUI, you must add the role to the shared Postgres cluste
 
 | Environment Variable | Description | Default |
 |---------------------|-------------|---------|
-| `OLLAMA_BASE_URL` | LiteLLM endpoint | `http://litellm.litellm.svc.cluster.local:4000/v1` |
+| `OPENAI_API_BASE_URL` | LiteLLM endpoint | `http://litellm.litellm.svc.cluster.local:4000/v1` |
+| `OPENAI_API_KEY` | LiteLLM auth token | from sealed secret |
 | `ENABLE_OLLAMA` | Enable local Ollama | `False` |
 | `WEBUI_NAME` | UI branding | `Dice Ninja Gaming AI` |
 | `SESSION_LIMIT` | Max concurrent sessions per user | `10` |
-| `OIDC_SIGNUP_ENABLED` | Auto-create accounts | `True` |
-| `OIDC_AUTO_REDIRECT` | Redirect to IdP immediately | `True` |
-| `OIDC_ADMIN_ROLES` | Groups with admin access | `Open-WebUI Admin` |
-| `OIDC_USER_ROLES` | Groups with user access | `Open-WebUI User` |
+| `ENABLE_OAUTH_SIGNUP` | Auto-create accounts | `True` |
+| `OAUTH_AUTO_REDIRECT_TO_OAUTH_PROVIDER` | Redirect to IdP immediately | `True` |
+| `ENABLE_OAUTH_ROLE_MANAGEMENT` | Enable role sync from OIDC groups | `true` |
+| `OAUTH_ROLES_CLAIM` | Claim name containing groups | `groups` |
+| `OAUTH_ADMIN_ROLES` | Groups with admin access | `Open-WebUI Admin` |
+| `OAUTH_ALLOWED_ROLES` | Groups with user access | `Open-WebUI User` |
 
 ## Troubleshooting
 

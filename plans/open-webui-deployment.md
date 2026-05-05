@@ -155,7 +155,7 @@ Create `apps/manifests/open-webui.yaml`:
 
 Create documentation for setting up OAuth2 provider in Authentik:
 - Create application with slug `open-webui`
-- Redirect URI: `https://open-webui.diceninjagaming.com/auth/callback`
+- Redirect URI: `https://open-webui.diceninjagaming.com/oauth/oidc/callback`
 - Property mapping for email
 - Assign to users/groups
 

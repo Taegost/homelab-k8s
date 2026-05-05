@@ -28,7 +28,7 @@ spec:
             # ── Backend Configuration ─────────────────────────────────────────
             # Point to the internal LiteLLM service. The /v1 suffix is required
             # for OpenAI-compatible API calls.
-            - name: OLLAMA_BASE_URL
+            - name: OPENAI_API_BASE_URL
               value: "http://litellm.litellm.svc.cluster.local:4000/v1"
             # Disable local Ollama — we're using LiteLLM as the backend.
             - name: ENABLE_OLLAMA
@@ -53,57 +53,60 @@ spec:
             # ── LiteLLM Authentication ──────────────────────────────────────────
             # Open WebUI sends this as the Bearer token when calling LiteLLM's API.
             # Must match LITELLM_MASTER_KEY in the litellm sealedsecret.
-            - name: LITELLM_MASTER_KEY
+            - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: open-webui
-                  key: litellm-master-key
+                  key: litellm-api-key
 
             # ── Session Security ───────────────────────────────────────────────
             # Random session secret for Open WebUI's internal sessions.
-            - name: WEBUI_SESSION_SECRET
+            - name: WEBUI_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: open-webui
-                  key: webui-session-secret
+                  key: webui-secret-key
 
             # ── OIDC/Authentik SSO ──────────────────────────────────────────────
             # Open WebUI has built-in OIDC support. Configure Authentik as the
             # provider in Authentik first, then fill in the values below.
             # See apps/open-webui/README.md for setup instructions.
-            - name: OIDC_CLIENT_ID
+            - name: OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: open-webui
                   key: oidc-client-id
-            - name: OIDC_CLIENT_SECRET
+            - name: OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: open-webui
                   key: oidc-client-secret
-            - name: OIDC_CONFIGURATION_URL
+            - name: OPENID_PROVIDER_URL
               value: "https://authentik.diceninjagaming.com/application/o/open-webui/.well-known/openid-configuration"
+            # OPENID_REDIRECT_URI must match the Redirect URI registered in Authentik.
+            - name: OPENID_REDIRECT_URI
+              value: "https://open-webui.diceninjagaming.com/oauth/oidc/callback"
+            # WEBUI_URL is required for OAuth — must be set before first login.
+            - name: WEBUI_URL
+              value: "https://open-webui.diceninjagaming.com"
             # Auto-create accounts for any authenticated user.
-            - name: OIDC_SIGNUP_ENABLED
-              value: "True"
+            - name: ENABLE_OAUTH_SIGNUP
+              value: "true"
             # Immediately redirect to Authentik for login (no intermediate page).
-            - name: OIDC_AUTO_REDIRECT
-              value: "True"
-            - name: OIDC_PROVIDER_NAME
+            - name: OAUTH_AUTO_REDIRECT_TO_OAUTH_PROVIDER
+              value: "true"
+            - name: OAUTH_PROVIDER_NAME
               value: "Authentik"
-            # Role names that must be present in the Authentik token for admin/user access.
-            # These should match the group names in Authentik that you assign to users.
-            - name: OIDC_ADMIN_ROLES
+            # Enable role sync from OIDC token groups claim.
+            - name: ENABLE_OAUTH_ROLE_MANAGEMENT
+              value: "true"
+            # Matches the claim name returned by the Authentik property mapping.
+            - name: OAUTH_ROLES_CLAIM
+              value: "groups"
+            - name: OAUTH_ADMIN_ROLES
               value: "Open-WebUI Admin"
-            - name: OIDC_USER_ROLES
+            - name: OAUTH_ALLOWED_ROLES
               value: "Open-WebUI User"
-
-            # ── Placeholder (required by env but not used) ─────────────────────
-            - name: OLLAMA_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: open-webui
-                  key: ollama-api-key
 
           securityContext:
             runAsUser: 1014

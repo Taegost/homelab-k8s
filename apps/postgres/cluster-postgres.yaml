@@ -109,7 +109,7 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: litellm-db-credentials
-      - name: open_webui
+      - name: open-webui
         login: true
         superuser: false
         createdb: false
