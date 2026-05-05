@@ -59,7 +59,7 @@ spec:
                   name: litellm
                   key: database-url
             # Master key for the LiteLLM UI and API admin operations.
-            # Referenced from config.yaml via os.environ/LITELLM_MASTER_KEY.
+            # Must start with "sk-".
             - name: LITELLM_MASTER_KEY
               valueFrom:
                 secretKeyRef:
@@ -75,6 +75,25 @@ spec:
             # periodically keeps RSS bounded without requiring a full pod restart.
             - name: MAX_REQUESTS_BEFORE_RESTART
               value: "1000"
+
+            # ── LiteLLM Settings (formerly in config.yaml) ───────────────────────
+            # Persist model additions and key management state to Postgres so changes
+            # made via the UI survive pod restarts.
+            - name: STORE_MODEL_IN_DB
+              value: "true"
+            # Redis is required for correct multi-replica behaviour. Without it:
+            # - Rate limits are tracked per-pod (limits can be exceeded cluster-wide)
+            # - Both pods run health checks against every upstream model independently
+            # - Spend tracking emits duplicate events
+            # Use host/port (not redis_url) — documented to be ~80 RPS faster.
+            - name: REDIS_HOST
+              value: "redis.litellm.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            # Share health check state across replicas so only one pod per interval
+            # actually pings upstream models.
+            - name: USE_SHARED_HEALTH_CHECK
+              value: "true"
 
             # ── Authentik SSO (Generic OIDC) ─────────────────────────────────
             # Client credentials from the Authentik OAuth2/OIDC application.
