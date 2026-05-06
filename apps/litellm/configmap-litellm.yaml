@@ -10,6 +10,7 @@ data:
       # because OpenAI-native clients often send fields NVIDIA NIM ignores.
       drop_params: true
 
+    model_list:
       # ── NVIDIA Build models ───────────────────────
 
       # Primary coder — large MoE, excels at code generation and completion
