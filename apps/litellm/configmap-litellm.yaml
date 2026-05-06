@@ -18,23 +18,30 @@ data:
         litellm_params:
           model: nvidia_nim/qwen/qwen-coder-480b-a35b-instruct
           api_key: os.environ/NVIDIA_API_KEY
+        model_info:
+          rpm_limit: 40
 
       # General reasoning and orchestration
       - model_name: nvidia/mistral-nemotron
         litellm_params:
           model: nvidia_nim/mistralai/mistral-nemotron
           api_key: os.environ/NVIDIA_API_KEY
-
+        model_info:
+          rpm_limit: 40
 
       - model_name: nvidia/minimax-m2.7
         litellm_params:
           model: nvidia_nim/minimaxai/minimax-m2.7
           api_key: os.environ/NVIDIA_API_KEY
+        model_info:
+          rpm_limit: 40
 
       - model_name: nvidia/glm-4.7
         litellm_params:
           model: nvidia_nim/z-ai/glm-4.7
           api_key: os.environ/NVIDIA_API_KEY
+        model_info:
+          rpm_limit: 40
 
       # ── Nvidia Embeddings ──────────────────────────────────────────────────
 
@@ -47,3 +54,4 @@ data:
           api_key: os.environ/NVIDIA_API_KEY
         model_info:
           mode: embedding
+          rpm_limit: 40
