@@ -9,3 +9,40 @@ data:
       # Drop unknown/unsupported parameters instead of returning a 400. Needed
       # because OpenAI-native clients often send fields NVIDIA NIM ignores.
       drop_params: true
+
+      # ── NVIDIA Build models ───────────────────────
+
+      # Primary coder — large MoE, excels at code generation and completion
+      - model_name: nvidia/qwen-coder-480b-a35b-instruct
+        litellm_params:
+          model: nvidia_nim/qwen/qwen-coder-480b-a35b-instruct
+          api_key: os.environ/NVIDIA_API_KEY
+
+      # General reasoning and orchestration
+      - model_name: nvidia/mistral-nemotron
+        litellm_params:
+          model: nvidia_nim/mistralai/mistral-nemotron
+          api_key: os.environ/NVIDIA_API_KEY
+
+
+      - model_name: nvidia/minimax-m2.7
+        litellm_params:
+          model: nvidia_nim/minimaxai/minimax-m2.7
+          api_key: os.environ/NVIDIA_API_KEY
+
+      - model_name: nvidia/glm-4.7
+        litellm_params:
+          model: nvidia_nim/z-ai/glm-4.7
+          api_key: os.environ/NVIDIA_API_KEY
+
+      # ── Nvidia Embeddings ──────────────────────────────────────────────────
+
+      # Code embedding — use with /v1/embeddings, NOT /v1/chat/completions.
+      # Verify the full model ID on build.nvidia.com; if requests fail with
+      # model-not-found, the ID may need the nvidia/ org prefix (already set here).
+      - model_name: nvidia/nv-embedcode-7b-v1
+        litellm_params:
+          model: nvidia_nim/nvidia/nv-embedcode-7b-v1
+          api_key: os.environ/NVIDIA_API_KEY
+        model_info:
+          mode: embedding
