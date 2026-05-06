@@ -10,6 +10,35 @@ data:
       # because OpenAI-native clients often send fields NVIDIA NIM ignores.
       drop_params: true
 
+      # Intercept requests where the model signals web-search intent and
+      # fulfil them via the configured search tool before the final completion.
+      #
+      # SYNTAX NOTE (v1.83.10): options MUST live under callback_settings, not
+      # nested inside the callbacks list — nesting causes a startup crash.
+      callbacks:
+        - websearch_interception
+
+      callback_settings:
+        websearch_interception:
+          search_tool_name: Brave_Free_Tier
+          # enabled_providers MUST be listed explicitly. Omitting this field
+          # does NOT enable all providers — the code defaults to Bedrock only,
+          # despite the docstring claiming otherwise. Verified in:
+          # litellm/integrations/websearch_interception/handler.py __init__:
+          #   if enabled_providers is None:
+          #       self.enabled_providers = [LlmProviders.BEDROCK.value]
+          # Add any provider names used via the LiteLLM UI to this list.
+          enabled_providers:
+            - cerebras
+            - cohere
+            - groq
+            - openrouter
+          #
+          # nvidia_nim is intentionally excluded — all NIM model IDs contain an
+          # org/model slash that causes handler.py to drop the provider prefix
+          # on the follow-up completion call, producing "LLM Provider NOT
+          # provided". Re-add once resolved: github.com/BerriAI/litellm/issues/23970
+
     model_list:
       # ── NVIDIA Build models ───────────────────────
 
