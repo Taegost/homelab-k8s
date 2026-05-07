@@ -70,11 +70,6 @@ spec:
                 secretKeyRef:
                   name: litellm
                   key: nvidia-api-key
-            # Mitigates a known long-running memory leak — LiteLLM memory grows
-            # continuously over days without levelling off. Recycling workers
-            # periodically keeps RSS bounded without requiring a full pod restart.
-            - name: MAX_REQUESTS_BEFORE_RESTART
-              value: "1000"
 
             # ── LiteLLM Settings (formerly in config.yaml) ───────────────────────
             # Persist model additions and key management state to Postgres so changes
@@ -209,9 +204,11 @@ spec:
               memory: 1500Mi
             limits:
               cpu: 2000m
-              # 4Gi per the LiteLLM production docs baseline. LiteLLM has a known
-              # long-running memory leak (grows continuously over days); mitigated
-              # by MAX_REQUESTS_BEFORE_RESTART below rather than by a tighter limit.
+              # 4Gi per the LiteLLM production docs baseline. LiteLLM has a known long-running
+              # memory leak under sustained load; if RSS growth becomes an issue in practice,
+              # add MAX_REQUESTS_BEFORE_RESTART with --run_gunicorn (not Uvicorn default) per
+              # docs.litellm.ai/docs/proxy/prod — Uvicorn's implementation kills PID 1 instead
+              # of recycling individual workers, causing Prisma migration race conditions on restart.
               memory: 4Gi
       volumes:
         - name: config
