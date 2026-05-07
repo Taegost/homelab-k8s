@@ -27,10 +27,12 @@ data:
           # litellm/integrations/websearch_interception/handler.py __init__:
           #   if enabled_providers is None:
           #       self.enabled_providers = [LlmProviders.BEDROCK.value]
-          # Add any provider names used via the LiteLLM UI to this list.
+          # Provider string reference: docs.litellm.ai/docs/providers
+          # The string matches each provider's URL slug on that page.
           enabled_providers:
             - cerebras
             - cohere
+            - gemini
             - groq
             - openrouter
           #
@@ -38,49 +40,3 @@ data:
           # org/model slash that causes handler.py to drop the provider prefix
           # on the follow-up completion call, producing "LLM Provider NOT
           # provided". Re-add once resolved: github.com/BerriAI/litellm/issues/23970
-
-    model_list:
-      # ── NVIDIA Build models ───────────────────────
-
-      # Primary coder — large MoE, excels at code generation and completion
-      - model_name: nvidia/qwen-coder-480b-a35b-instruct
-        litellm_params:
-          model: nvidia_nim/qwen/qwen-coder-480b-a35b-instruct
-          api_key: os.environ/NVIDIA_API_KEY
-        model_info:
-          rpm_limit: 40
-
-      # General reasoning and orchestration
-      - model_name: nvidia/mistral-nemotron
-        litellm_params:
-          model: nvidia_nim/mistralai/mistral-nemotron
-          api_key: os.environ/NVIDIA_API_KEY
-        model_info:
-          rpm_limit: 40
-
-      - model_name: nvidia/minimax-m2.7
-        litellm_params:
-          model: nvidia_nim/minimaxai/minimax-m2.7
-          api_key: os.environ/NVIDIA_API_KEY
-        model_info:
-          rpm_limit: 40
-
-      - model_name: nvidia/glm-4.7
-        litellm_params:
-          model: nvidia_nim/z-ai/glm-4.7
-          api_key: os.environ/NVIDIA_API_KEY
-        model_info:
-          rpm_limit: 40
-
-      # ── Nvidia Embeddings ──────────────────────────────────────────────────
-
-      # Code embedding — use with /v1/embeddings, NOT /v1/chat/completions.
-      # Verify the full model ID on build.nvidia.com; if requests fail with
-      # model-not-found, the ID may need the nvidia/ org prefix (already set here).
-      - model_name: nvidia/nv-embedcode-7b-v1
-        litellm_params:
-          model: nvidia_nim/nvidia/nv-embedcode-7b-v1
-          api_key: os.environ/NVIDIA_API_KEY
-        model_info:
-          mode: embedding
-          rpm_limit: 40
