@@ -39,6 +39,9 @@ spec:
             # Limit concurrent sessions per user to prevent abuse.
             - name: SESSION_LIMIT
               value: "10"
+            # Enables the creation of API keys by users
+            - name: ENABLE_API_KEYS
+              value: "True"
 
             # ── Database ───────────────────────────────────────────────────────
             # Full Postgres connection string. Uses postgres-rw (direct connection)
