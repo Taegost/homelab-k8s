@@ -25,6 +25,9 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            # Set the log level for the application
+            - name: GLOBAL_LOG_LEVEL
+              value: DEBUG
             # ── Backend Configuration ─────────────────────────────────────────
             # Point to the internal LiteLLM service. The /v1 suffix is required
             # for OpenAI-compatible API calls.

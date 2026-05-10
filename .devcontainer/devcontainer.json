@@ -55,6 +55,8 @@
         "github.vscode-github-actions",
         // Python — for editing dependency files and dev tooling
         "ms-python.python",
+        // Roo - For AI assistance
+        "rooveterinaryinc.roo-cline",
       ],
       "settings": {
         // Use the system bash provided by the container
