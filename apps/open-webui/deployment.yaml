@@ -29,13 +29,10 @@ spec:
             - name: GLOBAL_LOG_LEVEL
               value: DEBUG
             # ── Backend Configuration ─────────────────────────────────────────
-            # Point to the internal LiteLLM service. The /v1 suffix is required
-            # for OpenAI-compatible API calls.
-            - name: OPENAI_API_BASE_URL
-              value: "http://litellm.litellm.svc.cluster.local:4000/v1"
-            # Disable local Ollama — we're using LiteLLM as the backend.
-            - name: ENABLE_OLLAMA
-              value: "False"
+            # *** If you define an OpenAI URL, it will take precedence over anything
+            # *** entered in the Admin Panel in the UI. After a restart, any manually
+            # *** added connections will be lost. That is why we aren't defining it here.
+
             # Custom name for the UI (optional).
             - name: WEBUI_NAME
               value: "Dice Ninja Gaming AI"
@@ -55,15 +52,6 @@ spec:
                 secretKeyRef:
                   name: open-webui
                   key: database-url
-
-            # ── LiteLLM Authentication ──────────────────────────────────────────
-            # Open WebUI sends this as the Bearer token when calling LiteLLM's API.
-            # Must match LITELLM_MASTER_KEY in the litellm sealedsecret.
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: open-webui
-                  key: litellm-api-key
 
             # ── Session Security ───────────────────────────────────────────────
             # Random session secret for Open WebUI's internal sessions.
