@@ -1,0 +1,22 @@
+# IngressRoute for searxng.diceninjagaming.com
+# Uses wildcard cert since it is internal-only for now
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: searxng
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`searxng.diceninjagaming.com`)
+      kind: Rule
+      services:
+        - name: searxng
+          namespace: searxng
+          port: 8080
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+  tls:
+    secretName: wildcard-diceninjagaming-com-tls
