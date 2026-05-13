@@ -20,7 +20,7 @@ data:
 
       callback_settings:
         websearch_interception:
-          search_tool_name: Brave_Free_Tier
+          search_tool_name: searxng-diceninjagaming
           # enabled_providers MUST be listed explicitly. Omitting this field
           # does NOT enable all providers — the code defaults to Bedrock only,
           # despite the docstring claiming otherwise. Verified in:
@@ -40,3 +40,8 @@ data:
           # org/model slash that causes handler.py to drop the provider prefix
           # on the follow-up completion call, producing "LLM Provider NOT
           # provided". Re-add once resolved: github.com/BerriAI/litellm/issues/23970
+      search_tools:
+        - search_tool_name: searxng-diceninjagaming
+          litellm_params:
+            search_provider: searxng
+            api_base: https://searxng.diceninjagaming.com   
