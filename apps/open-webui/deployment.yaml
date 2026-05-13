@@ -14,7 +14,9 @@ spec:
         app: open-webui
     spec:
       # Reduces the amount of old ReplicaSets that stick around after a redeployment
-      revisionHistoryLimit: 1
+      # Commented out because this change is causing "Out of Sync" issues and I don't
+      # have time to investigate at the moment
+      #revisionHistoryLimit: 1
       securityContext:
         seccompProfile:
           type: RuntimeDefault
