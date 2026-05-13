@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: searxng
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        # Longhorn PVCs mount owned by root. fsGroup causes Kubernetes to
+        # chown the volume to this GID on mount so the node user can write to it
+        fsGroup: 977
+      containers:
+        - name: searxng
+          # Version uses a <date>-<sha> syntax
+          image: docker.io/searxng/searxng:2026.5.10-df1f24fb7
+          ports:
+            - containerPort: 8080
+          env:
+            - name: OPEN_METRICS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: searxng
+                  key: open-metrics-password              
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: searxng
+                  key: secret-key 
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: searxng
+                  key: valkey-password
+            - name: SEARXNG_VALKEY_URL
+              value: valkey://:$(VALKEY_PASSWORD)@valkey.searxng.svc.cluster.local:6379/0
+          securityContext:
+            # The container wants to run as this user:group for non-root
+            runAsUser: 977
+            runAsGroup: 977
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: configs
+              mountPath: /etc/searxng
+            - name: settings
+              mountPath: /etc/searxng/settings.yml
+              subPath: settings.yml
+              readOnly: true
+            - name: cache
+              mountPath: /var/cache/searxng
+          resources:
+            requests:
+              cpu: 100m
+              memory: 500Mi
+            limits:
+              cpu: 1000m
+              memory: 2000Mi
+      volumes:
+        - name: configs
+          persistentVolumeClaim:
+            claimName: searxng-configs
+        - name: settings
+          configMap:
+            name: searxng-settings
+        - name: cache
+          persistentVolumeClaim:
+            claimName: searxng-cache

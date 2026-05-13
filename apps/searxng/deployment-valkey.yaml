@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+  namespace: searxng
+spec:
+  replicas: 1
+  strategy: 
+    type: Recreate
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        # Longhorn PVCs mount owned by root. fsGroup causes Kubernetes to
+        # chown the volume to this GID on mount so the node user can write to it
+        fsGroup: 1000
+      containers:
+        - name: valkey
+          image: docker.io/valkey/valkey:9.0-alpine
+          # Sets up the password and log levels
+          command: ["valkey-server", "--save", "30", "1", "--loglevel", "warning", "--requirepass", "$(VALKEY_PASSWORD)"]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: searxng
+                  key: valkey-password
+          ports:
+            - containerPort: 6379
+          securityContext:
+            # The container wants to run as this user:group for non-root
+            runAsUser: 999
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL            
+          volumeMounts:
+            - name: valkey-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: valkey-data
+          persistentVolumeClaim:
+            claimName: searxng-valkey-data
