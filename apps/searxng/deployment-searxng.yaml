@@ -32,6 +32,9 @@ spec:
                 secretKeyRef:
                   name: searxng
                   key: open-metrics-password              
+            # Setting this explicitly because the default value is causing an error
+            - name: SEARXNG_PORT
+              value: "8080"
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
