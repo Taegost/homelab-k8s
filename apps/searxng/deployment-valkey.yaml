@@ -35,6 +35,16 @@ spec:
                   key: valkey-password
           ports:
             - containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 15
+            periodSeconds: 20
           securityContext:
             # The container wants to run as this user:group for non-root
             runAsUser: 999

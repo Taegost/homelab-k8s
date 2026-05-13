@@ -44,6 +44,22 @@ spec:
                   key: valkey-password
             - name: SEARXNG_VALKEY_URL
               value: valkey://:$(VALKEY_PASSWORD)@valkey.searxng.svc.cluster.local:6379/0
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
           securityContext:
             # The container wants to run as this user:group for non-root
             runAsUser: 977
