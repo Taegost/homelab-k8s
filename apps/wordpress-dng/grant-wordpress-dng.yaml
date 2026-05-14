@@ -1,0 +1,22 @@
+# Grant — wordpress-dng
+#
+# Grants permissions for the wordpress-dng user to the wordpress-dng database.
+# Deployed to the mariadb namespace via ArgoCD.
+#
+# Sync wave: -2 (deploys first).
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: wordpress-dng
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  mariaDbRef:
+    name: mariadb
+  privileges:
+    - "ALL PRIVILEGES"
+  database: "wordpress-dng"
+  table: "*"
+  username: wordpress-dng
+  host: "%"

@@ -1,0 +1,18 @@
+# PersistentVolumeClaim — wordpress-dng-data
+#
+# Longhorn-backed PVC for WordPress installation (/var/www/html).
+# Uses ReadWriteMany access mode to support multi-pod deployments.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-dng-data
+  namespace: wordpress-dng
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

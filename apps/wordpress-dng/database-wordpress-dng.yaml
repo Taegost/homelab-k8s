@@ -1,0 +1,18 @@
+# Database — wordpress-dng
+#
+# Dedicated database for the WordPress site in the shared MariaDB instance.
+# Deployed to the mariadb namespace via ArgoCD.
+#
+# Sync wave: -1 (before User/Grant).
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: wordpress-dng
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  mariaDbRef:
+    name: mariadb
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci

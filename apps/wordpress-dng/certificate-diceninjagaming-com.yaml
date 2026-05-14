@@ -1,0 +1,18 @@
+# Certificate — diceninjagaming.com
+#
+# Issues a dedicated certificate for the root domain.
+# The secret lands in the wordpress-dng namespace for direct reference by IngressRoute.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: diceninjagaming-com
+  namespace: wordpress-dng
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  secretName: diceninjagaming-com-tls
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - diceninjagaming.com

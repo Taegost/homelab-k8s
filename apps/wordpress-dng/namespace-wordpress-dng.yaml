@@ -1,0 +1,10 @@
+# Namespace — wordpress-dng
+#
+# Dedicated namespace for The Dice Ninja Gaming WordPress site.
+# Follows the repository pattern: one namespace per WordPress site.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wordpress-dng
+  labels:
+    app.kubernetes.io/name: wordpress-dng
