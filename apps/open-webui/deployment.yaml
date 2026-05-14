@@ -29,7 +29,7 @@ spec:
           env:
             # Set the log level for the application
             - name: GLOBAL_LOG_LEVEL
-              value: INFO
+              value: WARNING
             # ── Backend Configuration ─────────────────────────────────────────
             # *** If you define an OpenAI URL, it will take precedence over anything
             # *** entered in the Admin Panel in the UI. After a restart, any manually
