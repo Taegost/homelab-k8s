@@ -41,6 +41,9 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        # Longhorn PVCs mount owned by root. fsGroup causes Kubernetes to
+        # chown the volume to this GID on mount so the node user can write to it
+        fsGroup: 100
       containers:
         - name: bazarr
           image: lscr.io/linuxserver/bazarr:v1.5.6-ls341

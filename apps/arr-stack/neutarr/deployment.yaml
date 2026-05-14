@@ -57,6 +57,9 @@ spec:
         # safe subset without requiring a custom profile. Supported by k3s.
         seccompProfile:
           type: RuntimeDefault
+        # Longhorn PVCs mount owned by root. fsGroup causes Kubernetes to
+        # chown the volume to this GID on mount so the node user can write to it
+        fsGroup: 1000
       containers:
         - name: neutarr
           image: iampuid0/neutarr:1.6.1

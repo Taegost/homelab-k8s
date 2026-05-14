@@ -39,6 +39,9 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        # Longhorn PVCs mount owned by root. fsGroup causes Kubernetes to
+        # chown the volume to this GID on mount so the node user can write to it
+        fsGroup: 100
       containers:
         - name: prowlarr
           image: lscr.io/linuxserver/prowlarr:2.3.5
