@@ -40,6 +40,13 @@ spec:
               containerPort: 80
               protocol: TCP
           env:
+            # Override DB-stored URLs — WordPress writes these during first boot
+            # and may store http:// if the proxy headers weren't read correctly
+            # at install time. Constants in wp-config.php always take precedence.
+            - name: WORDPRESS_CONFIG_EXTRA
+              value: |
+                define('WP_HOME', 'https://diceninjagaming.com');
+                define('WP_SITEURL', 'https://diceninjagaming.com');
             - name: WORDPRESS_DB_HOST
               value: "mariadb-primary.mariadb.svc.cluster.local"
             - name: WORDPRESS_DB_NAME
