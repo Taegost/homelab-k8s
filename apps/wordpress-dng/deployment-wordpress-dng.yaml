@@ -1,6 +1,6 @@
 # Deployment — wordpress-dng
 #
-# WordPress 6.9 with PHP 8.2 and Apache. Uses the official Docker image.
+# WordPress with PHP and Apache. Uses the official Docker image.
 # Mounts the Longhorn PVC for persistent storage.
 #
 # Probes:
@@ -74,14 +74,14 @@ spec:
               cpu: 1000m
               memory: 1Gi
           volumeMounts:
-            - name: wordpress-data
-              mountPath: /var/www/html
+            - name: wordpress-content
+              mountPath: /var/www/html/wp-content
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: wordpress-data
+        - name: wordpress-content
           persistentVolumeClaim:
-            claimName: wordpress-dng-data
+            claimName: wordpress-dng-wp-content
         - name: tmp
           emptyDir: {}
       automountServiceAccountToken: false

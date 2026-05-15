@@ -5,7 +5,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: wordpress-dng-data
+  name: wordpress-dng-wp-content
   namespace: wordpress-dng
   annotations:
     argocd.argoproj.io/sync-wave: "0"
