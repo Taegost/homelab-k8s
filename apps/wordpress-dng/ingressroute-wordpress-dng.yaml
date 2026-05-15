@@ -32,5 +32,5 @@ spec:
     #       namespace: traefik
     #     - name: wordpress-dng-authentik
     #       namespace: wordpress-dng
-      tls:
-        secretName: diceninjagaming-com-tls
+  tls:
+    secretName: diceninjagaming-com-tls

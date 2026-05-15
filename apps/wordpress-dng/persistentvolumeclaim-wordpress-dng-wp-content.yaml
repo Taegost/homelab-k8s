@@ -1,6 +1,6 @@
-# PersistentVolumeClaim — wordpress-dng-data
+# PersistentVolumeClaim — wordpress-dng-wp-content
 #
-# Longhorn-backed PVC for WordPress installation (/var/www/html).
+# Longhorn-backed PVC for WordPress installation (/var/www/html/wp-content).
 # Uses ReadWriteMany access mode to support multi-pod deployments.
 apiVersion: v1
 kind: PersistentVolumeClaim
