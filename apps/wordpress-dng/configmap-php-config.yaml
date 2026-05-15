@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: php-config
+  namespace: wordpress-dng
+data:
+  php-config.ini: |
+    # Set the max upload file size
+    upload_max_filesize = 128M
+    post_max_size = 128M
+    memory_limit = 256M

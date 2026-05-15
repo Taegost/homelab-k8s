@@ -126,12 +126,19 @@ spec:
           volumeMounts:
             - name: wordpress-content
               mountPath: /var/www/html/wp-content
+            - name: php-config
+              mountPath: /usr/local/etc/php/conf.d/php-config.ini
+              subPath: php-config.ini
+              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
         - name: wordpress-content
           persistentVolumeClaim:
             claimName: wordpress-dng-wp-content
+        - name: php-config
+          configMap:
+            name: php-config
         - name: tmp
           emptyDir: {}
       automountServiceAccountToken: false
