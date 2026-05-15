@@ -32,7 +32,9 @@ spec:
         fsGroup: 33  # www-data
       containers:
         - name: wordpress
-          image: wordpress:6.9-php8.2-apache
+          image: wordpress:6.9-php8.5-apache
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - name: http
               containerPort: 80

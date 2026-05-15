@@ -3,7 +3,7 @@
 # Dedicated database for the WordPress site in the shared MariaDB instance.
 # Deployed to the mariadb namespace via ArgoCD.
 #
-# Sync wave: -1 (before User/Grant).
+# Sync wave: -1.
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Database
 metadata:

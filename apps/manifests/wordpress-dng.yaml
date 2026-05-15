@@ -10,8 +10,6 @@ metadata:
   annotations:
     # Sync after the mariadb-operator is running (wave -1).
     argocd.argoproj.io/sync-wave: "0"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
