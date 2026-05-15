@@ -61,6 +61,49 @@ spec:
                 secretKeyRef:
                   name: wordpress-dng
                   key: WORDPRESS_DB_PASSWORD
+            # Shared secret keys — must be consistent across all replicas.
+            # Each pod generates its own random keys at startup if not set,
+            # so cookies signed by one pod cannot be validated by another.
+            - name: WORDPRESS_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_AUTH_KEY
+            - name: WORDPRESS_SECURE_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_SECURE_AUTH_KEY
+            - name: WORDPRESS_LOGGED_IN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_LOGGED_IN_KEY
+            - name: WORDPRESS_NONCE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_NONCE_KEY
+            - name: WORDPRESS_AUTH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_AUTH_SALT
+            - name: WORDPRESS_SECURE_AUTH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_SECURE_AUTH_SALT
+            - name: WORDPRESS_LOGGED_IN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_LOGGED_IN_SALT
+            - name: WORDPRESS_NONCE_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng-keys
+                  key: WORDPRESS_NONCE_SALT
           livenessProbe:
             httpGet:
               path: /wp-includes/images/blank.gif
