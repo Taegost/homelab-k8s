@@ -1,0 +1,28 @@
+# ArgoCD Application — wordpress-dng
+#
+# Deploys the WordPress DNG site and its MariaDB resources.
+# Syncs the wordpress-dng namespace and deploys MariaDB CRDs to the mariadb namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wordpress-dng
+  namespace: argocd
+  annotations:
+    # Sync after the mariadb-operator is running (wave -1).
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s.git
+    targetRevision: HEAD
+    path: apps/wordpress-dng
+  destination:
+    server: https://kubernetes.default.svc
+    # Deploy WordPress resources to the wordpress-dng namespace.
+    namespace: wordpress-dng
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

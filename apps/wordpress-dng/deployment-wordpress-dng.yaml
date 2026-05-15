@@ -1,0 +1,87 @@
+# Deployment — wordpress-dng
+#
+# WordPress with PHP and Apache. Uses the official Docker image.
+# Mounts the Longhorn PVC for persistent storage.
+#
+# Probes:
+# - Liveness: HTTP GET /wp-includes/images/blank.gif (WordPress health check).
+# - Readiness: HTTP GET /wp-includes/images/blank.gif.
+#
+# Environment variables:
+# - WORDPRESS_DB_*: Configured via Secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress-dng
+  namespace: wordpress-dng
+  labels:
+    app.kubernetes.io/name: wordpress-dng
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wordpress-dng
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wordpress-dng
+    spec:
+      securityContext:
+        fsGroup: 33  # www-data
+      containers:
+        - name: wordpress
+          image: wordpress:6.9-php8.5-apache
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: "mariadb-primary.mariadb.svc.cluster.local"
+            - name: WORDPRESS_DB_NAME
+              value: "wordpress-dng"
+            - name: WORDPRESS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng
+                  key: WORDPRESS_DB_USER
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-dng
+                  key: WORDPRESS_DB_PASSWORD
+          livenessProbe:
+            httpGet:
+              path: /wp-includes/images/blank.gif
+              port: http
+            failureThreshold: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /wp-includes/images/blank.gif
+              port: http
+            failureThreshold: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: wordpress-content
+              mountPath: /var/www/html/wp-content
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: wordpress-content
+          persistentVolumeClaim:
+            claimName: wordpress-dng-wp-content
+        - name: tmp
+          emptyDir: {}
+      automountServiceAccountToken: false

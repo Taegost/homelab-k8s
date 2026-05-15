@@ -1,0 +1,22 @@
+# User — wordpress-dng
+#
+# Dedicated user for the WordPress site in the shared MariaDB instance.
+# Password is stored in the Secret.
+# Deployed to the mariadb namespace via ArgoCD.
+#
+# Sync wave: -2 (deploys first).
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: wordpress-dng
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  mariaDbRef:
+    name: mariadb
+  passwordSecretKeyRef:
+    name: wordpress-dng-db-credentials
+    key: password
+  maxUserConnections: 20
+  host: "%"
