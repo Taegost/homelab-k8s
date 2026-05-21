@@ -46,6 +46,7 @@ spec:
         # Longhorn PVCs mount owned by root. fsGroup causes Kubernetes to
         # chown the volume to this GID on mount so the node user can write to it
         fsGroup: 100
+        fsGroupChangePolicy: OnRootMismatch   # skip recursive chown if root dir ownership already matches
       containers:
         - name: whisparr
           image: ghcr.io/hotio/whisparr:v3
