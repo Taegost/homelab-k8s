@@ -1,4 +1,4 @@
-# RecurringJob — Weekly filesystem trim for all Longhorn volumes
+# RecurringJob — Daily filesystem trim for all Longhorn volumes
 #
 # Longhorn operates at the block layer and has no visibility into filesystem
 # deletions — deleted files don't reclaim space in Longhorn's "Actual Size"

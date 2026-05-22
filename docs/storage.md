@@ -1,5 +1,7 @@
 # Storage
+
 ## Longhorn 
+
 ### Checking current PVC utilisation
 
 Run `scripts/longhorn-pvc-report.sh` to get a cluster-wide usage report sorted by % used:
@@ -20,7 +22,7 @@ Longhorn's "Actual Size" column in the Volumes UI reflects block-level usage, no
 
 Longhorn operates at the block device layer and has no visibility into filesystem-level deletions. When files are deleted inside a volume, the filesystem marks those blocks as free, but Longhorn still counts them as used — causing "Actual Size" in the UI to overstate real data consumption, sometimes significantly.
 
-The `RecurringJob` at `apps/longhorn/recurringjob-filesystem-trim.yaml` runs a daily `fstrim` across all volumes to reclaim those blocks and keep Longhorn's reported sizes accurate.
+The `RecurringJob` at `apps/longhorn/recurringjob-daily-filesystem-trim.yaml` runs a daily `fstrim` across all volumes to reclaim those blocks and keep Longhorn's reported sizes accurate.
 
 The job is assigned to the `default` group, which means Longhorn automatically applies it to any volume that has no other recurring job labels. No per-volume configuration is needed.
 

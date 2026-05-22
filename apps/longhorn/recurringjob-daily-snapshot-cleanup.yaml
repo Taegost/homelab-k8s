@@ -1,0 +1,39 @@
+# RecurringJob — Daily system snapshot cleanup for all Longhorn volumes
+#
+# Longhorn automatically creates system snapshots during routine operations
+# such as replica rebuilding, volume attachment, and engine restarts. These
+# accumulate over time and inflate the "Actual Size" reported in the UI,
+# since Longhorn's actual size metric counts all snapshot data in the chain —
+# not just the live volume. Left unmanaged they trigger a TooManySnapshots
+# condition, which can prevent the engine from starting entirely.
+#
+# snapshot-cleanup targets ONLY system-generated and removable snapshots.
+# It will NOT delete snapshots intentionally created by the user. This makes
+# it safe to run on all volumes via the default group without risk of losing
+# manually created restore points.
+#
+# snapshot-delete is the alternative task type — it removes all snapshot
+# types including user-created ones, down to the retain count. That is not
+# what we want here.
+#
+# retain: Longhorn ignores this value for snapshot-cleanup and forces it to
+# 0 internally. It is set explicitly here for clarity and to satisfy the CRD.
+#
+# Runs at 2am, one hour before the filesystem-trim job, so the snapshot
+# chain is clean before trim runs. Trim is more effective when it doesn't
+# have to account for blocks still referenced by old snapshots.
+#
+# See docs/storage.md for the relationship between snapshots, trim, and
+# the "Actual Size" metric.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: daily-snapshot-cleanup
+  namespace: longhorn-system
+spec:
+  task: snapshot-cleanup
+  cron: "0 2 * * *"  # 2am daily — runs one hour before filesystem-trim
+  retain: 0           # forced to 0 by Longhorn regardless; set explicitly for clarity
+  concurrency: 2      # keep low — snapshot purge is I/O-intensive on the replica nodes
+  groups:
+    - default         # automatically applied to all volumes with no other job labels

@@ -8,7 +8,7 @@ This folder contains supporting scripts for the homelab-k8s repository. These ar
 
 Prints a utilisation report for every Longhorn PVC in the cluster, sorted by % used. Useful for spotting volumes approaching their limit before they cause application failures.
 
-```
+```text
 PVC                            NAMESPACE        USED(Gi)   CAP(Gi)   %USED
 ---                            ---------        --------   -------   -----
 prowlarr-config                arr-stack            5.84      8.00   73.0
@@ -17,6 +17,7 @@ radarr-config                  arr-stack            3.09      5.00   61.7
 ```
 
 **Usage:**
+
 ```bash
 ./scripts/longhorn-pvc-report.sh
 ```
