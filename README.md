@@ -105,7 +105,8 @@ homelab-k8s/
 ├── docs/                         # Extended documentation
 │   ├── sealed-secrets.md         # How to create and rotate sealed secrets
 │   ├── postgres-runbooks.md      # Day-two Postgres operations and migration workflow
-│   ├── disaster-recovery.md      # What to do if you rebuild the cluster
+│   ├── disaster-recovery.md      # What to do if you rebuild the cluster|
+│   ├── storage.md                # Documentation about storage decisions
 │   └── troubleshooting.md        # Common troubleshooting scenarios and issues we've come across
 │
 ├── .gitignore                    # Prevents accidental secret commits

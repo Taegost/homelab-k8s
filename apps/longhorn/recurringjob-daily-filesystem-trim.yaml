@@ -1,0 +1,28 @@
+# RecurringJob — Daily filesystem trim for all Longhorn volumes
+#
+# Longhorn operates at the block layer and has no visibility into filesystem
+# deletions — deleted files don't reclaim space in Longhorn's "Actual Size"
+# until an fstrim is issued. This job automates that reclamation weekly.
+#
+# Assigned via the "default" group: Longhorn automatically applies this job
+# to any volume that has no other recurring job labels, which covers all
+# current volumes unless explicitly opted out.
+#
+# retain: 0 — filesystem-trim doesn't create snapshots, so there's nothing
+# to retain. This field is required by the CRD but has no effect for trim tasks.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: daily-filesystem-trim
+  namespace: longhorn-system
+spec:
+  task: filesystem-trim
+  # Daily fstrim reclaims blocks freed by filesystem deletions that Longhorn can't see at the block layer.
+  # Keeps "Actual Size" in the UI accurate. Safe to run daily on small, SSD-backed, low-throughput volumes.
+  cron: "0 3 * * *"  # 3am daily
+  retain: 0
+  # Keep concurrency low — trim is a write-like operation and hammering
+  # multiple volumes simultaneously will impact storage performance
+  concurrency: 2
+  groups:
+    - default  # automatically applied to all volumes with no other job labels
