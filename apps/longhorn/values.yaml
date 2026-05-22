@@ -10,22 +10,21 @@ defaultSettings:
   # so existing volumes on other nodes are not affected.
   defaultDataPath: /var/lib/longhorn
 
-  # 2 replicas matches the current 2-node cluster, keeping volumes healthy
-  # immediately. When node 3 is added, update this to 3 and then use the
-  # Longhorn UI (or kubectl) to update replica count on existing volumes —
-  # they will not automatically gain a third replica just from this setting.
-  defaultReplicaCount: 2
+  # Set to node count for full HA — one replica per node; update when cluster
+  # topology changes. See persistence.defaultClassReplicaCount below — keep
+  # these in sync.
+  # Note: existing volumes do not gain a replica automatically when this value
+  # increases — update each via the Longhorn UI or kubectl.
+  defaultReplicaCount: 3
 
-  # Rebalance replicas across nodes when cluster topology changes (e.g. after
-  # adding node 3). "best-effort" tries to rebalance without guaranteeing it,
-  # which is safer than triggering aggressive data movement on every change.
+  # Rebalance replicas across nodes when cluster topology changes. "best-effort"
+  # tries to rebalance without guaranteeing it, which is safer than triggering
+  # aggressive data movement on every change. This rebalances replica placement
+  # but does not increase replica count — that requires updating each volume.
   replicaAutoBalance: best-effort
 
-  # Required for a 2-node cluster. Longhorn normally refuses to create a
-  # volume if it cannot place all replicas on distinct nodes from the active
-  # engine. With only 2 nodes this is impossible by definition, so this flag
-  # allows creation to proceed despite the degraded placement.
-  # Safe to leave enabled permanently — it only affects creation-time checks.
+  # Safe to leave enabled permanently — only affects creation-time replica
+  # placement checks. Harmless on any cluster where replica count ≤ node count.
   allowVolumeCreationWithDegradedAvailability: true
 
   # Automatically clean up orphaned replica data (disk files with no matching
@@ -41,8 +40,9 @@ persistence:
   # that don't need replicated durable storage (caches, ArgoCD Redis, etc.).
   defaultClass: false
   defaultFsType: ext4
-  # Keep in sync with defaultSettings.defaultReplicaCount above.
-  defaultClassReplicaCount: 2
+  # Set to node count for full HA — must stay in sync with
+  # defaultSettings.defaultReplicaCount above.
+  defaultClassReplicaCount: 3
 
 preUpgradeChecker:
   # Disabled because the pre-upgrade checker hook runs before the Longhorn
