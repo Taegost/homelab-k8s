@@ -197,7 +197,7 @@ For most use cases, the default namespace scope is correct and preferred.
 
 ## ArgoCD Sync Wave Ordering
 
-When a `SealedSecret` needs to deploy before other resources (e.g. a MariaDB `User` CRD that reads the secret), you must place the `argocd.argoproj.io/sync-wave` annotation on the **`SealedSecret` resource's own `metadata.annotations`** — not inside `spec.template.metadata.annotations`.
+When a `SealedSecret` needs to deploy before other resources (e.g. a MariaDB `User` CRD that reads the secret), you must place the `argocd.argoproj.io/sync-wave` annotation on the **`SealedSecret` resource's own `metadata.annotations`** — not just inside `spec.template.metadata.annotations`.
 
 ### Why this matters
 
