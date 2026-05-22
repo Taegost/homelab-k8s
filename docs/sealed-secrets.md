@@ -192,3 +192,59 @@ kubeseal --scope cluster-wide --format yaml < secret.yaml > sealed-secret.yaml
 ```
 
 For most use cases, the default namespace scope is correct and preferred.
+
+---
+
+## ArgoCD Sync Wave Ordering
+
+When a `SealedSecret` needs to deploy before other resources (e.g. a MariaDB `User` CRD that reads the secret), you must place the `argocd.argoproj.io/sync-wave` annotation on the **`SealedSecret` resource's own `metadata.annotations`** — not inside `spec.template.metadata.annotations`.
+
+### Why this matters
+
+`kubeseal` passes `spec.template.metadata.annotations` through to the decrypted `Secret` it creates. ArgoCD does **not** read those inner annotations for wave ordering — it only reads the top-level `metadata.annotations` of whatever resource it is syncing. A `SealedSecret` with the wave annotation only in `spec.template` is treated as wave `0` regardless of the value.
+
+### Correct placement
+
+```yaml
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: my-app-db-credentials
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"   # <-- ArgoCD reads this
+spec:
+  encryptedData:
+    password: AgB...
+  template:
+    metadata:
+      annotations:
+        argocd.argoproj.io/sync-wave: "-3"   # <-- passed to the decrypted Secret (harmless, but not what ArgoCD uses)
+      name: my-app-db-credentials
+      namespace: mariadb
+    type: Opaque
+```
+
+### Wrong placement (wave is ignored by ArgoCD)
+
+```yaml
+metadata:
+  name: my-app-db-credentials
+  namespace: mariadb
+  # No annotations here — ArgoCD treats this as wave 0
+spec:
+  template:
+    metadata:
+      annotations:
+        argocd.argoproj.io/sync-wave: "-3"   # <-- only the decrypted Secret gets this, not the SealedSecret
+```
+
+### Standard waves for WordPress-pattern apps
+
+| Resource | Wave | Reason |
+|---|---|---|
+| SealedSecret (mariadb namespace — DB credentials) | `-3` | Must exist before MariaDB User CRD reads it |
+| MariaDB User + Grant CRDs | `-2` | Depend on the credentials Secret |
+| MariaDB Database CRD | `-1` | Can be created in parallel with User/Grant but ordered here for clarity |
+| SealedSecret (app namespace — app credentials, keys) | `-1` | Must exist before Deployment |
+| Deployment, Service, IngressRoute, PVC | `0` | Normal app resources |

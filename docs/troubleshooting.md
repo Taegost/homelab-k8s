@@ -170,3 +170,45 @@ The CoreDNS `Deployment` in `kube-system` is owned by k3s's `objectset.rio.cattl
 controller. Direct edits via `kubectl` or ArgoCD patches will be reverted. Changes to CoreDNS
 configuration must go through a `coredns-custom` ConfigMap (for Corefile changes) or the
 addon manifest on the server node at `/var/lib/rancher/k3s/server/manifests/`.
+
+---
+
+## ArgoCD Sync Wave / SealedSecrets
+
+### SealedSecret deploys at wave 0 instead of its declared wave
+
+**Symptom:** An app's first-ever sync fails. MariaDB `User` or `Grant` CRDs (wave `-2`)
+report that the credentials `Secret` doesn't exist. Manually syncing the `SealedSecret`
+alone lets everything else proceed. The `SealedSecret` manifest has
+`argocd.argoproj.io/sync-wave: "-3"` in it but ArgoCD ignores it.
+
+**Cause (confirmed — wordpress-taegost, 2026-05-22):** The sync-wave annotation was placed
+inside `spec.template.metadata.annotations` rather than the `SealedSecret` resource's own
+`metadata.annotations`. `spec.template.metadata.annotations` is kubeseal's passthrough
+mechanism — it propagates to the decrypted `Secret`, not to the `SealedSecret` resource.
+ArgoCD reads wave ordering only from the top-level `metadata.annotations` of the resource it
+is syncing, so it treated every affected `SealedSecret` as wave `0`.
+
+**Affected resources (fixed in this commit):**
+- `apps/wordpress-taegost/sealedsecret-wordpress-taegost-db-credentials.yaml` — wave `-3`
+- `apps/wordpress-taegost/sealedsecret-wordpress-taegost-keys.yaml` — wave `-1`
+- `apps/wordpress-taegost/sealedsecret-wordpress-taegost.yaml` — wave `-1`
+- `apps/wordpress-dng/sealedsecret-wordpress-dng-db-credentials.yaml` — wave `-3`
+- `apps/wordpress-dng/sealedsecret-wordpress-dng.yaml` — wave `-1`
+- `apps/wordpress-dng/sealedsecret-wordpress-dng-keys.yaml` — wave `-1`
+
+**Fix:** Add `argocd.argoproj.io/sync-wave` to `metadata.annotations` directly on the
+`SealedSecret` resource. The `spec.template.metadata.annotations` copy can remain — it
+correctly propagates the wave to the underlying `Secret` and does no harm.
+
+**Prevention:** See `docs/sealed-secrets.md` — "ArgoCD Sync Wave Ordering" section. When
+creating any new `SealedSecret` that needs wave ordering, always add the annotation in both
+locations.
+
+**Diagnosis:**
+```bash
+# Check where the sync-wave annotation actually lives on a SealedSecret
+grep -A5 "^metadata:" apps/<app>/sealedsecret-*.yaml | grep sync-wave
+# If the only hit is indented under "spec:" → the annotation is in the wrong place
+grep -n "sync-wave" apps/<app>/sealedsecret-*.yaml
+```
