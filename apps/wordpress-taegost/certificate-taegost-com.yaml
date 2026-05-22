@@ -17,7 +17,7 @@ metadata:
 spec:
   secretName: taegost-com-tls
   issuerRef:
-    name: letsencrypt-taegost-staging
+    name: letsencrypt-taegost-prod
     kind: ClusterIssuer
   dnsNames:
     - taegost.com
