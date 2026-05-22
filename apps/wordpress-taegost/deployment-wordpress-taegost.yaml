@@ -1,0 +1,146 @@
+# Deployment — wordpress-taegost
+#
+# WordPress with PHP and Apache. Uses the official Docker image.
+# Mounts the Longhorn RWX PVC for shared wp-content storage (multi-replica safe).
+#
+# Probes:
+# - Liveness: HTTP GET /wp-includes/images/blank.gif (static asset, always present).
+# - Readiness: HTTP GET /wp-includes/images/blank.gif.
+#
+# Environment variables:
+# - WORDPRESS_DB_*: Configured via wordpress-taegost secret.
+# - WORDPRESS_*_KEY / *_SALT: Configured via wordpress-taegost-keys secret — must be
+#   consistent across all replicas to prevent cross-pod cookie validation failures.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress-taegost
+  namespace: wordpress-taegost
+  labels:
+    app.kubernetes.io/name: wordpress-taegost
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wordpress-taegost
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wordpress-taegost
+    spec:
+      securityContext:
+        fsGroup: 33  # www-data — required for Longhorn RWX volume write access on first boot
+      containers:
+        - name: wordpress
+          image: wordpress:6.9-php8.5-apache
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            # Override DB-stored URLs — WordPress writes these during first boot
+            # and may store http:// if the proxy headers weren't read correctly
+            # at install time. Constants in wp-config.php always take precedence.
+            - name: WORDPRESS_CONFIG_EXTRA
+              value: |
+                define('WP_HOME', 'https://taegost.com');
+                define('WP_SITEURL', 'https://taegost.com');
+            - name: WORDPRESS_DB_HOST
+              value: "mariadb-primary.mariadb.svc.cluster.local"
+            - name: WORDPRESS_DB_NAME
+              value: "wordpress-taegost"
+            - name: WORDPRESS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost
+                  key: WORDPRESS_DB_USER
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost
+                  key: WORDPRESS_DB_PASSWORD
+            # Shared secret keys — must be consistent across all replicas.
+            # Each pod generates its own random keys at startup if not set,
+            # so cookies signed by one pod cannot be validated by another.
+            - name: WORDPRESS_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_AUTH_KEY
+            - name: WORDPRESS_SECURE_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_SECURE_AUTH_KEY
+            - name: WORDPRESS_LOGGED_IN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_LOGGED_IN_KEY
+            - name: WORDPRESS_NONCE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_NONCE_KEY
+            - name: WORDPRESS_AUTH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_AUTH_SALT
+            - name: WORDPRESS_SECURE_AUTH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_SECURE_AUTH_SALT
+            - name: WORDPRESS_LOGGED_IN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_LOGGED_IN_SALT
+            - name: WORDPRESS_NONCE_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-taegost-keys
+                  key: WORDPRESS_NONCE_SALT
+          livenessProbe:
+            httpGet:
+              path: /wp-includes/images/blank.gif
+              port: http
+            failureThreshold: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /wp-includes/images/blank.gif
+              port: http
+            failureThreshold: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: wordpress-content
+              mountPath: /var/www/html/wp-content
+            - name: php-config
+              mountPath: /usr/local/etc/php/conf.d/php-config.ini
+              subPath: php-config.ini
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: wordpress-content
+          persistentVolumeClaim:
+            claimName: wordpress-taegost-wp-content
+        - name: php-config
+          configMap:
+            name: php-config
+        - name: tmp
+          emptyDir: {}
+      automountServiceAccountToken: false

@@ -1,0 +1,39 @@
+# ClusterIssuer — Let's Encrypt Staging (taegost.com)
+#
+# Use this issuer when first setting up or testing certificate issuance for
+# taegost.com. Staging certificates are NOT trusted by browsers but are
+# functionally identical for testing DNS-01 challenge flow.
+#
+# Why test with staging first?
+# Let's Encrypt enforces strict rate limits on the production endpoint:
+#   - 5 failed validation attempts per hostname per hour
+#   - 50 certificates per registered domain per week
+# Always verify staging reaches Ready=True before switching to production.
+#
+# Credentials: route53-credentials-taegost secret in the cert-manager namespace.
+# This is separate from the DNG issuer (route53-credentials) — taegost.com lives
+# in a different Route53 hosted zone under different AWS credentials.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-taegost-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Use a monitored taegost.com alias — keeps personal email out of committed
+    # YAML and ensures expiry warnings are received.
+    email: certs@taegost.com
+    privateKeySecretRef:
+      name: letsencrypt-taegost-staging-account-key
+    solvers:
+      - dns01:
+          route53:
+            # Route53 is global but cert-manager requires a region value.
+            # us-east-1 is correct for all Route53 work regardless of cluster location.
+            region: us-east-1
+            accessKeyIDSecretRef:
+              name: route53-credentials-taegost
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials-taegost
+              key: secret-access-key

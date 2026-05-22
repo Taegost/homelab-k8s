@@ -1,0 +1,33 @@
+# ClusterIssuer — Let's Encrypt Production (taegost.com)
+#
+# Use this issuer only after confirming letsencrypt-taegost-staging issues a
+# certificate successfully (kubectl get certificate -n wordpress-taegost shows
+# Ready=True with a staging cert).
+#
+# Credentials: route53-credentials-taegost secret in the cert-manager namespace.
+# This is separate from the DNG issuer (route53-credentials) — taegost.com lives
+# in a different Route53 hosted zone under different AWS credentials.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-taegost-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Use a monitored taegost.com alias — keeps personal email out of committed
+    # YAML and ensures expiry warnings are received.
+    email: certs@taegost.com
+    privateKeySecretRef:
+      name: letsencrypt-taegost-prod-account-key
+    solvers:
+      - dns01:
+          route53:
+            # Route53 is global but cert-manager requires a region value.
+            # us-east-1 is correct for all Route53 work regardless of cluster location.
+            region: us-east-1
+            accessKeyIDSecretRef:
+              name: route53-credentials-taegost
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: route53-credentials-taegost
+              key: secret-access-key

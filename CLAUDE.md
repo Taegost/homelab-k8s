@@ -113,7 +113,8 @@ homelab-k8s/
 │   ├── smb-csi/                  # SMB CSI driver Helm values + credentials
 │   ├── traefik/                  # Helm values + middlewares/ + certificates/ + IngressRoutes
 │   │   └── external/             # Routes to non-Kubernetes services (see below)
-│   └── wordpress-dng/            # DiceNinjaGaming WordPress site
+│   ├── wordpress-dng/            # DiceNinjaGaming WordPress site (diceninjagaming.com)
+│   └── wordpress-taegost/        # Mike's portfolio/blog (taegost.com)
 ├── archived/                     # Removed configs kept for reference
 ├── bootstrap/                    # Manual bootstrap guide (README.md)
 ├── docs/
@@ -301,6 +302,10 @@ the shared wildcard cert and lives in the `traefik` namespace.
 - `csi.kubeletRootDir: /var/lib/kubelet` — do not change this back to the old
   k3s path. This was the root cause of a multi-hour troubleshooting session.
 - `open-iscsi` must be installed on all nodes before Longhorn is deployed
+- `nfs-common` (NFS client) and `cifs-utils` (SMB/CIFS client) are installed on
+  all nodes as part of base image creation and reinforced by Ansible playbooks
+  before Kubernetes is provisioned — Longhorn RWX volumes (NFSv4) and SMB CSI
+  mounts both depend on these being present at the OS level
 
 **Single-replica deployments with Longhorn RWO volumes must use `strategy: Recreate`.**
 The default `RollingUpdate` strategy creates the new pod before terminating the
@@ -468,13 +473,21 @@ them to the `mariadb` namespace automatically.
 Pattern in use — see `apps/wordpress-dng/` for a working example.
 
 - One namespace per site: `wordpress-<sitename>`
-- Bitnami WordPress Helm chart via ArgoCD (OCI source)
+- Raw manifests (Deployment, Service, IngressRoute, PVC, Certificate, ConfigMap,
+  SealedSecrets) — not Helm. ArgoCD Application points at `apps/wordpress-<sitename>/`
+- Image: official `wordpress:*-apache` — version pinned in the Deployment image tag;
+  upgrade by bumping the tag
 - MariaDB backend — `Database`, `User`, and `Grant` CRDs in the app folder,
   namespace `mariadb`
-- `server.ingress.enabled: false` — IngressRoute written manually
+- Only `wp-content` is mounted on a Longhorn RWX PVC — themes, plugins, and uploads
+  persist there; core WordPress files are ephemeral (rebuilt from the image on restart).
+  All settings, posts, and options persist in MariaDB. **Do not use the WordPress
+  Admin "Update WordPress" button** — upgrade core by changing the image tag instead.
 - Public-facing sites use per-app explicit certs, not the wildcard
 - Shared WordPress secret keys (auth salts) managed as a SealedSecret to avoid
   auth cookie mismatches across multiple replicas
+- `fsGroup: 33` (www-data) required in pod `securityContext` — Longhorn volumes
+  are provisioned owned by root; this causes Kubernetes to chown on first mount
 
 ---
 

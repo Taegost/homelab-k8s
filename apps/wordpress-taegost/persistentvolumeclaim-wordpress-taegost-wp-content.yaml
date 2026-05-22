@@ -1,0 +1,18 @@
+# PersistentVolumeClaim — wordpress-taegost-wp-content
+#
+# Longhorn-backed PVC for WordPress installation (/var/www/html/wp-content).
+# Uses ReadWriteMany access mode to support multi-pod deployments.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-taegost-wp-content
+  namespace: wordpress-taegost
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

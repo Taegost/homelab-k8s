@@ -1,0 +1,23 @@
+# Grant — wordpress-taegost
+#
+# Grants full privileges on the wordpress-taegost database to the wordpress-taegost user.
+# Deployed to the mariadb namespace via ArgoCD.
+#
+# Sync wave: -2 — after User is created (same wave, ordered by dependency).
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: wordpress-taegost
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  mariaDbRef:
+    name: mariadb
+  privileges:
+    - "ALL PRIVILEGES"
+  database: "wordpress-taegost"
+  table: "*"
+  username: wordpress-taegost
+  host: "%"
+  grantOption: false
