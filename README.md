@@ -11,6 +11,7 @@ A production-style Kubernetes homelab built on [k3s](https://k3s.io/), managed v
 - [Repository Structure](#repository-structure)
 - [Bootstrap Order](#bootstrap-order)
 - [Secrets Management](#secrets-management)
+- [TLS Certificates (cert-manager)](#tls-certificates-cert-manager)
 - [Adding a New Application](#adding-a-new-application)
 - [Disaster Recovery](#disaster-recovery)
 - [Prerequisites](#prerequisites)
@@ -150,6 +151,47 @@ All secrets use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
 > ⚠️ **Important:** The Sealed Secrets controller's private key is tied to your cluster. If you rebuild your cluster, you must restore the private key from backup before any `SealedSecret` can be decrypted. See [docs/disaster-recovery.md](docs/disaster-recovery.md).
 
 See [docs/sealed-secrets.md](docs/sealed-secrets.md) for full instructions including key backup and rotation.
+
+---
+
+## TLS Certificates (cert-manager)
+
+TLS certificates are issued automatically by cert-manager via Let's Encrypt DNS-01 challenges against Route53. Each public domain requires its own `ClusterIssuer` and a dedicated set of AWS credentials.
+
+### Adding Route53 credentials for a new domain
+
+When adding a new domain (e.g. a second public-facing site on a different hosted zone), create a new IAM user in AWS with the following policy. Replace `ZONE_ID_HERE` with the Route53 Hosted Zone ID for the domain (visible in the Route53 console under "Hosted zones").
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:GetChange",
+                "route53:ListHostedZones",
+                "route53:ListHostedZonesByName"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListResourceRecordSets",
+                "route53:ChangeResourceRecordSets"
+            ],
+            "Resource": [
+                "arn:aws:route53:::hostedzone/ZONE_ID_HERE"
+            ]
+        }
+    ]
+}
+```
+
+Once the IAM user is created, generate an access key and seal it as a `Secret` in the `cert-manager` namespace — use `apps/cert-manager/secret-route53-credentials-taegost.yaml` as a template. Then add staging and production `ClusterIssuer` manifests following the pattern in `apps/cert-manager/clusterissuer-taegost-*.yaml`.
+
+Always verify the staging issuer reaches `Ready=True` before enabling the production issuer — see the comment block in the staging ClusterIssuer for rationale.
 
 ---
 
