@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: aws-ddns-personal
+  name: aws-ddns-taegost
   namespace: aws-ddns
   annotations:
     app.kubernetes.io/source: "https://github.com/Taegost/aws-ddns-docker"
@@ -15,11 +15,11 @@ spec:
 
   selector:
     matchLabels:
-      app: aws-ddns-personal
+      app: aws-ddns-taegost
   template:
     metadata:
       labels:
-        app: aws-ddns-personal
+        app: aws-ddns-taegost
     spec:
       # This container doesn't need any special privileges
       automountServiceAccountToken: false
@@ -38,7 +38,7 @@ spec:
               # Space-separated list of all taegost.com records to keep updated.
               # Add or remove entries here when new public-facing services are created/retired.
               # Sensitive values (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID) live in
-              # personal-sealedsecret.yaml — kept separate so non-sensitive tuning can be
+              # taegost-sealedsecret.yaml — kept separate so non-sensitive tuning can be
               # changed without touching the sealed secret.
             - name: DOMAIN
               value: "taegost.com"
@@ -67,6 +67,6 @@ spec:
                 - ALL
           envFrom:
             # Sensitive credentials (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID)
-            # Source: personal-sealedsecret.yaml — plaintext template in personal-secret.yaml
+            # Source: taegost-sealedsecret.yaml — plaintext template in taegost-secret.yaml
             - secretRef:
-                name: aws-ddns-personal-secret
+                name: aws-ddns-taegost-secret

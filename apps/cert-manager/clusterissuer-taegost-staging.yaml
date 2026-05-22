@@ -13,6 +13,10 @@
 # Credentials: route53-credentials-taegost secret in the cert-manager namespace.
 # This is separate from the DNG issuer (route53-credentials) — taegost.com lives
 # in a different Route53 hosted zone under different AWS credentials.
+# ClusterIssuer is a cluster-scoped resource — no namespace field in metadata.
+# cert-manager looks for credential secrets in the cert-manager namespace when
+# resolving secretRefs in a ClusterIssuer. The route53-credentials-taegost Secret
+# must exist in cert-manager (see sealedsecret-route53-credentials-taegost.yaml).
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
