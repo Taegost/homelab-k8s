@@ -25,6 +25,11 @@ Together, they formed a forward proxy: Kubernetes Traefik received all traffic, 
 unrecognised hostnames to Docker Traefik, and let explicit IngressRoutes take precedence
 as services were migrated.
 
+> **ArgoCD health note:** While `docker-traefik-forward.yaml` is applied, ArgoCD will
+> report the `traefik` Application as **Degraded**. This is expected — ArgoCD flags
+> EndpointSlices with no backing Deployment as unhealthy. It is a cosmetic warning only
+> and does not affect routing. The warning disappears when the manifest is removed.
+
 ---
 
 ## Why they were removed
