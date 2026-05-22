@@ -1,0 +1,20 @@
+# Database — wordpress-taegost
+#
+# Dedicated database for the wordpress-taegost site in the shared MariaDB instance.
+# utf8mb4 with unicode collation is required for full Unicode support (emoji, CJK, etc.)
+# in WordPress post content and metadata.
+# Deployed to the mariadb namespace via ArgoCD.
+#
+# Sync wave: -1 — after User and Grant are ready (wave -2), before Deployment (wave 0).
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: wordpress-taegost
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  mariaDbRef:
+    name: mariadb
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci

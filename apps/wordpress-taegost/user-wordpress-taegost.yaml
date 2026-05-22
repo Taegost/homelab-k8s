@@ -1,0 +1,23 @@
+# User — wordpress-taegost
+#
+# Dedicated MariaDB user for the wordpress-taegost site in the shared MariaDB instance.
+# Password sourced from the wordpress-taegost-db-credentials Secret (wave -3).
+# Deployed to the mariadb namespace via ArgoCD.
+#
+# Sync wave: -2 — after Secret is decrypted (wave -3), before Database (wave -1).
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: wordpress-taegost
+  namespace: mariadb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  mariaDbRef:
+    name: mariadb
+  passwordSecretKeyRef:
+    name: wordpress-taegost-db-credentials
+    key: password
+  # Allow connections from any pod in the cluster.
+  host: "%"
+  maxUserConnections: 20

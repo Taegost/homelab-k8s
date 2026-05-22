@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aws-ddns-taegost
+  namespace: aws-ddns
+  annotations:
+    app.kubernetes.io/source: "https://github.com/Taegost/aws-ddns-docker"
+spec:
+  # Single replica only — multiple instances would race to update Route53
+  # with the same IP, causing unnecessary API calls and potential conflicts.
+  replicas: 1
+  strategy:
+    # Ensures that Kubernetes doesn't do a RollingUpdate so we only have one instance of the pod at a time.
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app: aws-ddns-taegost
+  template:
+    metadata:
+      labels:
+        app: aws-ddns-taegost
+    spec:
+      # This container doesn't need any special privileges
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: aws-ddns
+          # Source image repo: https://github.com/Taegost/aws-ddns-docker
+          # Image is pinned to `latest` intentionally — the application logic rarely
+          # changes, but weekly scheduled rebuilds on main pick up base image security
+          # patches. If you need to pin to a specific version for stability, use a
+          # semver tag (e.g. taegost/aws-ddns:1.0.0) — see the repo for available tags.
+          image: taegost/aws-ddns:latest
+          env:
+              # Space-separated list of all taegost.com records to keep updated.
+              # Add or remove entries here when new public-facing services are created/retired.
+              # Sensitive values (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID) live in
+              # secret-aws-ddns-taegost.yaml — kept separate so non-sensitive tuning can be
+              # changed without touching the sealed secret.
+            - name: DOMAIN
+              value: "taegost.com"
+              # All other env vars (DNS_TTL, RECHECK_SECS, MAX_RETRIES, RETRY_DELAY,
+              # LOG_LEVEL) are intentionally omitted — application defaults are correct
+              # for normal operation. See https://github.com/Taegost/aws-ddns-docker
+              # for the full list of available variables and their defaults.
+          # This container doesn't use many resources. At idle it's approximately 60MB RAM and doesn't normally change,
+          # and CPU rarely goes above 3% on a 4GHz max clock CPU
+          resources:
+            requests:
+              memory: "60M"
+              cpu: "0.01"
+            limits:
+              memory: "128M"
+              cpu: "0.1"
+          # This container doesn't need any special privileges
+          # It also runs as non-root user 1000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            # Sensitive credentials (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID)
+            # Source: sealedsecret-aws-ddns-taegost.yaml — plaintext template in secret-aws-ddns-taegost.yaml
+            - secretRef:
+                name: aws-ddns-taegost-secret

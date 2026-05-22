@@ -1,0 +1,28 @@
+# ArgoCD Application — wordpress-taegost
+#
+# Deploys the WordPress taegost.com site and its MariaDB resources.
+# Syncs the wordpress-taegost namespace and deploys MariaDB CRDs to the mariadb namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wordpress-taegost
+  namespace: argocd
+  annotations:
+    # Sync after the mariadb-operator is running (wave -1).
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s.git
+    targetRevision: HEAD
+    path: apps/wordpress-taegost
+  destination:
+    server: https://kubernetes.default.svc
+    # Deploy WordPress resources to the wordpress-taegost namespace.
+    namespace: wordpress-taegost
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

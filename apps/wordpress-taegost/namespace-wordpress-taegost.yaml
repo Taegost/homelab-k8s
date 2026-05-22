@@ -1,0 +1,10 @@
+# Namespace — wordpress-taegost
+#
+# Dedicated namespace for the taegost.com WordPress site.
+# Follows the repository pattern: one namespace per WordPress site.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wordpress-taegost
+  labels:
+    app.kubernetes.io/name: wordpress-taegost
