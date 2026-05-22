@@ -42,7 +42,7 @@ being migrated), pfSense, Unraid, or any non-Kubernetes homelab work.
 
 ## Cluster Overview
 
-- **Platform:** k3s — 3-node HA; all nodes active as combined control-plane/worker
+- **Platform:** k3s — 3 HA combined control-plane/worker nodes
 - **GitOps:** ArgoCD manages everything post-bootstrap via app-of-apps pattern
 - **Networking:** pfSense router, MetalLB (L2/ARP mode), Traefik as sole ingress
 - **Internal domain:** `home.diceninjagaming.com`
