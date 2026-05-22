@@ -38,7 +38,7 @@ spec:
               # Space-separated list of all taegost.com records to keep updated.
               # Add or remove entries here when new public-facing services are created/retired.
               # Sensitive values (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID) live in
-              # taegost-sealedsecret.yaml — kept separate so non-sensitive tuning can be
+              # secret-aws-ddns-taegost.yaml — kept separate so non-sensitive tuning can be
               # changed without touching the sealed secret.
             - name: DOMAIN
               value: "taegost.com"
