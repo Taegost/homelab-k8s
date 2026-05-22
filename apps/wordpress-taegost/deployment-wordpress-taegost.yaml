@@ -4,8 +4,10 @@
 # Mounts the Longhorn RWX PVC for shared wp-content storage (multi-replica safe).
 #
 # Probes:
-# - Liveness: HTTP GET /wp-includes/images/blank.gif (static asset, always present).
-# - Readiness: HTTP GET /wp-includes/images/blank.gif.
+# - Liveness: HTTP GET /wp-includes/images/blank.gif (static asset — proves Apache is
+#   running; DB flap should drain traffic, not restart the pod).
+# - Readiness: HTTP GET /wp-login.php (PHP-backed, requires DB connection — returns 500
+#   if DB is unreachable, pulling the pod from load balancing until recovery).
 #
 # Environment variables:
 # - WORDPRESS_DB_*: Configured via wordpress-taegost secret.
@@ -32,6 +34,8 @@ spec:
     spec:
       securityContext:
         fsGroup: 33  # www-data — required for Longhorn RWX volume write access on first boot
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: wordpress
           image: wordpress:6.9-php8.5-apache
@@ -114,7 +118,7 @@ spec:
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /wp-includes/images/blank.gif
+              path: /wp-login.php
               port: http
             failureThreshold: 3
             periodSeconds: 10
