@@ -67,6 +67,6 @@ spec:
                 - ALL
           envFrom:
             # Sensitive credentials (AWS_ACCESS_KEY, AWS_SECRET, AWS_ZONE_ID)
-            # Source: taegost-sealedsecret.yaml — plaintext template in taegost-secret.yaml
+            # Source: sealedsecret-aws-ddns-taegost.yaml — plaintext template in secret-aws-ddns-taegost.yaml
             - secretRef:
                 name: aws-ddns-taegost-secret
