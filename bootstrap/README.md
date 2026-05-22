@@ -200,7 +200,7 @@ helm repo update
 
 # Extract the chart version from values.yaml so there is a single source of truth.
 # If you have upgraded the chart version in values.yaml, this command picks it up automatically.
-TRAEFIK_VERSION=$(grep -A1 "chart: traefik" apps/traefik/argocd-app.yaml | grep "targetRevision:" | awk '{print $2}')
+TRAEFIK_VERSION=$(grep -A1 "chart: traefik" apps/manifests/traefik.yaml | grep "targetRevision:" | awk '{print $2}')
 helm install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
@@ -211,24 +211,24 @@ kubectl rollout status deployment traefik -n traefik
 
 kubectl apply -f apps/traefik/dashboard-auth-sealedsecret.yaml
 # Applies the various shared/default middlewares
-kubectl apply -f apps/traefik/middleware-default-headers.yaml
-kubectl apply -f apps/traefik/middleware-internal-whitelist.yaml
-kubectl apply -f apps/traefik/middleware-default-whitelist.yaml
-kubectl apply -f apps/traefik/middleware-https-redirect.yaml
-kubectl apply -f apps/traefik/middleware-dashboard-auth.yaml
+kubectl apply -f apps/traefik/middlewares/middleware-default-headers.yaml
+kubectl apply -f apps/traefik/middlewares/middleware-internal-whitelist.yaml
+kubectl apply -f apps/traefik/middlewares/middleware-default-whitelist.yaml
+kubectl apply -f apps/traefik/middlewares/middleware-https-redirect.yaml
+kubectl apply -f apps/traefik/middlewares/middleware-dashboard-auth.yaml
 
 # Applies the certificates and default cert
-kubectl apply -f apps/traefik/certificate-dng-home-wildcard.yaml
-kubectl apply -f apps/traefik/certificate-dng-root-wildcard.yaml
+kubectl apply -f apps/traefik/certificates/certificate-dng-home-wildcard.yaml
+kubectl apply -f apps/traefik/certificates/certificate-dng-root-wildcard.yaml
 kubectl apply -f apps/traefik/tlsstore.yaml
 
 # IngressRoute for the Traefik dashboard itself
 kubectl apply -f apps/traefik/ingressroute-dashboard.yaml
 
-# Applies the temporary forwarding rules to the existing Traefik instance.
-# These will be removed once all the routes are migrated into kubernetes.
-kubectl apply -f apps/traefik/docker-traefik-forward.yaml
-kubectl apply -f apps/traefik/docker-traefik-catchall.yaml
+> **Docker→Kubernetes migration:** If you are cutting over from an existing
+> Docker Traefik instance and need the catch-all forwarding pattern, see
+> [`archived/traefik/`](../archived/traefik/) and
+> [`docs/migration-traefik-docker.md`](../docs/migration-traefik-docker.md).
 ```
 
 Verify Traefik received its external IP and the dashboard is reachable:
@@ -250,7 +250,9 @@ kubectl get svc -n traefik
 
 ArgoCD is the GitOps controller that will manage all future deployments — including managing itself after this step.
 
-> **Note on HA vs non-HA:** The manifest committed to `apps/argocd/argocd.yaml` is the **non-HA** install. The HA manifest requires a minimum of 3 nodes due to Redis HA quorum requirements — running it on fewer nodes leaves pods permanently pending. Once a third node is available, follow the instructions in [docs/argocd-ha-migration.md](../docs/argocd-ha-migration.md) to switch over. Since ArgoCD will be managing itself at that point, the switchover is a single Git commit.
+> **Note on HA vs non-HA:** The manifest committed to `apps/argocd/argocd.yaml` is the **non-HA** install.
+>
+> **ArgoCD HA (3-node clusters only):** HA mode requires 3+ nodes for Redis quorum. The third node is now active in this cluster. Follow [docs/argocd-ha-migration.md](../docs/argocd-ha-migration.md) when ready to switch ArgoCD to the HA manifest. Since ArgoCD will be managing itself at that point, the switchover is a single Git commit. On smaller clusters, skip this step.
 
 Install the manifest, then apply the supporting config:
 

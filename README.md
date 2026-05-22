@@ -70,14 +70,25 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 
 | Application | Purpose | Namespace |
 |-------------|---------|-----------|
-| [Authentik](https://goauthentik.io/) | Identity provider — SSO, LDAP, ForwardAuth | `authentik` |
-| [Manyfold](https://manyfold.app/) | 3D model library | `manyfold` |
 | [Arr stack](https://wiki.servarr.com/) | Media automation (Sonarr, Radarr, Prowlarr, etc) | `arr-stack` |
+| [Authentik](https://goauthentik.io/) | Identity provider — SSO, LDAP, ForwardAuth | `authentik` |
+| AWS DDNS | Route53 dynamic DNS updater (custom image) | `aws-ddns` |
+| [Firefly III](https://www.firefly-iii.org/) | Personal finance manager | `firefly3` |
+| [Leantime](https://leantime.io/) | Project management | `leantime` |
+| [LiteLLM](https://docs.litellm.ai/) | LLM API proxy — OpenAI-compatible gateway to multiple providers | `litellm` |
+| [Manyfold](https://manyfold.app/) | 3D model library | `manyfold` |
+| [Mealie](https://mealie.io/) | Recipe manager and meal planner | `mealie` |
+| [n8n](https://n8n.io/) | Workflow automation | `n8n` |
+| [Open WebUI](https://openwebui.com/) | Web chat interface for AI models (backed by LiteLLM) | `open-webui` |
+| [SearXNG](https://github.com/searxng/searxng) | Privacy-respecting meta search engine | `searxng` |
+| [DiceNinjaGaming WordPress](https://wordpress.org/) | WordPress site for the DiceNinjaGaming blog | `wordpress-dng` |
 
 Most applications share a single [CloudNativePG](https://cloudnative-pg.io/) PostgreSQL 18
 cluster (`apps/postgres/`) via per-app roles and databases. Connections go through a PgBouncer
 pooler (`postgres-pooler.postgres.svc.cluster.local`). See [docs/postgres-runbooks.md](docs/postgres-runbooks.md)
 for the workflow for adding or migrating a database-backed application.
+
+A shared [MariaDB](https://mariadb.org/) cluster (managed by [mariadb-operator](https://github.com/mariadb-operator/mariadb-operator)) is also available for apps that require MySQL-compatible storage. See [docs/mariadb-runbooks.md](docs/mariadb-runbooks.md) for the workflow.
 
 ---
 
