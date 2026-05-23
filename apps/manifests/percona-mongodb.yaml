@@ -1,0 +1,39 @@
+# ArgoCD Application — Shared MongoDB Cluster
+#
+# Deploys the PerconaServerMongoDB CRs and sealed system credentials for the
+# shared MongoDB instance used by all document-store applications.
+#
+# New per-application users are added to spec.users in the cluster CRD —
+# see apps/percona-mongodb/cluster-mongodb.yaml. Each user references a
+# SealedSecret in the mongodb namespace. See docs/mongodb-runbooks.md.
+#
+# Sync wave -1: Runs alongside Traefik and storage drivers — all are platform
+# services that applications consume. Must run after the Percona MongoDB
+# operator (wave -2) has installed its CRDs. If this Application syncs before
+# the CRDs exist, ArgoCD will surface "no matches for kind PerconaServerMongoDB"
+# errors and retry — it will self-heal once the operator is ready, but wave -1
+# avoids the noise.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: percona-mongodb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/percona-mongodb
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mongodb
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

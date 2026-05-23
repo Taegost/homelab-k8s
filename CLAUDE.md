@@ -15,6 +15,7 @@ Before implementing any change, read the relevant documentation first:
 
 - **New app deployment or Postgres migration** → `docs/postgres-runbooks.md`
 - **New app deployment with MariaDB database** → `docs/mariadb-runbooks.md`
+- **New app deployment with MongoDB database** → `docs/mongodb-runbooks.md`
 - **Secrets workflow** → `docs/sealed-secrets.md`
 - **Cluster recovery or node loss** → `docs/disaster-recovery.md`
 - **DNS or networking issues** → `docs/troubleshooting.md`
@@ -63,10 +64,12 @@ being migrated), pfSense, Unraid, or any non-Kubernetes homelab work.
 |---|---|---|---|
 | kube-vip | (pre-cluster, outside repo) | Manual | — |
 | mariadb-operator CRDs | cluster-scoped | Helm | `-3` |
+| Percona MongoDB Operator CRDs | cluster-scoped | Helm | `-3` |
 | Sealed Secrets | `kube-system` | Static manifest | `-2` |
 | cert-manager | `cert-manager` | Helm | `-2` |
 | MetalLB | `metallb-system` | Helm | `-2` |
 | mariadb-operator | `mariadb` | Helm | `-2` |
+| Percona MongoDB Operator | `psmdb-operator` | Helm | `-2` |
 | NFS CSI Driver | `nfs-csi` | Helm | `-1` |
 | SMB CSI Driver | `smb-csi` | Helm | `-1` |
 | infrastructure (StorageClasses) | cluster-scoped | Static manifests | `-1` |
@@ -76,6 +79,7 @@ being migrated), pfSense, Unraid, or any non-Kubernetes homelab work.
 | CNPG operator | `cnpg-system` | Helm | `0` |
 | Postgres cluster | `postgres` | CNPG CRDs | `1` |
 | MariaDB cluster | `mariadb` | mariadb-operator CRDs | `1` |
+| MongoDB cluster | `mongodb` | PSMDB CRD | `-1` |
 | All app workloads | per-app namespace | Helm or static | `0` |
 
 ---
@@ -102,6 +106,8 @@ homelab-k8s/
 │   ├── manyfold/                 # Manyfold 3D model manager
 │   ├── mariadb/                  # MariaDB cluster CRDs (Cluster, ConfigMap)
 │   ├── mariadb-operator/         # mariadb-operator Helm values
+│   ├── percona-mongodb/           # MongoDB cluster CRD + sealed secrets
+│   ├── percona-mongodb-operator/  # Percona MongoDB operator Helm values
 │   ├── mealie/                   # Mealie recipe manager
 │   ├── metallb/                  # MetalLB Helm values + IPAddressPool
 │   ├── n8n/                      # n8n workflow automation
