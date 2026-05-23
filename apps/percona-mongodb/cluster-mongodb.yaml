@@ -27,17 +27,10 @@ spec:
   image: percona/percona-server-mongodb:8.0.19-7
   imagePullPolicy: IfNotPresent
 
-  # Disable automated upgrades — we pin the operator and MongoDB versions.
-  # When ready to upgrade: update the image tag and operator targetRevision,
-  # then set apply: once with a scheduled window.
-  upgradeOptions:
-    versionServiceEndpoint: https://check.percona.com
-    apply: disabled
-    schedule: "0 2 * * *"
-    setFCV: false
-
   # Update strategy: SmartUpdate rolls pods one at a time, respecting
   # replica set primary order (secondaries first, primary last).
+  # Upgrades are controlled by changing the image tag in this manifest —
+  # the operator reconciles CRD changes immediately on next sync.
   updateStrategy: SmartUpdate
 
   secrets:
