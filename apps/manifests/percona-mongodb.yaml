@@ -1,6 +1,6 @@
 # ArgoCD Application — Shared MongoDB Cluster
 #
-# Deploys the PerconaServerMongoDB CRD and sealed system credentials for the
+# Deploys the PerconaServerMongoDB CRs and sealed system credentials for the
 # shared MongoDB instance used by all document-store applications.
 #
 # New per-application users are added to spec.users in the cluster CRD —
