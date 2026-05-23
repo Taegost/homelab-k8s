@@ -704,7 +704,7 @@ kubectl exec -n mongodb mongo-restore -- \
 
 # Verify row counts:
 kubectl exec -n mongodb mongo-restore -- \
-  mongosh "mongodb://APPNAME:\$DEST_PASS@mongodb-rs0.mongodb.svc.cluster.local:27017/APPNAME?authSource=APPNAME" \
+  mongosh "mongodb://APPNAME:${DEST_PASS}@mongodb-rs0.mongodb.svc.cluster.local:27017/APPNAME?authSource=APPNAME" \
   --eval 'db.COLLECTION_NAME.countDocuments()'
 
 # Clean up:

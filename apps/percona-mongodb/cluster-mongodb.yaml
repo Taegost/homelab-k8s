@@ -45,8 +45,12 @@ spec:
 
       # Spread across nodes where possible but do not require it.
       # With 3 nodes and 3 replicas, preferred anti-affinity places one pod
-      # per node. If a node fails, the remaining 2 pods can colocate on the
-      # surviving nodes rather than one sitting Pending.
+      # per node during initial scheduling. However, local-path PVCs are
+      # node-pinned — if a node fails, the affected pod stays Pending (its PVC
+      # is bound to the lost node) and cannot reschedule to a surviving node.
+      # The replica set continues with 2/3 members. When the node returns the
+      # pod catches up via replication. If the node is permanently lost,
+      # delete the PVC and the operator spins up a replacement.
       affinity:
         antiAffinityTopologyKey: "kubernetes.io/hostname"
 

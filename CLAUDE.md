@@ -79,7 +79,7 @@ being migrated), pfSense, Unraid, or any non-Kubernetes homelab work.
 | CNPG operator | `cnpg-system` | Helm | `0` |
 | Postgres cluster | `postgres` | CNPG CRDs | `1` |
 | MariaDB cluster | `mariadb` | mariadb-operator CRDs | `1` |
-| MongoDB cluster | `mongodb` | PSMDB CRD | `1` |
+| MongoDB cluster | `mongodb` | PSMDB CRD | `-1` |
 | All app workloads | per-app namespace | Helm or static | `0` |
 
 ---
