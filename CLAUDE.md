@@ -28,6 +28,41 @@ Do not assume context is current. Read the actual files.
 
 ---
 
+## Pre-Commit Verification (MANDATORY)
+
+Before staging any commit that creates or modifies Kubernetes resources, run
+these checks. Do not skip them — they catch the most common class of errors
+in this repo.
+
+### Sync wave annotations
+
+Every resource that depends on another resource for correct operation must
+carry an `argocd.argoproj.io/sync-wave` annotation. The rule:
+
+- **SealedSecrets** must deploy BEFORE the resources that consume them.
+  Annotation goes in `metadata.annotations` (ArgoCD reads this for ordering).
+  Also place it in `spec.template.metadata.annotations` for consistency.
+- **Resources referencing a Secret** (User CRDs, Database CRDs, Deployments
+  with `secretKeyRef`) must have a higher (later) wave than the secret they
+  reference.
+
+Verify before committing:
+
+```bash
+# List all resources without sync-wave annotations in changed files:
+git diff --cached --name-only | xargs grep -L "sync-wave" 2>/dev/null
+
+# For each hit, ask: does this resource depend on another? If yes, add a wave.
+# SealedSecrets: wave -3 (before everything consuming them)
+# Resources consuming secrets: wave -2 (after secrets, before Deployments)
+# Deployments and app-level resources: wave 0 (default)
+```
+
+If a resource has no dependencies (pure config, no secret refs, no CRD
+prerequisites), it can safely omit the annotation.
+
+---
+
 ## Project Scope
 
 This repository manages all Kubernetes/GitOps work for Mike's homelab k3s cluster.
