@@ -1,0 +1,47 @@
+# ArgoCD Application — Percona Operator for MongoDB
+#
+# Installs the Percona Operator for MongoDB, which manages MongoDB clusters as
+# Kubernetes-native CRDs. All PerconaServerMongoDB resources depend on the
+# CRDs this operator installs.
+#
+# Sync wave -2: Runs after the psmdb-operator-crds Application (wave -3) which
+# installs the psmdb.percona.com CRDs. Must be fully ready before the MongoDB
+# cluster Application (wave -1) attempts to create a PerconaServerMongoDB CR.
+#
+# ServerSideApply is required: PSMDB CRDs contain fields that exceed the
+# kubectl annotation size limit under client-side apply.
+#
+# To upgrade: update targetRevision and check the changelog at
+# https://github.com/percona/percona-server-mongodb-operator/releases
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: percona-mongodb-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  sources:
+    # Source 1: The psmdb-operator Helm chart
+    - repoURL: https://percona.github.io/percona-helm-charts
+      chart: psmdb-operator
+      targetRevision: 1.22.0
+      helm:
+        valueFiles:
+          - $values/apps/percona-mongodb-operator/values.yaml
+    # Source 2: This repo, used only as a $values reference for the Helm
+    # chart above.
+    - repoURL: https://github.com/Taegost/homelab-k8s
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: psmdb-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

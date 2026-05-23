@@ -1,0 +1,10 @@
+# Percona Operator for MongoDB Helm values
+# Chart: percona/psmdb-operator  Version: 1.22.0
+
+# Disable telemetry for homelab use.
+disableTelemetry: true
+
+# Must watch all namespaces — the operator runs in psmdb-operator but the
+# PerconaServerMongoDB CRD lives in the mongodb namespace. Without this,
+# the operator only watches its own namespace and never reconciles the cluster.
+watchAllNamespaces: true
