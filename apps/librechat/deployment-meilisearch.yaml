@@ -43,8 +43,12 @@ spec:
                   key: MEILI_MASTER_KEY
             - name: MEILI_NO_ANALYTICS
               value: "true"
+            # Subdirectory avoids ext4 lost+found at volume root.
+            # lost+found is owned by root:root (mode 700) — Meilisearch
+            # sees it, thinks the directory has existing data, and fails
+            # because no VERSION file exists.
             - name: MEILI_DB_PATH
-              value: /meili_data
+              value: /meili_data/db
             # Meilisearch defaults max_indexing_memory to 2/3 of HOST RAM,
             # ignoring container limits. Without this override, a 1Gi container
             # on a multi-GB host node will be OOM-killed during indexing.
