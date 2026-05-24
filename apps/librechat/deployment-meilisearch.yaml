@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meilisearch
+  namespace: librechat
+  labels:
+    app: meilisearch
+    app.kubernetes.io/part-of: librechat
+spec:
+  replicas: 1
+  # Recreate: required for RWO PVC reattachment. Meilisearch's embedded LMDB
+  # does not support multi-writer — single replica only.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: meilisearch
+  template:
+    metadata:
+      labels:
+        app: meilisearch
+        app.kubernetes.io/part-of: librechat
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # Longhorn volumes are provisioned owned by root. fsGroup causes
+        # Kubernetes to chown the volume to this GID before the container
+        # starts. Meilisearch runs as UID/GID 1000.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: meilisearch
+          image: getmeili/meilisearch:v1.35.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7700
+          env:
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: MEILI_MASTER_KEY
+            - name: MEILI_NO_ANALYTICS
+              value: "true"
+            - name: MEILI_DB_PATH
+              value: /meili_data
+            # Meilisearch defaults max_indexing_memory to 2/3 of HOST RAM,
+            # ignoring container limits. Without this override, a 1Gi container
+            # on a multi-GB host node will be OOM-killed during indexing.
+            # Set to ~50% of the container memory limit below.
+            - name: MEILI_MAX_INDEXING_MEMORY
+              value: 512MB
+          volumeMounts:
+            - name: data
+              mountPath: /meili_data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            # 2Gi RWO. This PVC is a cache — indexes are derived from MongoDB
+            # data and can be rebuilt. If lost: delete PVC, restart Meilisearch,
+            # trigger full re-index from LibreChat admin UI.
+            claimName: meilisearch-data
