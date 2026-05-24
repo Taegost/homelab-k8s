@@ -29,7 +29,9 @@ Only resources needing a **non-default** sync order require the annotation.
 Wave `0` is ArgoCD's default — resources at wave 0 should NOT carry it.
 
 For each file listed, decide:
-- Is a SealedSecret? → wave `-3` in BOTH `metadata.annotations` AND `spec.template.metadata.annotations`.
+- Is a SealedSecret? → needs wave in BOTH `metadata.annotations` AND `spec.template.metadata.annotations`.
+  - **Infrastructure** (consumed by cluster CRD via `passwordSecretRef`): wave `-3`
+  - **App-level** (consumed by Deployment via `secretKeyRef`): wave `-1`
 - Is a CRD that consumes a SealedSecret from a DIFFERENT namespace (e.g., `passwordSecretRef`)? → wave `-2`.
 - Is a Database CRD (CNPG)? → wave `-1`.
 - Is a Deployment, Service, IngressRoute, PVC, ConfigMap, NetworkPolicy, or Certificate? → wave `0` — **OMIT the annotation**.
@@ -38,8 +40,9 @@ For each file listed, decide:
 
 | Resource type | Wave | Annotation? |
 |---|---|---|
-| SealedSecret (any namespace) | `-3` | Required in both metadata AND template |
+| Infrastructure SealedSecret (consumed by cluster CRD) | `-3` | Required in both metadata AND template |
 | Cross-namespace secret consumer (User CRD, PerconaServerMongoDB) | `-2` | Required |
+| App-level SealedSecret (consumed by Deployment) | `-1` | Required in both metadata AND template |
 | Database CRD (CNPG) | `-1` | Required |
 | Deployment, Service, IngressRoute, PVC, ConfigMap, NetworkPolicy, Certificate | `0` | **OMIT — default wave** |
 

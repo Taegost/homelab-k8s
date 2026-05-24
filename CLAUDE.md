@@ -42,9 +42,12 @@ resources at wave 0 can safely omit the annotation.
 
 Resources requiring explicit annotations:
 
-- **SealedSecrets** — wave `-3` in both `metadata.annotations` (ArgoCD reads
-  this for ordering) and `spec.template.metadata.annotations` (passthrough to
-  the decrypted Secret). Must deploy BEFORE the resources that consume them.
+- **Infrastructure SealedSecrets** (consumed by cluster CRDs via
+  `passwordSecretRef`, e.g., MongoDB users, CNPG roles) — wave `-3` in both
+  `metadata.annotations` and `spec.template.metadata.annotations`. Must decrypt
+  before the operator reconciles the CRD.
+- **App-level SealedSecrets** (consumed by Deployments via `secretKeyRef`) —
+  wave `-1`. Must decrypt before the Deployment starts at wave `0`.
 - **Database CRDs** — wave `-1`. Must deploy after the CNPG cluster CRD creates
   the role, but before application Deployments.
 - **Resources referencing a cross-namespace Secret** (User CRDs with
@@ -64,9 +67,10 @@ Verify before committing:
 git diff --cached --name-only | xargs grep -L "sync-wave" 2>/dev/null
 
 # For each hit, check whether it needs a non-default wave:
-# SealedSecrets: wave -3 (before everything consuming them)
-# Database CRDs: wave -1 (after CNPG role creation)
-# Cross-namespace secret consumers: wave -2
+# Infrastructure SealedSecrets (consumed by CRDs): wave -3
+# App-level SealedSecrets (consumed by Deployments): wave -1
+# Cross-namespace secret consumers (User CRDs): wave -2
+# Database CRDs: wave -1
 # App resources (Deployments, Services, etc.): wave 0 (OMIT annotation)
 #
 # If the resource is at wave 0, it should NOT carry the annotation.
