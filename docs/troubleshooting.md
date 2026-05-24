@@ -401,3 +401,77 @@ done
 
 If two pods show the same `_id` and a third shows a different one (or all three
 differ), the replica set is split-brained and needs the full reset procedure above.
+
+---
+
+## Longhorn Volumes
+
+### ext4 `lost+found` breaks apps that expect an empty data directory
+
+Longhorn volumes formatted with ext4 contain a `lost+found` directory at the
+volume root, owned by root:root (mode 700). An application that checks whether
+its data directory is empty will see `lost+found` and assume existing data is
+present — it then tries to read metadata files that don't exist and fails.
+
+**Symptoms:**
+- App fails on startup with "failed to infer version" or "database not found"
+- PVC is brand new or was just recreated
+- `lost+found` directory visible if you can exec into the pod or inspect the volume
+
+**Affected apps:** Meilisearch (v1.35.1 confirmed; earlier versions likely)
+
+**Fix:** Point the app's data path at a subdirectory of the volume. The app
+creates the subdirectory on first start (it has write permission via `fsGroup`),
+and `lost+found` stays harmlessly at the volume root.
+
+```yaml
+# Before (broken):
+env:
+  - name: MEILI_DB_PATH
+    value: /meili_data
+
+# After (fixed):
+env:
+  - name: MEILI_DB_PATH
+    value: /meili_data/db
+```
+
+**General rule:** Any app that initializes a database on an empty volume should
+store its data in a subdirectory, not at the volume root. This avoids the
+`lost+found` false-positive on ext4-formatted volumes.
+
+### Containers that default to root need explicit `runAsUser`
+
+Images that run as root by default (most official Docker images: `python:*-slim`,
+`node:*-alpine`, `postgres:*-alpine`, `redis:*-alpine`) will be rejected by
+Kubernetes when `runAsNonRoot: true` is set without an explicit `runAsUser`.
+
+**Symptoms:**
+- Pod stuck in `CreateContainerConfigError` or init container fails immediately
+- Event: `container has runAsNonRoot and image will run as root`
+- Container never produces logs
+
+**Fix:** Always set `runAsUser` and `runAsGroup` alongside `runAsNonRoot: true`
+when the image doesn't declare a non-root `USER` in its Dockerfile.
+
+```yaml
+# Broken — image runs as root, Kubernetes rejects:
+securityContext:
+  runAsNonRoot: true
+
+# Fixed — explicit UID, Kubernetes sets the process UID:
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+```
+
+**Note:** `redis:*-alpine` is an exception — it runs as the `redis` user (UID
+999). Still set `runAsUser: 999` explicitly; don't rely on defaults.
+
+**Check an image's user before writing the securityContext:**
+```bash
+docker inspect <image> | jq '.[0].Config.User' 2>/dev/null
+# Or check the Dockerfile: grep "^USER" Dockerfile
+```
+Empty string or `"0"` → image runs as root → set `runAsUser`.
