@@ -1,0 +1,25 @@
+# NetworkPolicy — Meilisearch
+#
+# Restricts ingress to port 7700: only LibreChat pods (app: librechat)
+# can reach Meilisearch. All other pods in any namespace are denied.
+# Cilium CNI enforces standard networking.k8s.io/v1 NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: meilisearch
+  namespace: librechat
+  labels:
+    app.kubernetes.io/part-of: librechat
+spec:
+  podSelector:
+    matchLabels:
+      app: meilisearch
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: librechat
+      ports:
+        - port: 7700

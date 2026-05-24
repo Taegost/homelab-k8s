@@ -1,0 +1,28 @@
+---
+# IngressRoute — LibreChat (internal-only)
+#
+# Lives in the traefik namespace to reference the shared wildcard TLS cert.
+# References the LibreChat Service across namespaces (Traefik supports this).
+# default-whitelist middleware restricts access to internal subnets.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: librechat
+  namespace: traefik
+  labels:
+    app.kubernetes.io/part-of: librechat
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`librechat.home.diceninjagaming.com`)
+      services:
+        - name: librechat
+          namespace: librechat
+          port: 3080
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls
