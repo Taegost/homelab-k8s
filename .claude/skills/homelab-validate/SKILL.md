@@ -7,11 +7,23 @@ description: Use when about to commit Kubernetes YAML changes in the homelab-k8s
 
 Pre-commit verification for the homelab-k8s GitOps repo. Run before every commit that touches `.yaml` or `.yml` files.
 
-## 1. Sync Wave Check
+Scripts live in `scripts/` — run them from the repo root:
 
 ```bash
-git diff --cached --name-only | grep -E '\.(yaml|yml)$' | xargs grep -L "sync-wave" 2>/dev/null
+.claude/skills/homelab-validate/scripts/sync-wave-check.sh
+.claude/skills/homelab-validate/scripts/yaml-validity.sh
+.claude/skills/homelab-validate/scripts/plaintext-secret-guard.sh
+.claude/skills/homelab-validate/scripts/ingressroute-check.sh
+.claude/skills/homelab-validate/scripts/longhorn-fsgroup-check.sh
 ```
+
+---
+
+## 1. Sync Wave Check
+
+**Script:** `scripts/sync-wave-check.sh`
+
+Reports staged YAML files missing `sync-wave` annotations.
 
 For each file listed, decide:
 - References a Secret (`secretKeyRef`, `passwordSecretRef`, `secretName`)? → Needs wave annotation.
@@ -28,23 +40,27 @@ For each file listed, decide:
 | Database CRD, app-level SealedSecrets | `-1` |
 | Deployment, Service, IngressRoute, PVC, Certificate | `0` (omit annotation) |
 
+---
+
 ## 2. YAML Validity
 
-Run on every staged `.yaml` or `.yml` file:
+**Script:** `scripts/yaml-validity.sh`
 
-```bash
-python3 -c "import yaml; yaml.safe_load(open('FILE'))" 2>&1
-```
+Validates YAML syntax for every staged `.yaml` or `.yml` file using `python3 -c "import yaml; yaml.safe_load_all(...)"`.
+
+---
 
 ## 3. Plaintext Secret Guard
 
-```bash
-git diff --cached --name-only | grep "secret-[^.]*\.yaml" && echo "BLOCKED: plaintext secret staged" || echo "CLEAN"
-```
+**Script:** `scripts/plaintext-secret-guard.sh`
 
-Plaintext `secret-*.yaml` is gitignored. If grep matches, unstage immediately.
+Plaintext `secret-*.yaml` is gitignored. If any are staged, unstage immediately.
+
+---
 
 ## 4. IngressRoute Consistency
+
+**Script:** `scripts/ingressroute-check.sh`
 
 Three rules for every IngressRoute:
 
@@ -56,38 +72,28 @@ Three rules for every IngressRoute:
 
 Override only when the user explicitly directs otherwise for a specific route.
 
-### Verify internal IngressRoutes
+---
 
-```bash
-# Internal routes in traefik namespace — must have default-whitelist middleware
-git diff --cached --name-only | xargs grep -l "namespace: traefik" 2>/dev/null | \
-  xargs grep -L "default-whitelist" 2>/dev/null
-# Any matches = missing middleware
-```
+## 5. Plaintext Secret Template Verification
 
-```bash
-# Public routes NOT in traefik namespace — must NOT have whitelist middleware
-git diff --cached --name-only | xargs grep -l "kind: IngressRoute" 2>/dev/null | \
-  xargs grep -L "namespace: traefik" 2>/dev/null | \
-  xargs grep -l "whitelist" 2>/dev/null
-# Any matches = whitelist on public route (remove it)
-```
+**Script:** `scripts/secret-template-verify.sh [directory]`
 
-### Certificate consistency
+**MANDATORY** — run against all `secret-*.yaml` files before signing off on work. These files are gitignored, so the script scans the filesystem directly (not `git diff --cached`).
 
-```bash
-# Internal routes should NOT have a per-app Certificate
-git diff --cached --name-only | grep "certificate-.*\.yaml" 2>/dev/null
-# For each: verify the matching IngressRoute is NOT in traefik namespace
-```
+Verifies:
+1. `sync-wave` present in `metadata.annotations`
+2. `sync-wave` present in `spec.template.metadata.annotations` (propagates to sealed output)
+3. Placeholder values use underscores only (no dots or dashes)
+4. Required fields (`name`, `namespace`) present
 
-## 5. Longhorn PVC fsGroup Check
+### SealedSecret creation rule
 
-`fsGroup` is required ONLY when the container runs as non-root. Root containers don't need it — they can write to root-owned Longhorn volumes directly.
+**Never create `sealedsecret-*.yaml` files.** They are the output of `kubeseal`, which the user runs after filling in real values. Create only the plaintext `secret-*.yaml` template and provide the `kubeseal` command alongside it. The command must be a single line — never split with backslashes.
 
-```bash
-# Find Longhorn PVCs
-git diff --cached --name-only | xargs grep -l "storageClassName: longhorn" 2>/dev/null
-```
+---
 
-For each: check the Deployment that mounts the PVC. If `securityContext.runAsNonRoot: true` or a non-zero `runAsUser`, verify `fsGroup` is present in `spec.template.spec.securityContext`.
+## 6. Longhorn PVC fsGroup Check
+
+**Script:** `scripts/longhorn-fsgroup-check.sh`
+
+`fsGroup` is required ONLY when the container runs as non-root. Root containers don't need it — they can write to root-owned Longhorn volumes directly. Checks each Longhorn PVC against the Deployment that mounts it.
