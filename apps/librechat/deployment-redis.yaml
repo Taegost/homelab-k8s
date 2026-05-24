@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: librechat
+  labels:
+    app: redis
+    app.kubernetes.io/part-of: librechat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        app.kubernetes.io/part-of: librechat
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:8.6.2-alpine
+          # maxmemory: Redis docs say to always set this so Redis manages its own
+          # memory pressure rather than being OOM-killed by Kubernetes. Set to
+          # ~75% of the K8s memory limit below, leaving headroom for internal
+          # buffers (client output buffers, replication buffers, etc.) that are
+          # not counted against the dataset but do count against RSS.
+          # Ref: https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/memory-optimization/
+          #
+          # noeviction: ensures SSE pub/sub session state is never silently
+          # evicted. When full, Redis returns an error on new writes instead.
+          # For transient cache data, allkeys-lru would be preferred, but
+          # LibreChat's SSE state must survive without eviction.
+          # Ref: https://redis.io/docs/latest/develop/reference/eviction/
+          command:
+            - redis-server
+            - --maxmemory
+            - 96mb
+            - --maxmemory-policy
+            - noeviction
+          ports:
+            - containerPort: 6379
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              # Redis command processing is single-threaded by design — it cannot
+              # use more than one core for its main work loop. 200m is a
+              # reasonable cap for this lightweight pub/sup workload; background
+              # I/O threads are negligible.
+              cpu: 200m
+              # maxmemory above is set to 96mb (~75% of this limit),
+              # giving Redis room to manage its own memory before K8s intervenes.
+              memory: 128Mi
+          securityContext:
+            # redis:*-alpine image creates a 'redis' user at UID/GID 999.
+            # Setting runAsUser bypasses the gosu privilege-drop in the entrypoint
+            # (which requires root) and starts the process directly as the redis
+            # user. The entrypoint detects it is not root and skips the chown step,
+            # which is safe here because there is no persistence volume.
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
