@@ -42,8 +42,8 @@ spec:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: librechat-rag-api-db-credentials
-                  key: password
+                  name: librechat
+                  key: rag-password
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
