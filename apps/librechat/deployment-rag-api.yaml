@@ -21,40 +21,6 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
-      initContainers:
-        - name: pgvector-init
-          image: postgres:18-alpine
-          command:
-            - sh
-            - -c
-            - |
-              psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" \
-                -c "CREATE EXTENSION IF NOT EXISTS vector;"
-          env:
-            - name: DB_HOST
-              value: postgres-rw.postgres.svc.cluster.local
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: librechat_rag
-            - name: DB_USER
-              value: librechat_rag
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: librechat
-                  key: rag-password
-          securityContext:
-            # postgres:18-alpine runs as UID 70 (postgres user).
-            # runAsNonRoot requires an explicit runAsUser when the image
-            # default is root — Kubernetes rejects root + runAsNonRoot.
-            runAsUser: 70
-            runAsGroup: 70
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
       containers:
         - name: rag-api
           # Pinned to v0.8.0 — not latest. Also available at
@@ -94,6 +60,10 @@ spec:
               cpu: 1000m
               memory: 1Gi
           securityContext:
+            # python:3.10-slim base has no USER directive — runs as root.
+            # Set explicit non-root UID so runAsNonRoot doesn't reject.
+            runAsUser: 1000
+            runAsGroup: 1000
             runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:

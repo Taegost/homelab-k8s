@@ -1,8 +1,11 @@
 # CNPG Database CRD — creates the librechat_rag database and assigns
 # librechat_rag as owner. The role is declared in
 # apps/postgres/cluster-postgres.yaml under spec.managed.roles.
-# The pgvector extension is created automatically by the RAG API's
-# init container (see deployment-rag-api.yaml).
+#
+# ONE-TIME pgvector setup (requires postgres superuser):
+#   PRIMARY=$(kubectl get pod -n postgres -l cnpg.io/instanceRole=primary -o jsonpath='{.items[0].metadata.name}')
+#   kubectl exec -n postgres "$PRIMARY" -- psql -U postgres -d librechat_rag -c "CREATE EXTENSION IF NOT EXISTS vector;"
+# The extension persists in the database — no need to repeat after restarts or rebuilds.
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
