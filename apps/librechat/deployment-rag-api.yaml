@@ -28,7 +28,7 @@ spec:
             - sh
             - -c
             - |
-              psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" \
+              psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" \
                 -c "CREATE EXTENSION IF NOT EXISTS vector;"
           env:
             - name: DB_HOST
@@ -39,11 +39,6 @@ spec:
               value: librechat_rag
             - name: DB_USER
               value: librechat_rag
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: librechat-rag-api-db-credentials
-                  key: password
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
