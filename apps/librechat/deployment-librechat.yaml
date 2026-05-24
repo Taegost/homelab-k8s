@@ -41,6 +41,8 @@ spec:
             - containerPort: 3080
           env:
             # --- Credentials (from SealedSecret) ---
+            # Full connection string including embedded password — LibreChat
+            # takes a single URI rather than separate host/user/pass/db vars.
             - name: MONGO_URI
               valueFrom:
                 secretKeyRef:
