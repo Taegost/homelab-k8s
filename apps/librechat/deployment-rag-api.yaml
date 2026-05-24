@@ -48,6 +48,11 @@ spec:
                 secretKeyRef:
                   name: librechat
                   key: rag-password
+            # ./uploads/ is relative to /app (WORKDIR), which is owned by root.
+            # UID 1000 can't write there. Point at /tmp instead — uploads are
+            # processed ephemerally (chunked → embedded → stored in pgvector).
+            - name: RAG_UPLOAD_DIR
+              value: /tmp/uploads
             - name: RAG_PORT
               value: "8000"
           resources:
@@ -62,10 +67,10 @@ spec:
           securityContext:
             # python:3.10-slim base has no USER directive — runs as root.
             # Set explicit non-root UID so runAsNonRoot doesn't reject.
+            # Since this doesn't have any Longhorn-backed volumes, we don't need `fsGroup`
             runAsUser: 1000
             runAsGroup: 1000
             runAsNonRoot: true
-            fsGroup: 1000
             allowPrivilegeEscalation: false
             capabilities:
               drop:
