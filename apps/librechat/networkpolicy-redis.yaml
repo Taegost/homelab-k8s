@@ -1,0 +1,24 @@
+# NetworkPolicy — Redis
+#
+# Restricts ingress to port 6379: only LibreChat pods (app: librechat)
+# can access Redis SSE pub/sub channels. All other pods are denied.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis
+  namespace: librechat
+  labels:
+    app.kubernetes.io/part-of: librechat
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: librechat
+      ports:
+        - port: 6379

@@ -1,0 +1,25 @@
+# NetworkPolicy — LibreChat
+#
+# Restricts ingress to port 3080: only Traefik pods can reach LibreChat.
+# This hardens TRUST_PROXY=1 — the only path to LibreChat is through
+# Traefik, which correctly strips and re-sets X-Forwarded-* headers.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: librechat
+  namespace: librechat
+  labels:
+    app.kubernetes.io/part-of: librechat
+spec:
+  podSelector:
+    matchLabels:
+      app: librechat
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - port: 3080

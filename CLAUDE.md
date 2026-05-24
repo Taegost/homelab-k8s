@@ -36,15 +36,29 @@ in this repo.
 
 ### Sync wave annotations
 
-Every resource that depends on another resource for correct operation must
-carry an `argocd.argoproj.io/sync-wave` annotation. The rule:
+Only resources that need a **non-default** sync order require an
+`argocd.argoproj.io/sync-wave` annotation. Wave `0` is ArgoCD's default —
+resources at wave 0 can safely omit the annotation.
 
-- **SealedSecrets** must deploy BEFORE the resources that consume them.
-  Annotation goes in `metadata.annotations` (ArgoCD reads this for ordering).
-  Also place it in `spec.template.metadata.annotations` for consistency.
-- **Resources referencing a Secret** (User CRDs, Database CRDs, Deployments
-  with `secretKeyRef`) must have a higher (later) wave than the secret they
-  reference.
+Resources requiring explicit annotations:
+
+- **Infrastructure SealedSecrets** (consumed by cluster CRDs via
+  `passwordSecretRef`, e.g., MongoDB users, CNPG roles) — wave `-3` in both
+  `metadata.annotations` and `spec.template.metadata.annotations`. Must decrypt
+  before the operator reconciles the CRD.
+- **App-level SealedSecrets** (consumed by Deployments via `secretKeyRef`) —
+  wave `-1`. Must decrypt before the Deployment starts at wave `0`.
+- **Database CRDs** — wave `-1`. Must deploy after the CNPG cluster CRD creates
+  the role, but before application Deployments.
+- **Resources referencing a cross-namespace Secret** (User CRDs with
+  `passwordSecretRef`) — wave `-2`. Must deploy after the SealedSecret is
+  decrypted.
+
+Resources that do NOT need an annotation (wave 0 default):
+
+- Deployments, Services, IngressRoutes, PVCs, ConfigMaps, NetworkPolicies,
+  Certificates — all app-level resources that don't need to order before or
+  after other resources. They sync at the default wave.
 
 Verify before committing:
 
@@ -52,14 +66,15 @@ Verify before committing:
 # List all resources without sync-wave annotations in changed files:
 git diff --cached --name-only | xargs grep -L "sync-wave" 2>/dev/null
 
-# For each hit, ask: does this resource depend on another? If yes, add a wave.
-# SealedSecrets: wave -3 (before everything consuming them)
-# Resources consuming secrets: wave -2 (after secrets, before Deployments)
-# Deployments and app-level resources: wave 0 (default)
+# For each hit, check whether it needs a non-default wave:
+# Infrastructure SealedSecrets (consumed by CRDs): wave -3
+# App-level SealedSecrets (consumed by Deployments): wave -1
+# Cross-namespace secret consumers (User CRDs): wave -2
+# Database CRDs: wave -1
+# App resources (Deployments, Services, etc.): wave 0 (OMIT annotation)
+#
+# If the resource is at wave 0, it should NOT carry the annotation.
 ```
-
-If a resource has no dependencies (pure config, no secret refs, no CRD
-prerequisites), it can safely omit the annotation.
 
 ---
 
@@ -136,6 +151,7 @@ homelab-k8s/
 │   ├── infrastructure/
 │   │   └── storage/              # StorageClass definitions (SMB, NFS)
 │   ├── leantime/                 # Leantime project management
+│   ├── librechat/                # LibreChat AI chat — MongoDB, Meilisearch, Redis, RAG API
 │   ├── litellm/                  # LiteLLM API proxy
 │   ├── longhorn/                 # Longhorn Helm values + IngressRoute
 │   ├── manyfold/                 # Manyfold 3D model manager

@@ -134,7 +134,14 @@ spec:
   #       key: password
   #     roles:
   #       - role: { name: "readWrite", db: "myapp" }
-  users: []
+  users:
+    - name: librechat
+      db: LibreChat
+      passwordSecretRef:
+        name: librechat-db-credentials
+        key: password
+      roles:
+        - role: { name: "readWrite", db: "LibreChat" }
 
   # --- Backups: deferred ---
   # PITR backups require an S3-compatible endpoint. When that is set up:

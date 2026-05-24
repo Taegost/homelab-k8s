@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-api
+  namespace: librechat
+  labels:
+    app: rag-api
+    app.kubernetes.io/part-of: librechat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-api
+  template:
+    metadata:
+      labels:
+        app: rag-api
+        app.kubernetes.io/part-of: librechat
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: pgvector-init
+          image: postgres:18-alpine
+          command:
+            - sh
+            - -c
+            - |
+              psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" \
+                -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          env:
+            - name: DB_HOST
+              value: postgres-rw.postgres.svc.cluster.local
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: librechat_rag
+            - name: DB_USER
+              value: librechat_rag
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: rag-password
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: rag-api
+          # Pinned to v0.8.0 — not latest. Also available at
+          # registry.librechat.ai/danny-avila/librechat-rag-api-dev-lite
+          # GHCR chosen for consistency with other repo image references.
+          image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:v0.8.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            # Database connection via CNPG PgBouncer pooler.
+            # If the RAG API uses PgBouncer-incompatible features (SET LOCAL,
+            # LISTEN/NOTIFY, advisory locks, prepared statements in transaction
+            # mode), switch to postgres-rw.postgres.svc.cluster.local instead.
+            - name: DB_HOST
+              value: postgres-pooler.postgres.svc.cluster.local
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: librechat_rag
+            - name: DB_USER
+              value: librechat_rag
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: rag-password
+            - name: RAG_PORT
+              value: "8000"
+          resources:
+            # Python service — ~1.5 GB image but runtime memory is lower.
+            # 1Gi limit is generous for single-user document processing.
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          # No health probes defined in docker-compose. If the image exposes
+          # a /health endpoint, add probes here. Otherwise rely on pod Running
+          # state and LibreChat's own health reporting.

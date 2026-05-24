@@ -118,3 +118,16 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: open-webui-db-credentials
+      # librechat_rag — pgvector database for LibreChat RAG pipeline.
+      # The Database CRD (apps/librechat/database-librechat-rag.yaml) creates
+      # the database and sets librechat_rag as owner. The pgvector extension
+      # is created automatically by the RAG API init container.
+      - name: librechat_rag
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: librechat-rag-db-credentials

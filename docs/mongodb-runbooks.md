@@ -343,3 +343,72 @@ kubectl run mongosh-test -n mongodb --image=mongo:8.0 --rm -it --restart=Never -
   mongosh "mongodb://APPNAME:<password>@mongodb-rs0.mongodb.svc.cluster.local:27017/APPNAME?authSource=APPNAME" \
   --eval 'db.runCommand({connectionStatus: 1})'
 ```
+
+---
+
+## Per-application connection pool sizing
+
+The MongoDB Node.js driver defaults to `maxPoolSize=100`, which is oversized for
+single-user homelab deployments. Set `maxPoolSize` via query parameter in the
+MONGO_URI:
+
+```text
+mongodb://user:pass@host:27017/db?authSource=db&maxPoolSize=20
+```
+
+| Deployment | maxPoolSize | Rationale |
+|-----------|-------------|-----------|
+| Single-replica | 10 | Conservative — rarely exceeds 5 concurrent operations |
+| Multi-replica | 20 | Slightly higher to cover concurrent operations across replicas |
+
+The Percona server default `net.maxIncomingConnections` is 1,000,000, so
+exhaustion is not a concern. The limit is about keeping the WiredTiger cache
+efficient on small (2Gi) instances.
+
+---
+
+## Credential rotation
+
+The MongoDB user password is duplicated in two secrets:
+1. **mongodb namespace** — referenced by `passwordSecretRef` in the cluster CRD;
+   the operator reads this to set the MongoDB user password
+2. **app namespace** — embedded in `MONGO_URI` env var for the app pod
+
+**Rotation ordering is critical.** The wrong order causes app downtime:
+
+```bash
+# 1. Generate a new alphanumeric-only password
+NEW_PASSWORD=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9')
+
+# 2. Update the app-namespace secret first (stale value, no effect yet)
+kubectl create secret generic APPNAME -n APPNAME \
+  --from-literal=MONGO_URI="mongodb://APPNAME:$NEW_PASSWORD@mongodb-rs0.mongodb.svc.cluster.local:27017/APPNAME?authSource=APPNAME&maxPoolSize=20" \
+  --dry-run=client -o yaml | kubeseal --format yaml > apps/APPNAME/sealedsecret-APPNAME.yaml
+
+# 3. Update the mongodb-namespace secret (operator rotates the password)
+kubectl create secret generic APPNAME-db-credentials -n mongodb \
+  --from-literal=password="$NEW_PASSWORD" \
+  --dry-run=client -o yaml | kubeseal --format yaml > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
+
+# 4. Restart the app to pick up the new MONGO_URI
+kubectl rollout restart deployment/APPNAME -n APPNAME
+```
+
+Reverse order (updating mongodb first) causes the operator to change the
+password while the app still uses the old one in MONGO_URI — authentication
+fails until step 1 and 3 are completed.
+
+Both secret files must cross-reference each other in comments so the
+duplication requirement is visible at edit time:
+
+```yaml
+# This password must match the MONGO_URI password in secret-APPNAME.yaml
+# (APPNAME namespace). Update the app-namespace secret FIRST during rotation.
+```
+
+Cross-reference from the app-namespace secret:
+
+```yaml
+# This password must match the password in secret-APPNAME-db-credentials.yaml
+# (mongodb namespace). Update this secret FIRST during rotation.
+```

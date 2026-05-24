@@ -1,0 +1,17 @@
+# CNPG Database CRD — creates the librechat_rag database and assigns
+# librechat_rag as owner. The role is declared in
+# apps/postgres/cluster-postgres.yaml under spec.managed.roles.
+# The pgvector extension is created automatically by the RAG API's
+# init container (see deployment-rag-api.yaml).
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: librechat-rag
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  name: librechat_rag
+  owner: librechat_rag
+  cluster:
+    name: postgres
