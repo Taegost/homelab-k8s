@@ -42,4 +42,5 @@ kubeconfig.yaml
 *.swo
 
 # Misc coding artifacts
-.claude
+.claude/*
+!.claude/skills/
