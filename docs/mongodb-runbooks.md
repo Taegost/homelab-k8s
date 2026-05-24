@@ -352,7 +352,7 @@ The MongoDB Node.js driver defaults to `maxPoolSize=100`, which is oversized for
 single-user homelab deployments. Set `maxPoolSize` via query parameter in the
 MONGO_URI:
 
-```
+```text
 mongodb://user:pass@host:27017/db?authSource=db&maxPoolSize=20
 ```
 
@@ -376,10 +376,22 @@ The MongoDB user password is duplicated in two secrets:
 
 **Rotation ordering is critical.** The wrong order causes app downtime:
 
-```
-1. Update the app-namespace secret first (stale value, no effect yet)
-2. Update the mongodb-namespace secret (operator rotates the password)
-3. Restart the app Deployment so it picks up the new MONGO_URI
+```bash
+# 1. Generate a new alphanumeric-only password
+NEW_PASSWORD=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9')
+
+# 2. Update the app-namespace secret first (stale value, no effect yet)
+kubectl create secret generic APPNAME -n APPNAME \
+  --from-literal=MONGO_URI="mongodb://APPNAME:$NEW_PASSWORD@mongodb-rs0.mongodb.svc.cluster.local:27017/APPNAME?authSource=APPNAME&maxPoolSize=20" \
+  --dry-run=client -o yaml | kubeseal --format yaml > apps/APPNAME/sealedsecret-APPNAME.yaml
+
+# 3. Update the mongodb-namespace secret (operator rotates the password)
+kubectl create secret generic APPNAME-db-credentials -n mongodb \
+  --from-literal=password="$NEW_PASSWORD" \
+  --dry-run=client -o yaml | kubeseal --format yaml > apps/APPNAME/sealedsecret-APPNAME-db-credentials.yaml
+
+# 4. Restart the app to pick up the new MONGO_URI
+kubectl rollout restart deployment/APPNAME -n APPNAME
 ```
 
 Reverse order (updating mongodb first) causes the operator to change the
@@ -389,8 +401,14 @@ fails until step 1 and 3 are completed.
 Both secret files must cross-reference each other in comments so the
 duplication requirement is visible at edit time:
 
-```
+```yaml
 # This password must match the MONGO_URI password in secret-APPNAME.yaml
 # (APPNAME namespace). Update the app-namespace secret FIRST during rotation.
 ```
+
+Cross-reference from the app-namespace secret:
+
+```yaml
+# This password must match the password in secret-APPNAME-db-credentials.yaml
+# (mongodb namespace). Update this secret FIRST during rotation.
 ```

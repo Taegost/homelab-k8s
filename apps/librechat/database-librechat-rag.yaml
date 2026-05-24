@@ -8,6 +8,8 @@ kind: Database
 metadata:
   name: librechat-rag
   namespace: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   name: librechat_rag
   owner: librechat_rag
