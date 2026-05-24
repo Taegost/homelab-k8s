@@ -136,6 +136,7 @@ homelab-k8s/
 │   ├── infrastructure/
 │   │   └── storage/              # StorageClass definitions (SMB, NFS)
 │   ├── leantime/                 # Leantime project management
+│   ├── librechat/                # LibreChat AI chat — MongoDB, Meilisearch, Redis, RAG API
 │   ├── litellm/                  # LiteLLM API proxy
 │   ├── longhorn/                 # Longhorn Helm values + IngressRoute
 │   ├── manyfold/                 # Manyfold 3D model manager
