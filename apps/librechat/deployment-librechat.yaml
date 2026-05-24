@@ -73,16 +73,6 @@ spec:
                 secretKeyRef:
                   name: librechat
                   key: CREDS_IV
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: librechat
-                  key: OPENAI_API_KEY
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: librechat
-                  key: ANTHROPIC_API_KEY
             - name: LITELLM_API_KEY
               valueFrom:
                 secretKeyRef:

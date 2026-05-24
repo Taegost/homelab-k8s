@@ -75,8 +75,8 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: librechat-rag-api-db-credentials
-                  key: password
+                  name: librechat
+                  key: rag-password
             - name: RAG_PORT
               value: "8000"
           resources:
