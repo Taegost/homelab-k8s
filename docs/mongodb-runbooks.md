@@ -308,6 +308,14 @@ kubectl exec -n mongodb mongodb-rs0-0 -c mongod -- \
   --eval 'rs.status()' --quiet
 ```
 
+### Replica set ID mismatch after missing sync-wave annotations
+
+If secrets were deployed without `argocd.argoproj.io/sync-wave` annotations
+and the operator auto-generated random credentials before the SealedSecrets
+were decrypted, the replica set will be split-brained with mismatched
+`replicaSetId` values. See the full GitOps recovery procedure in
+`docs/troubleshooting.md` — "MongoDB Replica Set ID Mismatch."
+
 ### SealedSecret exists but Secret was never created
 
 Same troubleshooting as Postgres and MariaDB — see the sealed-secrets controller logs:

@@ -270,3 +270,134 @@ CPU features to the guest. This provides the instruction set expected by modern
 server software — MongoDB 8 and increasingly other database and ML workloads. If
 the hypervisor or bare-metal host does not support x86-64-v3, use MongoDB 7.x
 instead; it only requires x86-64-v2. See `docs/mongodb-runbooks.md`.
+
+---
+
+## MongoDB Replica Set ID Mismatch
+
+### Cluster stuck in `error` state with `InvalidReplicaSetConfig` in mongod logs
+
+**Symptom:** ArgoCD shows the `perconaservermongodb` (psmdb) resource as `Degraded`
+or in `error` state. Pod logs contain the error:
+
+```
+replica set IDs do not match, ours: <id-A>; remote node's: <id-B>
+```
+
+The operator logs show:
+
+```
+Reconcile Cluster: handle ReplicaSetNoPrimary: get standalone mongo client:
+ping mongo: connection() error occurred during connection handshake:
+auth error: sasl conversation error: AuthenticationFailed
+```
+
+And mongod logs from the failing pod show:
+
+```
+UserNotFound: Could not find user "clusterMonitor" for db "admin"
+ReadConcernMajorityNotAvailableYet: Read concern majority reads are currently not possible.
+collection [local.oplog.rs] not found
+```
+
+**Cause (confirmed — 2026-05-24):** The SealedSecrets referenced by the
+`PerconaServerMongoDB` CRD (`spec.secrets.users`, `spec.secrets.keyFile`,
+`spec.secrets.encryptionKey`) were deployed **without sync wave annotations**.
+ArgoCD applied the CRD and SealedSecrets concurrently. The Percona operator saw
+the CRD before the SealedSecret controller had decrypted the secrets into actual
+Kubernetes Secrets. The operator auto-generated random credentials (including a
+random keyfile) and bootstrapped the replica set with them.
+
+When the SealedSecret controller eventually decrypted the real secrets, the
+operator detected the mismatch and attempted to reconfigure the cluster. This
+resulted in a split-brain:
+
+- Some pods stored the auto-generated credentials and their associated
+  `replicaSetId` in their local database.
+- Other pods (or the same pods after restart) stored the real credentials
+  and a different `replicaSetId`.
+- The operator could not authenticate to fix the cluster because the
+  credentials in the Secret no longer matched what mongod expected.
+- The operator also created an `internal-mongodb-users` shadow secret
+  containing cached auto-generated values, which survived naive cleanup.
+
+**Fix — GitOps method (no sync pauses, no kubectl patching ArgoCD):**
+
+**Step 1 — Remove the CRD from git so ArgoCD prunes it:**
+
+```bash
+mv apps/percona-mongodb/cluster-mongodb.yaml /tmp/cluster-mongodb.yaml.bak
+git checkout -b fix/mongodb-replica-set-reset
+git rm apps/percona-mongodb/cluster-mongodb.yaml
+git commit -m "fix: temporarily remove MongoDB cluster CRD to reset replica set"
+git push -u origin fix/mongodb-replica-set-reset
+```
+
+Wait for ArgoCD to sync and prune the `PerconaServerMongoDB` resource
+(all mongodb pods terminate).
+
+**Step 2 — Wipe PVCs and secrets from the cluster:**
+
+```bash
+# Verify no mongodb pods remain
+kubectl get pods -n mongodb
+# Should show "No resources found"
+
+# Delete stale PVCs (contain wrong replicaSetId)
+kubectl delete pvc --all -n mongodb
+
+# Delete all Secrets — including the internal-mongodb-users shadow secret
+# the operator created from auto-generated values
+kubectl delete secret --all -n mongodb
+
+# Wait a few seconds for SealedSecret controller to repopulate from sealed secrets
+sleep 5
+kubectl get secret -n mongodb
+# Should show: mongodb-users, mongodb-keyfile, mongodb-encryption-key
+```
+
+**Step 3 — Restore the CRD in git so ArgoCD re-creates it:**
+
+```bash
+cp /tmp/cluster-mongodb.yaml.bak apps/percona-mongodb/cluster-mongodb.yaml
+git add apps/percona-mongodb/cluster-mongodb.yaml
+git commit -m "fix: restore MongoDB cluster CRD with clean bootstrap"
+git push
+```
+
+ArgoCD syncs, operator bootstraps a fresh 3-node replica set with all secrets
+present and consistent. The sync wave annotations (added in commit `eb9faa2`)
+ensure SealedSecrets decrypt at wave `-3` before the CRD applies at wave `-2`,
+preventing recurrence.
+
+**Step 4 — Merge to main:**
+
+```bash
+# Create PR from fix/mongodb-replica-set-reset → main
+# After merge, ArgoCD reconciles and the cluster reaches ready state
+```
+
+**Prevention:** Every `SealedSecret` that a CRD or operator reads must carry an
+`argocd.argoproj.io/sync-wave` annotation in `metadata.annotations` set to `-3`
+(or at least one wave earlier than the consuming CRD). See the sync wave
+annotation checker in `docs/sealed-secrets.md` and the mandatory pre-commit
+verification in `CLAUDE.md`.
+
+**Diagnosis — check replica set IDs across pods:**
+
+```bash
+CLUSTER_ADMIN_PASSWORD=$(kubectl get secret mongodb-users -n mongodb \
+  -o jsonpath='{.data.MONGODB_CLUSTER_ADMIN_PASSWORD}' | base64 -d)
+
+for pod in mongodb-rs0-0 mongodb-rs0-1 mongodb-rs0-2; do
+  echo "=== $pod ==="
+  kubectl exec -n mongodb $pod -c mongod -- \
+    mongosh -u clusterAdmin -p "$CLUSTER_ADMIN_PASSWORD" \
+    --authenticationDatabase admin \
+    --eval 'db.getSiblingDB("local").system.replset.findOne()._id' \
+    --quiet 2>/dev/null || echo "FAILED"
+done
+```
+
+If two pods show the same `_id` and a third shows a different one (or all three
+differ), the replica set is split-brained and needs the full reset procedure above.
