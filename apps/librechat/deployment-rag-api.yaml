@@ -39,11 +39,11 @@ spec:
               value: postgres-pooler.postgres.svc.cluster.local
             - name: DB_PORT
               value: "5432"
-            - name: DB_NAME
+            - name: POSTGRES_DB
               value: librechat_rag
-            - name: DB_USER
+            - name: POSTGRES_USER
               value: librechat_rag
-            - name: DB_PASSWORD
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: librechat
@@ -53,6 +53,12 @@ spec:
             # processed ephemerally (chunked → embedded → stored in pgvector).
             - name: RAG_UPLOAD_DIR
               value: /tmp/uploads
+            # The RAG API defaults PGVECTOR_CREATE_EXTENSION=true — runs
+            # CREATE EXTENSION IF NOT EXISTS vector at startup. DDL fails
+            # through PgBouncer transaction mode. Disable it; we handle
+            # extension creation as a one-time superuser step.
+            - name: PGVECTOR_CREATE_EXTENSION
+              value: "false"
             - name: RAG_PORT
               value: "8000"
           resources:
