@@ -212,3 +212,61 @@ grep -A5 "^metadata:" apps/<app>/sealedsecret-*.yaml | grep sync-wave
 # If the only hit is indented under "spec:" → the annotation is in the wrong place
 grep -n "sync-wave" apps/<app>/sealedsecret-*.yaml
 ```
+
+---
+
+## MongoDB 8 Pods Crash-Looping on Startup
+
+### MongoDB 8 exits with SIGILL (Illegal instruction)
+
+**Symptom:** MongoDB 8.x pods fail to start and enter `CrashLoopBackOff`. The
+mongod container exits immediately — `kubectl logs` shows nothing or a truncated
+startup line. The kernel logs on the node contain:
+
+```
+traps: mongod[<pid>] trap invalid opcode ip:<addr> sp:<addr> error:0 in mongod[<addr>+<offset>]
+```
+
+The operator logs show the replica set never initialising because all three pods
+are crash-looping:
+
+```
+kubectl logs -n psmdb-operator -l app.kubernetes.io/name=percona-server-mongodb-operator
+```
+
+**Cause (confirmed — 2026-05-23):** MongoDB 8.x binaries are compiled for the
+`x86-64-v3` microarchitecture level (requires AVX, AVX2, BMI, FMA, F16C, LZCNT,
+MOVBE, XSAVE). Many hypervisors default to a v2-level CPU type (e.g. Proxmox
+defaults to `x86-64-v2-AES`), which lacks several of these instruction sets —
+notably AVX and AVX2. When the mongod binary executes an instruction not present
+on the vCPU, the kernel delivers `SIGILL` and the process dies.
+
+This applies to all cluster nodes that share the same VM CPU type. The operator
+sees all three pods crash-looping and cannot form the replica set.
+
+**Verify CPU compatibility from inside a node:**
+
+```bash
+# SSH to any Kubernetes node and run:
+grep -o 'avx[^ ]*' /proc/cpuinfo | sort -u
+```
+
+If the output includes both `avx` and `avx2`, the CPU supports x86-64-v3 and
+MongoDB 8 will run. If either is missing, the CPU is at x86-64-v2 or lower.
+
+**Fix:** Change the VM CPU type to `x86-64-v3` (or `host`) in your hypervisor:
+
+- **Proxmox:** Shut down the VM → **Hardware → Processors → Type** → change from
+  `x86-64-v2-AES` to `x86-64-v3` → start the VM.
+- **Other hypervisors:** Look for the CPU model or CPU feature level setting in
+  the VM configuration. Set it to `x86-64-v3`, `host`, or `host-passthrough`.
+  Consult your hypervisor's documentation for the exact setting name.
+
+The mongod pods will start successfully on next attempt. No manifest changes
+required — this is a host-level fix.
+
+**Prevention:** All Kubernetes node VMs should expose `x86-64-v3` (or `host`)
+CPU features to the guest. This provides the instruction set expected by modern
+server software — MongoDB 8 and increasingly other database and ML workloads. If
+the hypervisor or bare-metal host does not support x86-64-v3, use MongoDB 7.x
+instead; it only requires x86-64-v2. See `docs/mongodb-runbooks.md`.

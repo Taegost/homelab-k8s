@@ -2,6 +2,15 @@
 
 This document covers day-two operations for the shared MongoDB instance managed by the Percona Operator for MongoDB. For the current MongoDB server version, see the `image` tag in `apps/percona-mongodb/cluster-mongodb.yaml`.
 
+> **CPU requirement:** MongoDB 8.x binaries are compiled for the `x86-64-v3`
+> microarchitecture level (AVX, AVX2, BMI, FMA, F16C, LZCNT, MOVBE, XSAVE).
+> All Kubernetes node VMs must expose a `x86-64-v3` (or `host`) CPU to the guest.
+> If your hypervisor or bare-metal host does not support x86-64-v3, you must use
+> MongoDB 7.x instead — it only requires x86-64-v2. Many hypervisors default to a
+> v2-level CPU type; this will cause MongoDB 8 pods to crash with `SIGILL`
+> (Illegal instruction). See `docs/troubleshooting.md` for diagnosis, fix, and
+> a one-liner to verify CPU compatibility from inside a node.
+
 ---
 
 ## Architecture overview

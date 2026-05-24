@@ -91,6 +91,16 @@ for the workflow for adding or migrating a database-backed application.
 
 A shared [MariaDB](https://mariadb.org/) cluster (managed by [mariadb-operator](https://github.com/mariadb-operator/mariadb-operator)) is also available for apps that require MySQL-compatible storage. See [docs/mariadb-runbooks.md](docs/mariadb-runbooks.md) for the workflow.
 
+A shared [MongoDB](https://www.mongodb.com/) 8 cluster (managed by [Percona
+Operator for MongoDB](https://docs.percona.com/percona-operator-for-mongodb/))
+is available for apps that need a document database. See
+[docs/mongodb-runbooks.md](docs/mongodb-runbooks.md).
+
+> **CPU requirement:** MongoDB 8.x requires `x86-64-v3` CPU microarchitecture
+> level (AVX, AVX2, etc.). All Kubernetes node VMs must expose `x86-64-v3` (or
+> `host`) CPU features to the guest. If your hardware does not support
+> x86-64-v3, use MongoDB 7.x instead. See `docs/mongodb-runbooks.md`.
+
 ---
 
 ## Repository Structure
