@@ -45,6 +45,11 @@ spec:
                   name: librechat
                   key: rag-password
           securityContext:
+            # postgres:18-alpine runs as UID 70 (postgres user).
+            # runAsNonRoot requires an explicit runAsUser when the image
+            # default is root — Kubernetes rejects root + runAsNonRoot.
+            runAsUser: 70
+            runAsGroup: 70
             runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
