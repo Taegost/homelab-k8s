@@ -1,0 +1,143 @@
+# PerconaServerMongoDB — Shared MongoDB 8.0 cluster
+#
+# This is the shared MongoDB instance used by applications that require
+# document-store storage. New application users are added to spec.users
+# in this file — each user gets a passwordSecretRef pointing to a SealedSecret
+# in this namespace. Databases are created implicitly by MongoDB on first use.
+# See docs/mongodb-runbooks.md.
+#
+# Storage: local-path PVCs on each node. MongoDB's native replication provides
+# data redundancy across all 3 nodes — Longhorn is intentionally not used here
+# to avoid double-replication overhead (same rationale as Postgres/CNPG).
+#
+# Version: Percona Server for MongoDB 8.0.19-7 (latest stable as of 2026-02).
+# To upgrade: update the image tag and check the Percona Operator release notes
+# at https://github.com/percona/percona-server-mongodb-operator/releases
+# for any required SetFCV or upgrade steps.
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: mongodb
+  namespace: mongodb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - percona.com/delete-psmdb-pods-in-order
+spec:
+  crVersion: 1.22.0
+
+  image: percona/percona-server-mongodb:8.0.19-7
+  imagePullPolicy: IfNotPresent
+
+  # Update strategy: SmartUpdate rolls pods one at a time, respecting
+  # replica set primary order (secondaries first, primary last).
+  # Upgrades are controlled by changing the image tag in this manifest —
+  # the operator reconciles CRD changes immediately on next sync.
+  updateStrategy: SmartUpdate
+
+  secrets:
+    users: mongodb-users
+    keyFile: mongodb-keyfile
+    encryptionKey: mongodb-encryption-key
+
+  # --- Replica set configuration ---
+  replsets:
+    - name: rs0
+      size: 3
+
+      # Spread across nodes where possible but do not require it.
+      # With 3 nodes and 3 replicas, preferred anti-affinity places one pod
+      # per node during initial scheduling. However, local-path PVCs are
+      # node-pinned — if a node fails, the affected pod stays Pending (its PVC
+      # is bound to the lost node) and cannot reschedule to a surviving node.
+      # The replica set continues with 2/3 members. When the node returns the
+      # pod catches up via replication. If the node is permanently lost,
+      # delete the PVC and the operator spins up a replacement.
+      affinity:
+        antiAffinityTopologyKey: "kubernetes.io/hostname"
+
+      # Allow 1 pod unavailable during voluntary disruptions (upgrades, node drain).
+      # With 3 replicas, the replica set maintains a majority (needs 2) during
+      # the disruption window.
+      podDisruptionBudget:
+        maxUnavailable: 1
+
+      # 20Gi per replica. Shared across all databases — expand via PVC resize
+      # if needed. For context, a typical homelab app database is under 100MB.
+      volumeSpec:
+        persistentVolumeClaim:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+
+      # Resource limits. MongoDB's WiredTiger cache defaults to 50% of available
+      # memory, so the limit directly controls cache size. 2Gi limit  ~1Gi cache.
+      # These match the operator defaults; adjust if workloads demand more.
+      resources:
+        limits:
+          cpu: "1"
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+
+      # Startup probe: MongoDB can take 60-90s on first start while it runs
+      # initial sync and builds indexes. The generous initial delay prevents
+      # unnecessary restarts during cluster bootstrap.
+      livenessProbe:
+        failureThreshold: 4
+        initialDelaySeconds: 90
+        periodSeconds: 30
+        timeoutSeconds: 10
+
+      readinessProbe:
+        failureThreshold: 8
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 2
+
+      # WiredTiger storage engine tuning.
+      # cacheSizeRatio: 0.5 means WiredTiger uses 50% of (memory limit - 1Gi)
+      # 512MB for its internal cache. This is the MongoDB default; increase only
+      # if working set consistently exceeds the cache.
+      storage:
+        engine: wiredTiger
+        wiredTiger:
+          engineConfig:
+            cacheSizeRatio: 0.5
+            journalCompressor: snappy
+          collectionConfig:
+            blockCompressor: snappy
+          indexConfig:
+            prefixCompression: true
+
+  # --- Sharding: disabled ---
+  # Non-sharded cluster — single replica set only. This is the right default
+  # for homelab; sharding adds mongos routers and config server replicas
+  # that increase resource usage without benefit at this scale.
+  sharding:
+    enabled: false
+
+  # --- Per-application users ---
+  # Add application users here. Each user gets a readWrite role on its own
+  # database. The password secret must exist in the mongodb namespace.
+  # See docs/mongodb-runbooks.md for the full workflow.
+  #
+  # Example:
+  #   - name: myapp
+  #     db: myapp
+  #     passwordSecretRef:
+  #       name: myapp-db-credentials
+  #       key: password
+  #     roles:
+  #       - role: { name: "readWrite", db: "myapp" }
+  users: []
+
+  # --- Backups: deferred ---
+  # PITR backups require an S3-compatible endpoint. When that is set up:
+  #   1. Create and seal credentials for the S3 endpoint
+  #   2. Add a backup section with storages and tasks
+  #   3. Update docs/mongodb-runbooks.md with restore procedures
