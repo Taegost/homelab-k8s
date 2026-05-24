@@ -21,6 +21,40 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: pgvector-init
+          image: postgres:18-alpine
+          command:
+            - sh
+            - -c
+            - |
+              psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" \
+                -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          env:
+            - name: DB_HOST
+              value: postgres-rw.postgres.svc.cluster.local
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: librechat_rag
+            - name: DB_USER
+              value: librechat_rag
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librechat-rag-api-db-credentials
+                  key: password
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librechat-rag-api-db-credentials
+                  key: password
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: rag-api
           # Pinned to v0.8.0 — not latest. Also available at
