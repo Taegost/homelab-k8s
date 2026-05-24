@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: librechat-data
+  namespace: librechat
+  labels:
+    app: librechat
+    app.kubernetes.io/part-of: librechat
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      # 5Gi RWX for user-uploaded images, file uploads, and application logs.
+      # This PVC is source-of-truth — uploads are irreplaceable original data.
+      # Protect via Longhorn replication and backup when available.
+      storage: 5Gi

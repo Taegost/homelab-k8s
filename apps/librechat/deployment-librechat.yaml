@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: librechat
+  namespace: librechat
+  labels:
+    app: librechat
+    app.kubernetes.io/part-of: librechat
+spec:
+  replicas: 2
+  # RollingUpdate: enabled by RWX PVC — both replicas can mount the shared
+  # volume simultaneously. Provides zero-downtime deploys.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: librechat
+  template:
+    metadata:
+      labels:
+        app: librechat
+        app.kubernetes.io/part-of: librechat
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # Longhorn volumes are provisioned owned by root. fsGroup causes
+        # Kubernetes to chown the volume to this GID before the container
+        # starts. LibreChat runs as USER node (UID 1000, GID 1000) in
+        # node:20-alpine base image per the v0.8.5 Dockerfile.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: librechat
+          image: librechat/librechat:v0.8.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3080
+          env:
+            # --- Credentials (from SealedSecret) ---
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: MONGO_URI
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: MEILI_MASTER_KEY
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: JWT_SECRET
+            - name: JWT_REFRESH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: JWT_REFRESH_SECRET
+            - name: CREDS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: CREDS_KEY
+            - name: CREDS_IV
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: CREDS_IV
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: OPENAI_API_KEY
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: ANTHROPIC_API_KEY
+            # --- Non-sensitive config (set directly, no kubeseal needed) ---
+            - name: DOMAIN_CLIENT
+              value: https://librechat.home.diceninjagaming.com
+            - name: DOMAIN_SERVER
+              value: https://librechat.home.diceninjagaming.com
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "3080"
+            - name: TRUST_PROXY
+              value: "1"
+            - name: MEILI_HOST
+              value: http://meilisearch.librechat.svc.cluster.local:7700
+            - name: REDIS_URI
+              value: redis://redis.librechat.svc.cluster.local:6379
+            - name: RAG_API_URL
+              value: http://rag-api.librechat.svc.cluster.local:8000
+            # Cap V8 heap at ~75% of the 2Gi container limit, leaving room
+            # for V8 non-heap memory (JIT code, wasm) and jemalloc overhead.
+            # Without this, the default heap (~1.4Gi on a 2Gi system) can be
+            # exceeded during concurrent SSE streams with image payloads.
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=1536
+          envFrom: []
+          volumeMounts:
+            - name: config
+              mountPath: /app/librechat.yaml
+              subPath: librechat.yaml
+            - name: images
+              mountPath: /app/client/public/images
+              subPath: images
+            - name: uploads
+              mountPath: /app/uploads
+              subPath: uploads
+            - name: logs
+              mountPath: /app/logs
+              subPath: logs
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              # LibreChat official minimum 1 GiB RAM, 2 GiB recommended with
+              # all features enabled. NODE_OPTIONS caps V8 heap at ~75% of
+              # this limit, leaving room for V8 non-heap and jemalloc overhead.
+              cpu: 2000m
+              memory: 2Gi
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          # Startup probe: generous failureThreshold to survive first MongoDB
+          # connection and Meilisearch index initialization.
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3080
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3080
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: librechat-config
+        - name: images
+          persistentVolumeClaim:
+            claimName: librechat-data
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: librechat-data
+        - name: logs
+          persistentVolumeClaim:
+            claimName: librechat-data
