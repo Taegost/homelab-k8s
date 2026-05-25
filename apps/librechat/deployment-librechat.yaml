@@ -41,7 +41,7 @@ spec:
             - containerPort: 3080
           env:
             - name: ALLOW_REGISTRATION
-              value: "true"
+              value: "false"
             # --- Credentials (from SealedSecret) ---
             # Full connection string including embedded password — LibreChat
             # takes a single URI rather than separate host/user/pass/db vars.
