@@ -207,6 +207,23 @@ homelab-k8s/
   Set `containerPort` and the Service `targetPort` to that port. Health probe
   ports must also match the actual container port. Getting this wrong produces
   a 502 Bad Gateway with no obvious cause in the logs.
+- **Research app configuration per app** — never assume env var names, config
+  schema fields, health probe paths, or default values. Follow the tiered
+  research order below; only proceed to the next tier if the current one is
+  unclear or ambiguous:
+  1. **Dockerfile** — check `USER`, `EXPOSE` (port), `WORKDIR`, and `ENV`
+     defaults
+  2. **Example config file** (e.g., `librechat.example.yaml`) — check schema
+     field types, required fields, and defaults. An empty string is not the
+     same as an omitted field; arrays may have min-length requirements
+  3. **Helm values.yaml** or **docker-compose.yml** (when available) — check
+     probe paths, resource defaults, recommended config, and env var names
+  4. **Config source code** (e.g., `config.py`, `config.js`) — check env var
+     names, default values, and feature flags. Use only when tiers 1–3 are
+     unclear or silent on a specific value
+- **Verify CRD field formats** against the operator documentation or existing
+  working examples in the repo before committing. Never guess nesting (e.g.,
+  `role: { name, db }` vs `name`/`db` at top level); check the schema
 
 ### Values and secrets
 - The `kubeseal` command must always be written as a single line — never split
