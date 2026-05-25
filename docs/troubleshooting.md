@@ -475,3 +475,105 @@ docker inspect <image> | jq '.[0].Config.User' 2>/dev/null
 # Or check the Dockerfile: grep "^USER" Dockerfile
 ```
 Empty string or `"0"` → image runs as root → set `runAsUser`.
+
+---
+
+## Application Configuration
+
+### Wrong env var names — app connects with defaults, not configured values
+
+**Symptoms:** App connects with default credentials ("no such user", "access
+denied"), uses default database name, or ignores configured values. Despite
+SealedSecret having the correct values, the app acts like it wasn't configured.
+
+**Root cause:** The manifest sets env var names that don't match what the app
+reads. Every app uses its own naming convention — `DB_USER` vs `POSTGRES_USER`
+vs `PGUSER`, `DB_NAME` vs `POSTGRES_DB` vs `PGDATABASE`. There is no standard.
+
+**Fix:** Read the app's configuration in tiered order:
+1. Dockerfile — `ENV` defaults
+2. Example config (e.g., `librechat.example.yaml`) — documented env var names
+3. Helm values.yaml or docker-compose.yml — working env var names
+4. Config source code (`config.py`, `config.js`) — only when tiers 1-3 are silent
+
+Never assume `DB_*` prefix. Never copy env var names from another app.
+
+### CRD field format errors — operator rejects the resource
+
+**Symptoms:** ArgoCD shows OutOfSync with "required value", "invalid type", or
+"some validation rules were not checked." The operator refuses to apply the CRD.
+
+**Root cause:** Nested field structure doesn't match the CRD schema. Common
+pattern: wrapping direct fields in an unnecessary object level. Example:
+`roles: [{ role: { name: "readWrite", db: "LibreChat" } }]` when the schema
+expects `roles: [{ name: "readWrite", db: "LibreChat" }]`.
+
+**Fix:** Check the operator's CRD documentation or existing working examples in
+the repo for the exact field format. Never guess nesting — a validated working
+example is authoritative.
+
+### Config schema violations at app startup
+
+**Symptoms:** App logs ZodError/validation errors on its config file and exits.
+"The config file at /app/config.yaml is invalid."
+
+**Root cause:** Config file values don't match the app's expected schema. Common
+patterns:
+- Field set to empty string (`""`) but schema expects an object or the field to
+  be omitted entirely
+- Array field is empty (`[]`) but schema has `min: 1` requirement
+- Required field is missing but was assumed to have a default
+
+**Fix:** Read the app's example config file and check field types. An empty
+string is not the same as an omitted optional field. Arrays may have minimum
+length requirements. When in doubt, start from the example config and only
+change the values you need.
+
+---
+
+## NetworkPolicy
+
+### podSelector without namespaceSelector — traffic blocked across namespaces
+
+**Symptoms:** "Bad Gateway" or "Connection refused" from Traefik despite healthy
+pods, correct IngressRoute, and correct Service endpoints. Traffic between pods
+in different namespaces fails silently.
+
+**Root cause:** NetworkPolicy `from.podSelector` only matches pods in the
+**same namespace** as the policy. If the policy is in namespace `librechat` and
+Traefik pods are in namespace `traefik`, the `podSelector` won't match them.
+
+**Fix:** Always add `namespaceSelector` alongside `podSelector` in every `from`
+entry — even when the target pods are in the same namespace. Explicit is safer
+than implicit.
+
+```yaml
+# Broken — only matches pods in the policy's own namespace:
+ingress:
+  - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: traefik
+
+# Fixed — explicitly names the namespace:
+ingress:
+  - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: traefik
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: traefik
+```
+
+### Deny-all policy — no traffic allowed
+
+**Symptoms:** All traffic to pods in the namespace is blocked, even from
+services that should have access.
+
+**Root cause:** NetworkPolicy has `policyTypes: [Ingress]` but no `ingress.from`
+block. This is a deny-all policy — it blocks all incoming traffic.
+
+**Fix:** Add explicit `from` entries for every source that should be allowed.
+Deny-all policies are never warranted in this cluster — remove the policy or
+add the required `from` entries.
