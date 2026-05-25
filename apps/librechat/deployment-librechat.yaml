@@ -137,19 +137,19 @@ spec:
           # connection and Meilisearch index initialization.
           startupProbe:
             httpGet:
-              path: /api/health
+              path: /health
               port: 3080
             initialDelaySeconds: 15
             periodSeconds: 10
             failureThreshold: 12
           livenessProbe:
             httpGet:
-              path: /api/health
+              path: /health
               port: 3080
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /health
               port: 3080
             periodSeconds: 10
       volumes:
