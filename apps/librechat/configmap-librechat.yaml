@@ -30,7 +30,7 @@ data:
       agents: true
     registration:
       socialLogins: []
-      allowedDomains: ["*"]
+      allowedDomains: ["gmail.com"]
     endpoints:
       custom:
         - name: "LiteLLM"
