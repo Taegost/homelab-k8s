@@ -15,6 +15,7 @@ Scripts live in `scripts/` — run them from the repo root:
 .claude/skills/homelab-validate/scripts/plaintext-secret-guard.sh
 .claude/skills/homelab-validate/scripts/ingressroute-check.sh
 .claude/skills/homelab-validate/scripts/longhorn-fsgroup-check.sh
+.claude/skills/homelab-validate/scripts/networkpolicy-check.sh
 ```
 
 ---
@@ -103,3 +104,16 @@ Verifies:
 **Script:** `scripts/longhorn-fsgroup-check.sh`
 
 `fsGroup` is required ONLY when the container runs as non-root. Root containers don't need it — they can write to root-owned Longhorn volumes directly. Checks each Longhorn PVC against the Deployment that mounts it.
+
+---
+
+## 7. NetworkPolicy Verification
+
+**Script:** `scripts/networkpolicy-check.sh`
+
+Two hard rules, both enforced as failures:
+
+1. Every `from` entry with `podSelector` MUST also have `namespaceSelector` — even if the target pods are in the same namespace. Explicit is safer than implicit.
+2. No deny-all policies — every `Ingress` policy MUST have at least one `from` block.
+
+The script uses YAML-aware parsing (`yaml.safe_load_all()`). Grep-based heuristics won't work — every NetworkPolicy has `spec.podSelector` (policy's own target pods) which would false-match `from[].podSelector`.
