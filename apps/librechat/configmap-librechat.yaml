@@ -31,6 +31,7 @@ data:
     registration:
       enabled: true
       socialLogins: []
+      allowedDomains: ["*"]
     endpoints:
       custom:
         - name: "LiteLLM"
