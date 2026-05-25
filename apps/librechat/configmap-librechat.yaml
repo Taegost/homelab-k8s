@@ -29,7 +29,6 @@ data:
       multiConvo: true
       agents: true
     registration:
-      enabled: true
       socialLogins: []
       allowedDomains: ["*"]
     endpoints:
