@@ -37,6 +37,6 @@ data:
           apiKey: "${LITELLM_API_KEY}"
           baseURL: "http://litellm.litellm.svc.cluster.local:4000/v1"
           models:
-            default: []
+            default: ["deepseek/deepseek-v4-flash"]
             fetch: true
           type: "openai"
