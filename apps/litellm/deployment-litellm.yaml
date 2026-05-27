@@ -4,7 +4,7 @@ metadata:
   name: litellm
   namespace: litellm
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -37,6 +37,16 @@ spec:
                   matchLabels:
                     app: litellm
                 topologyKey: kubernetes.io/hostname
+        # Prefer not using a node labeled as "memory-tier=small"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       containers:
         - name: litellm
           # non_root variant runs as saasapi (UID 1000) — no root-drop at runtime,

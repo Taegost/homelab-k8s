@@ -13,6 +13,17 @@ spec:
       labels:
         app: manyfold
     spec:
+      affinity:
+        # Prefer not using a node labeled as "memory-tier=small"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       containers:
         - name: manyfold
           image: ghcr.io/manyfold3d/manyfold:0.138.0

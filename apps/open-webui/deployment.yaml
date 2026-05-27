@@ -4,7 +4,7 @@ metadata:
   name: open-webui
   namespace: open-webui
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: open-webui
@@ -13,10 +13,17 @@ spec:
       labels:
         app: open-webui
     spec:
-      # Reduces the amount of old ReplicaSets that stick around after a redeployment
-      # Commented out because this change is causing "Out of Sync" issues and I don't
-      # have time to investigate at the moment
-      #revisionHistoryLimit: 1
+      affinity:
+        # Prefer not using a node labeled as "memory-tier=small"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       securityContext:
         seccompProfile:
           type: RuntimeDefault

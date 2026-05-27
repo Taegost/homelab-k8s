@@ -21,6 +21,17 @@ spec:
         app: meilisearch
         app.kubernetes.io/part-of: librechat
     spec:
+      affinity:
+        # Prefer not using a node labeled as "memory-tier=small"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       automountServiceAccountToken: false
       securityContext:
         # Longhorn volumes are provisioned owned by root. fsGroup causes

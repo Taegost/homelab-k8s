@@ -13,6 +13,17 @@ spec:
       labels:
         app: authentik-worker
     spec:
+      affinity:
+        # Prefer not using a node labeled as "memory-tier=small"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       containers:
         - name: worker
           image: ghcr.io/goauthentik/server:2025.10.2
