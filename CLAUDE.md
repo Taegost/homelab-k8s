@@ -106,6 +106,43 @@ being migrated), pfSense, Unraid, or any non-Kubernetes homelab work.
 > Also increase the Longhorn replica count for existing volumes via the
 > Longhorn UI or kubectl — new volumes pick up the default automatically.
 
+### Node Labels
+
+Label nodes with `memory-tier` to control scheduling of memory-heavy workloads:
+
+```bash
+kubectl label node <node-name> memory-tier=small
+```
+
+Nodes without the label are treated as having sufficient memory for all workloads.
+
+### Node Affinity for Memory-Heavy Apps
+
+All memory-heavy or critical workloads use a soft anti-affinity preference to avoid
+nodes labeled `memory-tier=small`. This is a preference, not a hard requirement —
+if all nodes carry the label, pods will still schedule there.
+
+```yaml
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: memory-tier
+              operator: NotIn
+              values:
+                - small
+```
+
+**When to add this affinity:**
+- Any Deployment with a memory limit > 1Gi
+- Any existing app that is OOMKilled or shows memory pressure
+
+**When to skip:**
+- Infrastructure components managed by operators (CNPG, mariadb-operator, Longhorn)
+- Database clusters (their own anti-affinity rules govern placement)
+
 ---
 
 ## Core Stack (bootstrap order)
