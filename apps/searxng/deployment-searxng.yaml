@@ -13,6 +13,17 @@ spec:
       labels:
         app: searxng
     spec:
+      affinity:
+        # Prefer not using a node labeled as "memory-tier=small"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       automountServiceAccountToken: false
       securityContext:
         seccompProfile:
