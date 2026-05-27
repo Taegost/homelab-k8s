@@ -406,6 +406,14 @@ differ), the replica set is split-brained and needs the full reset procedure abo
 
 ## Longhorn Volumes
 
+### Volume stuck with "already mounted or mount point busy" — multipathd interference
+
+**Symptom:** Pod crashloops with `MountVolume.MountDevice failed: already mounted or mount point busy`. `/proc/mounts` and `findmnt` show nothing mounted at the target path. Longhorn UI shows the volume as attached. Same globalmount GUID persists across pod restarts.
+
+**Cause:** `multipathd` claims Longhorn block devices via device-mapper, preventing the CSI driver from mounting them. Device-mapper mappings survive daemon restarts — disabling the service alone doesn't clear them.
+
+**Fix:** Disable `multipathd` on all nodes AND remove stale device-mapper entries (`dmsetup remove`). Full procedure in [`docs/troubleshooting/troubleshooting-longhorn-stale-mount.md`](troubleshooting/troubleshooting-longhorn-stale-mount.md).
+
 ### ext4 `lost+found` breaks apps that expect an empty data directory
 
 Longhorn volumes formatted with ext4 contain a `lost+found` directory at the

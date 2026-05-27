@@ -23,6 +23,11 @@ ArgoCD cannot manage resources that don't exist yet. The bootstrap phase install
 
 - A fresh k3s cluster — installation guide: https://docs.k3s.io/quick-start
 - All nodes reachable on the network
+- **`multipathd` disabled on all nodes.** This daemon is enabled by default on Ubuntu and claims Longhorn block devices via device-mapper, causing CSI mount failures. Disable both the service and socket on every node before deploying Longhorn:
+  ```bash
+  sudo systemctl disable --now multipathd.service multipathd.socket
+  ```
+  See [`docs/troubleshooting/troubleshooting-longhorn-stale-mount.md`](../docs/troubleshooting/troubleshooting-longhorn-stale-mount.md) for the full procedure including cleanup of stale device-mapper entries.
 
 ### IP Planning
 

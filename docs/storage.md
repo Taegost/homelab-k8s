@@ -2,6 +2,14 @@
 
 ## Longhorn 
 
+### Prerequisite: disable multipathd
+
+`multipathd` must be disabled on all cluster nodes before Longhorn is deployed. The daemon claims Longhorn block devices via device-mapper, causing CSI mount failures (`already mounted or mount point busy`). Device-mapper mappings persist even after stopping the service — both the service and its socket must be disabled, and any stale `mpath*` entries removed with `dmsetup`. See [`docs/troubleshooting/troubleshooting-longhorn-stale-mount.md`](troubleshooting/troubleshooting-longhorn-stale-mount.md) for the full procedure.
+
+```bash
+sudo systemctl disable --now multipathd.service multipathd.socket
+```
+
 ### Checking current PVC utilisation
 
 Run `scripts/longhorn-pvc-report.sh` to get a cluster-wide usage report sorted by % used:

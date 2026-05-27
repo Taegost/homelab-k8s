@@ -24,6 +24,12 @@ What is **not** restored automatically:
 
 Follow your standard cluster provisioning process. kube-vip is managed outside this repo. Reference manifests for the kube-vip DaemonSet used in this cluster are in [`bootstrap/kube-vip/`](../bootstrap/kube-vip/) — see [`bootstrap/README.md`](../bootstrap/README.md) for which values need to be updated for your environment before applying. Confirm the API server VIP is reachable before continuing.
 
+**Before deploying Longhorn:** Disable `multipathd` on all nodes. This daemon is enabled by default on Ubuntu and claims Longhorn block devices, causing CSI mount failures. See [`docs/troubleshooting/troubleshooting-longhorn-stale-mount.md`](troubleshooting/troubleshooting-longhorn-stale-mount.md).
+
+```bash
+sudo systemctl disable --now multipathd.service multipathd.socket
+```
+
 ### Step 2 — Deploy the Sealed Secrets controller
 
 The controller must be deployed before the private key can be restored, because the controller is what creates the namespace and RBAC resources the key will live in.
