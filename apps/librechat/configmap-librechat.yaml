@@ -34,14 +34,14 @@ data:
     endpoints:
       custom:
         - name: LiteLLM
-          apiKey: os.environ/LITELLM_API_KEY
+          apiKey: "${LITELLM_API_KEY}"
           baseURL: http://litellm.litellm.svc.cluster.local:4000/v1
           models:
             default: ["nvidia_nim/mistralai/mistral-nemotron"]
             fetch: true
           type: openai
         - name: DeepSeek
-          apiKey: os.environ/DEEPSEEK_API_KEY
+          apiKey: "${DEEPSEEK_API_KEY}"
           baseURL: https://api.deepseek.com/anthropic
           models:
             default: ["deepseek/deepseek-v4-flash"]
