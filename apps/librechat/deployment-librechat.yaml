@@ -91,6 +91,11 @@ spec:
                 secretKeyRef:
                   name: librechat
                   key: LITELLM_API_KEY
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librechat
+                  key: DEEPSEEK_API_KEY
             # --- Non-sensitive config (set directly, no kubeseal needed) ---
             - name: DOMAIN_CLIENT
               value: https://librechat.home.diceninjagaming.com

@@ -61,7 +61,7 @@ spec:
               cpu: "100m"
               memory: "256Mi"
             limits:
-              cpu: "500m"
+              cpu: "750m"
               memory: "1Gi"
           env:
             - name: PUID

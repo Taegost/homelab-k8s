@@ -37,6 +37,13 @@ data:
           apiKey: "${LITELLM_API_KEY}"
           baseURL: "http://litellm.litellm.svc.cluster.local:4000/v1"
           models:
-            default: ["deepseek/deepseek-v4-flash"]
+            default: ["nvidia_nim/mistralai/mistral-nemotron"]
             fetch: true
           type: "openai"
+        - name: "DeepSeek"
+          apiKey: "${DEEPSEEK_API_KEY}"
+          baseURL: "https://api.deepseek.com/anthropic"
+          models:
+            default: ["deepseek/deepseek-v4-flash"]
+            fetch: true
+          type: "anthropic"
