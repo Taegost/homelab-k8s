@@ -42,8 +42,7 @@ data:
           type: openai
         - name: DeepSeek
           apiKey: "${DEEPSEEK_API_KEY}"
-          baseURL: https://api.deepseek.com/anthropic
+          baseURL: https://api.deepseek.com/v1
           models:
             default: ["deepseek/deepseek-v4-flash"]
             fetch: true
-          type: anthropic
