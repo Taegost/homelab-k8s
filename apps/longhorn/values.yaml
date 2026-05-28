@@ -15,7 +15,7 @@ defaultSettings:
   # these in sync.
   # Note: existing volumes do not gain a replica automatically when this value
   # increases — update each via the Longhorn UI or kubectl.
-  defaultReplicaCount: 3
+  defaultReplicaCount: 2
 
   # Rebalance replicas across nodes when cluster topology changes. "best-effort"
   # tries to rebalance without guaranteeing it, which is safer than triggering
