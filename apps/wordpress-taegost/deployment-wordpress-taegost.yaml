@@ -116,13 +116,13 @@ spec:
                   key: WORDPRESS_NONCE_SALT
           livenessProbe:
             httpGet:
-              path: /wp-admin/install.php
+              path: /wp-includes/images/blank.gif
               port: 80
             failureThreshold: 3
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /wp-admin/install.php
+              path: /wp-includes/images/blank.gif
               port: 80
             failureThreshold: 3
             periodSeconds: 10
@@ -135,7 +135,7 @@ spec:
               memory: 1Gi
           volumeMounts:
             - name: wordpress-content
-              mountPath: /var/www/html/wp-content
+              mountPath: /var/www/html
             - name: php-config
               mountPath: /usr/local/etc/php/conf.d/php-config.ini
               subPath: php-config.ini
