@@ -3,13 +3,7 @@
 # Routes traffic for taegost.com to the WordPress service.
 # Uses a dedicated per-app certificate (not the wildcard).
 #
-# WHITELIST ACTIVE — restricted to internal IPs during setup.
-# Before enabling public traffic, implement the Authentik SSO route block for
-# /wp-admin and /wp-login.php first (see the commented-out block in
-# apps/wordpress-dng/ingressroute-wordpress-dng.yaml for the pattern).
-# Going public without SSO exposes wp-admin to internet brute-force attacks.
-# When ready: replace default-whitelist with default-headers in the same commit
-# that adds the Authentik route block.
+
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -22,6 +16,14 @@ spec:
     - websecure
   routes:
     - match: Host(`taegost.com`)
+      kind: Rule
+      services:
+        - name: wordpress-taegost
+          port: 80
+      middlewares:
+        - name: default-headers
+          namespace: traefik
+    - match: Host(`taegost.com`) && PathPrefix(`/wp-admin`)
       kind: Rule
       services:
         - name: wordpress-taegost
