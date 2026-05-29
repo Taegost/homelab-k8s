@@ -53,9 +53,10 @@ spec:
               value: |
                 define('WP_HOME', 'https://taegost.com');
                 define('WP_SITEURL', 'https://taegost.com');
-                define('WP_DEBUG', true); 
                 define('WP_DEBUG_LOG', true); 
                 define('WP_DEBUG_DISPLAY', false);
+            - name: WORDPRESS_DEBUG
+              value: "1"
             - name: WORDPRESS_DB_HOST
               value: "mariadb-primary.mariadb.svc.cluster.local"
             - name: WORDPRESS_DB_NAME
