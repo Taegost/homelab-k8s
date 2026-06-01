@@ -57,7 +57,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch   # skip recursive chown if root dir ownership already matches
       containers:
         - name: seerr
-          image: ghcr.io/seerr-team/seerr@sha256:a14a9c326881fdce70b00df3fc095f5b5b128f5552677f677cd3788e757fb4e6 #preview-new-oidc
+          image: ghcr.io/seerr-team/seerr@preview-new-oidc # sha256:a14a9c326881fdce70b00df3fc095f5b5b128f5552677f677cd3788e757fb4e6
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
