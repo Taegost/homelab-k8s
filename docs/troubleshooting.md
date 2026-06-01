@@ -539,6 +539,104 @@ change the values you need.
 
 ---
 
+## WordPress
+
+### wp-admin spins indefinitely (no error, no timeout)
+
+**Symptom:** Frontend loads fine. Any `/wp-admin` page shows an infinite spinner.
+No errors in WordPress logs, pod logs, or PHP error logs. Browser dev tools show
+the request hanging — no HTTP error code returned.
+
+**Root cause (two-fold):**
+
+1. **Slow loopback requests:** WordPress makes HTTP requests to its own public
+   domain (e.g. `https://taegost.com/wp-cron.php`). In Kubernetes, these leave
+   the cluster, hit the public load balancer, and return — adding significant
+   latency per request. Multiple such loopbacks (cron, Site Health, plugin update
+   checks) stack up and exhaust PHP execution time or deadlock.
+
+2. **Defective plugin:** Even after loopback speed is fixed, a rogue plugin can
+   stall during `admin_init` or a scheduled task. In the confirmed case
+   (taegost.com, 2026-06-01), **WP Dark Mode** (`wp-dark-mode/plugin.php`) was
+   the culprit.
+
+**Diagnosis — test loopback speed:**
+
+```bash
+kubectl exec -it deployment/wordpress-taegost -n wordpress-taegost -- bash -c \
+  'curl -o /dev/null -s -w "internal-svc: %{time_total}s\n" http://wordpress-taegost.wordpress-taegost.svc.cluster.local/wp-cron.php;
+   curl -o /dev/null -s -w "public-domain: %{time_total}s\n" https://taegost.com/wp-cron.php'
+```
+
+Public-domain time significantly higher than internal-svc → loopback is leaving
+the cluster. Internal ~0.4s, public ~1.1s is a confirmed slow loopback.
+
+**Diagnosis — isolate a plugin hang:**
+
+1. Rename the entire `wp-content/plugins` directory inside the pod:
+   ```bash
+   kubectl exec -n wordpress-taegost deployment/wordpress-taegost -- \
+     mv /var/www/html/wp-content/plugins /var/www/html/wp-content/plugins_disabled
+   ```
+   If login works → a plugin is at fault.
+
+2. Restore the directory and perform a **binary search** — disable half the
+   plugins, test, halve the suspect set, repeat. Continue until the single
+   guilty plugin is identified.
+
+3. Remove the plugin permanently:
+   ```bash
+   kubectl exec -n wordpress-taegost deployment/wordpress-taegost -- \
+     rm -rf /var/www/html/wp-content/plugins/wp-dark-mode
+   ```
+
+**Fix — internal loopback rewrite (permanent):**
+
+Deploy a WordPress MU plugin via ConfigMap that intercepts HTTP requests to the
+public domain and rewrites them to the internal Kubernetes Service URL. The plugin
+only activates when `KUBERNETES_SERVICE_HOST` is set, so it's safe to leave active
+in all environments.
+
+See `apps/wordpress-taegost/configmap-wordpress-loopback-plugin.yaml` for the
+reusable ConfigMap. To deploy for a new site, copy it and change the two
+`define()` constants at the top:
+- `INTERNAL_LOOPBACK_TARGET_URL` — the public domain WordPress uses for self-requests
+- `INTERNAL_LOOPBACK_SERVICE_URL` — the internal Kubernetes Service URL
+
+Mount it in the Deployment as a `subPath` volume:
+```yaml
+containers:
+  - name: wordpress
+    volumeMounts:
+      - name: mu-plugin-loopback
+        mountPath: /var/www/html/wp-content/mu-plugins/loopback-internal.php
+        subPath: loopback-internal.php
+volumes:
+  - name: mu-plugin-loopback
+    configMap:
+      name: wordpress-loopback-plugin
+      defaultMode: 0644
+```
+
+After deploying, verify loopback timing is under 0.5s.
+
+**Prevention:**
+- Every WordPress site in Kubernetes should include the loopback rewrite plugin
+  at deployment time. Loopback requests to the public domain always leave the
+  cluster and re-enter through the load balancer — the plugin eliminates this
+  latency at zero cost.
+- When `wp-admin` hangs without errors, plugins are the prime suspect. Binary
+  search deactivation isolates the culprit quickly.
+
+**Clearing a stuck cron lock (optional):**
+
+If the cron lock is suspected, clear it without WP-CLI:
+```sql
+DELETE FROM wp_options WHERE option_name = 'cron.lock';
+```
+
+---
+
 ## NetworkPolicy
 
 ### podSelector without namespaceSelector — traffic blocked across namespaces
