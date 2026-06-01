@@ -130,6 +130,10 @@ spec:
               mountPath: /usr/local/etc/php/conf.d/php-config.ini
               subPath: php-config.ini
               readOnly: true
+            # Plugin to keep loopback requests within the cluster
+            - name: mu-plugin-loopback
+              mountPath: /var/www/html/wp-content/mu-plugins/loopback-internal.php
+              subPath: loopback-internal.php
             - name: tmp
               mountPath: /tmp
       volumes:
@@ -139,6 +143,10 @@ spec:
         - name: php-config
           configMap:
             name: php-config
+        - name: mu-plugin-loopback
+          configMap:
+            name: wordpress-loopback-plugin
+            defaultMode: 0644   # readable by www-data
         - name: tmp
           emptyDir: {}
       automountServiceAccountToken: false
