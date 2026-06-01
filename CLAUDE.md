@@ -599,6 +599,11 @@ Pattern in use — see `apps/wordpress-dng/` for a working example.
   auth cookie mismatches across multiple replicas
 - `fsGroup: 33` (www-data) required in pod `securityContext` — Longhorn volumes
   are provisioned owned by root; this causes Kubernetes to chown on first mount
+- Loopback plugin (`configmap-wordpress-loopback-plugin.yaml`) rewrites WordPress
+  self-requests to stay inside the cluster. Required to avoid wp-admin timeouts
+  caused by public-domain round-trips. Copy the ConfigMap to new sites and update
+  the two `define()` constants. See `docs/troubleshooting.md` → WordPress for
+  background, diagnosis, and the plugin isolation binary-search workflow.
 
 ---
 
