@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wordpress-loopback-plugin
+  namespace: wordpress-taegost
+data:
+  loopback-internal.php: |
+    <?php
+    /**
+     * Plugin Name:  Internal Loopback Rewriter
+     * Description:  Forces WordPress self‑requests to stay inside the Kubernetes cluster.
+     *               Overwrites the target URL to use an internal Kubernetes service.
+     * Version:      1.0.0
+     * Author:       Taegost
+     *
+     * Only active when running in a pod (detects KUBERNETES_SERVICE_HOST).
+     */
+
+    // -------------------------------------------------------------------------
+    // Configuration – adjust these for each site deployment
+    // -------------------------------------------------------------------------
+
+    // The public domain that WordPress uses to make self‑requests (e.g., https://taegost.com)
+    define( 'INTERNAL_LOOPBACK_TARGET_URL', 'https://taegost.com' );
+
+    // The internal Kubernetes service URL where those requests should actually go
+    // (e.g., http://wordpress-taegost.wordpress-taegost.svc.cluster.local)
+    define( 'INTERNAL_LOOPBACK_SERVICE_URL', 'http://wordpress-taegost.wordpress-taegost.svc.cluster.local' );
+
+    // -------------------------------------------------------------------------
+    // Don’t change anything below this line unless you know what you’re doing
+    // -------------------------------------------------------------------------
+
+    if ( ! defined( 'ABSPATH' ) ) {
+        exit;
+    }
+
+    add_filter( 'pre_http_request', function ( $preempt, $parsed_args, $url ) {
+        // Only run inside a Kubernetes pod
+        if ( ! getenv( 'KUBERNETES_SERVICE_HOST' ) ) {
+            return $preempt;
+        }
+
+        $target_url   = INTERNAL_LOOPBACK_TARGET_URL;
+        $service_url  = INTERNAL_LOOPBACK_SERVICE_URL;
+
+        // If the outbound request is going to our target public URL, rewrite it
+        if ( strpos( $url, $target_url ) !== false ) {
+            $internal_url = str_replace( $target_url, $service_url, $url );
+
+            // No SSL inside the cluster
+            add_filter( 'https_local_ssl_verify', '__return_false' );
+            add_filter( 'https_ssl_verify', '__return_false' );
+
+            $response = wp_remote_request( $internal_url, $parsed_args );
+
+            remove_filter( 'https_local_ssl_verify', '__return_false' );
+            remove_filter( 'https_ssl_verify', '__return_false' );
+
+            return $response;
+        }
+
+        return $preempt;
+    }, 10, 3 );
+    
