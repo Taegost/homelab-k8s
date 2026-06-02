@@ -1,7 +1,7 @@
 ---
 title: "feat: Add wordpress-taegost site and aws-ddns for taegost.com"
 type: feat
-status: active
+status: completed
 created: 2026-05-22
 ---
 

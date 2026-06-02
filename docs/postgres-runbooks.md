@@ -11,7 +11,7 @@ For disaster recovery (cluster loss, full restore from backup), see [disaster-re
 | Component | Detail |
 |-----------|--------|
 | Operator | CloudNativePG (CNPG) |
-| Postgres version | 18.3 |
+| Postgres version | see image tag in `apps/postgres/cluster-postgres.yaml` |
 | Instances | 2 (primary + 1 replica, anti-affinity across nodes) |
 | Storage | `local-path` PVCs — CNPG streaming replication provides redundancy |
 | Connection pooling | PgBouncer via CNPG `Pooler` (transaction mode) |
@@ -68,7 +68,7 @@ kubectl get cluster -n postgres
 
 WAL archiving and scheduled base backups require an S3-compatible endpoint. When that is set up:
 
-1. Add a `barmanObjectStore` block to `apps/postgres/cluster.yaml` pointing at the endpoint
+1. Add a `barmanObjectStore` block to `apps/postgres/cluster-postgres.yaml` pointing at the endpoint
 2. Create and seal `apps/postgres/secret-backup-credentials.yaml` with the access key and secret
 3. Re-add `apps/postgres/scheduled-backup.yaml` with a `ScheduledBackup` CRD
 4. Update the disaster recovery section in `docs/disaster-recovery.md`

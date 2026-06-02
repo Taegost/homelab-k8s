@@ -216,11 +216,14 @@ homelab-k8s/
 │   ├── disaster-recovery.md      # Full cluster rebuild sequence
 │   ├── mariadb-runbooks.md       # New app + migration workflows for MariaDB
 │   ├── migration-traefik-docker.md
+│   ├── mongodb-runbooks.md       # New app + migration workflows for MongoDB
 │   ├── n8n-ha-migration.md       # n8n HA migration guide (S3, queue mode)
 │   ├── postgres-runbooks.md      # New app + migration workflows for CNPG
 │   ├── sealed-secrets.md         # Full sealed secrets workflow
 │   ├── storage.md                # Longhorn PVC utilisation and trim job docs
-│   └── troubleshooting.md        # DNS, networking, and known gotchas
+│   ├── troubleshooting.md        # DNS, networking, and known gotchas
+│   ├── brainstorms/              # Requirements and brainstorming documents
+│   └── plans/                    # Implementation plans
 └── README.md
 ```
 
@@ -442,6 +445,8 @@ Do not assume it matches any other app in the stack.
 ### NFS CSI Driver (`csi-driver-nfs`)
 - Installed via Helm through ArgoCD, managed by `apps/manifests/nfs-csi.yaml`
 - NFS server: `firebird.lan` (Unraid NAS)
+- Reference-only — not used by any deployed application. SMB (`smb-csi`) is the
+  default for all storage.
 
 ### StorageClasses
 
@@ -453,7 +458,13 @@ Do not assume it matches any other app in the stack.
 - `reclaimPolicy: Retain` — deleting a PVC never deletes backup data
 - Use this for all app backup volumes
 
-**`nfs-multimedia`** — NFS-backed media library (RWX)
+**`nfs-backups`** — NFS-backed backup storage (RWX)
+- Reference-only — kept for future flexibility, not used by any deployed app.
+  `smb-backups` (above) is the default for all application backup volumes.
+- Dynamic `subDir` per PVC: `${pvc.metadata.namespace}/${pvc.metadata.name}`
+- `reclaimPolicy: Retain` — deleting a PVC never deletes backup data
+
+**`smb-multimedia`** — SMB-backed media library (RWX)
 - Mounts the Unraid Multimedia share root directly — no `subDir`
 - `reclaimPolicy: Retain` — never deletes media library contents
 - Do not add a `subDir` parameter — it would break the existing directory
@@ -509,7 +520,7 @@ Each app under `apps/arr-stack/<app-name>/` follows this structure:
 Standard volume mounts:
 - `/config` — Longhorn PVC (app-specific config and state)
 - `/backups` — SMB PVC (`smb-backups` StorageClass, isolated subdir per app)
-- `/multimedia` — NFS PVC (`nfs-multimedia` StorageClass, full share root)
+- `/multimedia` — SMB PVC (`smb-multimedia` StorageClass, full share root)
 
 ---
 

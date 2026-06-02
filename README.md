@@ -83,6 +83,8 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 | [Open WebUI](https://openwebui.com/) | Web chat interface for AI models (backed by LiteLLM) | `open-webui` |
 | [SearXNG](https://github.com/searxng/searxng) | Privacy-respecting meta search engine | `searxng` |
 | [DiceNinjaGaming WordPress](https://wordpress.org/) | WordPress site for the DiceNinjaGaming blog | `wordpress-dng` |
+| [WordPress (taegost.com)](https://wordpress.org/) | Mike's professional portfolio and blog | `wordpress-taegost` |
+| [LibreChat](https://www.librechat.ai/) | Unified AI chat — MongoDB, Meilisearch, Redis, RAG API | `librechat` |
 
 Most applications share a single [CloudNativePG](https://cloudnative-pg.io/) PostgreSQL 18
 cluster (`apps/postgres/`) via per-app roles and databases. Connections go through a PgBouncer
@@ -235,7 +237,7 @@ by function:
 
 ```text
 apps/infrastructure/
-  storage/      — StorageClasses for NFS shares
+  storage/      — StorageClasses for SMB and NFS shares
   networking/   — cluster-wide NetworkPolicies, etc. (reserved for future use)
 ```
 
@@ -247,27 +249,37 @@ Do not put cluster-scoped resources inside an application's own directory —
 they would be owned by that application's ArgoCD sync, making them fragile to
 remove and misleading to future readers.
 
-### NFS Storage
+### Shared Storage
 
-NFS-backed storage is provisioned dynamically by the NFS CSI driver
-(`apps/manifests/nfs-csi.yaml`), which runs as a cluster-wide DaemonSet
-(sync wave `-1`). No manual PersistentVolume declarations are needed.
+Storage is provisioned dynamically by CSI drivers running as cluster-wide
+DaemonSets. **SMB (`apps/manifests/smb-csi.yaml`, sync wave `-1`) is the
+default for all deployed applications.** NFS (`apps/manifests/nfs-csi.yaml`)
+is installed for reference but not used by any deployed application.
 
-Two StorageClasses are available, defined in `apps/infrastructure/storage/`:
+Four StorageClasses are available, defined in `apps/infrastructure/storage/`:
 
-- **`nfs-backups`** — provisions a dedicated subdirectory per PVC on the
-  Unraid Backups share. The subdirectory path is derived from
-  `<namespace>/<pvc-name>`, making it easy to identify on the NAS.
-  Use this for application backup volumes. Create one PVC per application.
-- **`nfs-multimedia`** — mounts the Unraid Multimedia share root directly.
-  Every PVC using this class sees the full share. Use `subPath` in the
-  Deployment's `volumeMounts` to access specific subdirectories (e.g. `TV`,
-  `Movies`). Create one PVC per namespace that needs media access.
+| StorageClass | Backend | Access | Use |
+|---|---|---|---|
+| `longhorn` | Longhorn replicated block | RWO/RWX | App config and data — see `docs/storage.md` |
+| **`smb-backups`** | Unraid Backups (SMB) | RWX | **Primary** backup storage — default for all app backup volumes |
+| `nfs-backups` | Unraid Backups (NFS) | RWX | Reference-only — kept for future flexibility, not used by any deployed app |
+| **`smb-multimedia`** | Unraid Multimedia (SMB) | RWX | Media library — shared across *arr stack apps |
 
-Both StorageClasses use `reclaimPolicy: Retain` — deleting a PVC never
+- **`smb-backups`** provisions a dedicated subdirectory per PVC
+  (`<namespace>/<pvc-name>`) on the Unraid Backups share. **This is the
+  default choice for all application backup volumes.**
+- **`nfs-backups`** is functionally identical but over NFS instead of SMB.
+  It exists for reference; no deployed application uses it. If you need a
+  second backup path (e.g. different NAS share), use this as a template.
+- **`smb-multimedia`** mounts the Unraid Multimedia share root directly.
+  Use `subPath` in the Deployment's `volumeMounts` to access specific
+  subdirectories (e.g. `TV`, `Movies`). Create one PVC per namespace that
+  needs media access.
+
+All four StorageClasses use `reclaimPolicy: Retain` — deleting a PVC never
 deletes data on the NAS. Released PVs must be manually cleaned up.
 
-To add NFS storage to a new application:
+To add backup storage to a new application:
 
 ```yaml
 apiVersion: v1
@@ -278,10 +290,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: nfs-backups
+  storageClassName: smb-backups
   resources:
     requests:
-      storage: 10Gi          # not enforced at NFS level
+      storage: 10Gi          # not enforced at the NAS level
 ```
 
 ---

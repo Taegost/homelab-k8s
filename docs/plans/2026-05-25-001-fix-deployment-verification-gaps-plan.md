@@ -1,7 +1,7 @@
 ---
 title: fix: Strengthen verification and research discipline for new app deployments
 type: fix
-status: active
+status: completed
 date: 2026-05-25
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: feat: Add LibreChat with MongoDB, Meilisearch, and Redis
 type: feat
-status: active
+status: completed
 date: 2026-05-23
 deepened: 2026-05-24
 ---

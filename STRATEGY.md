@@ -1,6 +1,6 @@
 ---
 name: homelab-k8s
-last_updated: 2026-05-22
+last_updated: 2026-06-02
 ---
 
 # homelab-k8s Strategy
@@ -41,7 +41,7 @@ work in production were the right ones.
 
 ## Tracks
 
-### Documentation currency
+### Documentation currency **[COMPLETE — 2026-05-22]**
 
 Close the gap between the live cluster and what's written: migration is complete, the
 third node is online, and the docs need to reflect reality.
@@ -49,7 +49,7 @@ third node is online, and the docs need to reflect reality.
 _Why it serves the approach:_ The repo can't teach if it describes a cluster that no
 longer exists.
 
-### Personal portfolio WordPress
+### Personal portfolio WordPress **[COMPLETE — 2026-05-22]**
 
 Add a WordPress site for Mike's personal portfolio and blog, using the same
 production patterns as other WordPress deployments in the cluster.
@@ -73,6 +73,18 @@ snapshots.
 _Why it serves the approach:_ Disaster recovery is only real when it's been
 configured. Backups are the production pattern that separates a working homelab from
 a toy one.
+
+### Documentation maintenance
+
+Keep all documentation — CLAUDE.md, README, runbooks, app READMEs — consistent with
+the live cluster. When apps are added, removed, or reconfigured, update the
+corresponding docs in the same commit. Run periodic audits (this is the first one)
+to catch drift that accumulates across feature branches.
+
+_Why it serves the approach:_ Documentation drift undermines the repo's value as a
+teaching artifact. A doc that describes a cluster that no longer exists is worse
+than no doc at all — it teaches the wrong thing with the authority of being written
+down.
 
 ## Marketing
 

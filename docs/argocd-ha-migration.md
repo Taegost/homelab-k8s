@@ -35,7 +35,9 @@ commit — no manual `kubectl apply` needed.
 **Step 1 — Download the HA manifest:**
 
 ```bash
-curl -sL https://raw.githubusercontent.com/argoproj/argo-cd/v3.3.7/manifests/ha/install.yaml \
+# Extract the current ArgoCD version from the active manifest:
+ARGOCD_VERSION=$(grep -A1 "chart: argo-cd" apps/manifests/argocd.yaml | grep "targetRevision:" | awk '{print $2}')
+curl -sL "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/ha/install.yaml" \
   -o apps/argocd/argocd.yaml
 ```
 

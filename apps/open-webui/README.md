@@ -171,7 +171,7 @@ kubectl get cluster postgres -n postgres -o jsonpath='{.status.managedRolesStatu
 
 ### OIDC login not working
 
-1. Verify the redirect URI in Authentik matches: `https://open-webui.diceninjagaming.com/authorization-code/callback`
+1. Verify the redirect URI in Authentik matches: `https://open-webui.diceninjagaming.com/oauth/oidc/callback`
 2. Check that the OIDC client ID and secret are correct in the sealed secret
 3. Verify the Authentik provider has the correct scopes including `openid`, `profile`, `email`, `groups`
 
