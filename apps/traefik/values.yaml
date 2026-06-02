@@ -107,7 +107,7 @@ ports:
 
 # ── Service ───────────────────────────────────────────────────────────────────
 # LoadBalancer type so MetalLB assigns the reserved Traefik IP.
-# The IP is the first address in the MetalLB pool — see apps/metallb/ipaddresspool.yaml.
+# The IP is the first address in the MetalLB pool — see apps/metallb/ipaddresspool-default-pool.yaml.
 # loadBalancerIP pins Traefik to that specific address rather than taking
 # whatever MetalLB assigns next, which ensures DNS records stay valid.
 service:

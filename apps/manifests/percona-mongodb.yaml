@@ -4,7 +4,7 @@
 # shared MongoDB instance used by all document-store applications.
 #
 # New per-application users are added to spec.users in the cluster CRD —
-# see apps/percona-mongodb/cluster-mongodb.yaml. Each user references a
+# see apps/percona-mongodb/perconaservermongodb-mongodb.yaml. Each user references a
 # SealedSecret in the mongodb namespace. See docs/mongodb-runbooks.md.
 #
 # Sync wave -1: Runs alongside Traefik and storage drivers — all are platform

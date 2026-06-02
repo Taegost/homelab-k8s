@@ -3,8 +3,8 @@
 # After bootstrap, ArgoCD uses this manifest to take over management of MetalLB.
 # It points at this directory, so ArgoCD reconciles all three files:
 #   - metallb.yaml  (the controller and speaker)
-#   - ipaddresspool.yaml   (your IP range)
-#   - l2advertisement.yaml (L2/ARP mode config)
+#   - ipaddresspool-default-pool.yaml   (your IP range)
+#   - l2advertisement-default-pool-l2.yaml (L2/ARP mode config)
 #
 # To upgrade MetalLB:
 #   1. Replace metallb.yaml with the new release manifest

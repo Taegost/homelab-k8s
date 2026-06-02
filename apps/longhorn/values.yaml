@@ -54,7 +54,7 @@ preUpgradeChecker:
 service:
   ui:
     # ClusterIP is sufficient — external access is via the IngressRoute in
-    # apps/longhorn/ingressroute.yaml, which routes through Traefik.
+    # apps/longhorn/ingressroute-longhorn.yaml, which routes through Traefik.
     type: ClusterIP
 
 csi:

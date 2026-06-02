@@ -23,7 +23,7 @@
 #   3. Commit and push — ArgoCD will apply the update to itself automatically
 #
 #   No other edits to argocd.yaml are needed. The two-source layout below
-#   ensures customisations in apps/argocd/ (e.g. argocd-cmd-params-cm.yaml)
+#   ensures customisations in apps/argocd/ (e.g. configmap-argocd-cmd-params-cm.yaml)
 #   always override whatever the upstream install manifest ships with, because
 #   ArgoCD applies sources in order and the last source wins on conflicts.
 #

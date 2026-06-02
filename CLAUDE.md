@@ -464,12 +464,6 @@ Do not assume it matches any other app in the stack.
 - Dynamic `subDir` per PVC: `${pvc.metadata.namespace}/${pvc.metadata.name}`
 - `reclaimPolicy: Retain` — deleting a PVC never deletes backup data
 
-**`smb-multimedia`** — SMB-backed media library (RWX)
-- Mounts the Unraid Multimedia share root directly — no `subDir`
-- `reclaimPolicy: Retain` — never deletes media library contents
-- Do not add a `subDir` parameter — it would break the existing directory
-  structure that Sonarr, Radarr, and other apps depend on
-
 ---
 
 ## Naming Conventions
@@ -510,7 +504,7 @@ All *arr media automation apps and related tools live in the `arr-stack` namespa
 and are managed by a single ArgoCD Application (`apps/manifests/arr-stack.yaml`).
 
 Each app under `apps/arr-stack/<app-name>/` follows this structure:
-- `deployment.yaml` — Deployment spec with `strategy: Recreate`
+- `deployment-<app-name>.yaml` — Deployment spec with `strategy: Recreate`
 - `service-<app-name>.yaml` — ClusterIP Service
 - `ingressroute-<app-name>.yaml` — file lives in app dir, deploys to `traefik`
   namespace (wildcard cert)
@@ -520,7 +514,7 @@ Each app under `apps/arr-stack/<app-name>/` follows this structure:
 Standard volume mounts:
 - `/config` — Longhorn PVC (app-specific config and state)
 - `/backups` — SMB PVC (`smb-backups` StorageClass, isolated subdir per app)
-- `/multimedia` — SMB PVC (`smb-multimedia` StorageClass, full share root)
+- `/multimedia` — static PV + PVC binding (`persistentvolume-arr-stack-multimedia.yaml` and `persistentvolumeclaim-multimedia.yaml`)
 
 ---
 

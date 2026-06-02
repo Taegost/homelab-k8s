@@ -174,8 +174,8 @@ kubectl apply -f apps/metallb/metallb.yaml
 kubectl rollout status deployment controller -n metallb-system
 kubectl rollout status daemonset speaker -n metallb-system
 
-kubectl apply -f apps/metallb/ipaddresspool.yaml
-kubectl apply -f apps/metallb/l2advertisement.yaml
+kubectl apply -f apps/metallb/ipaddresspool-default-pool.yaml
+kubectl apply -f apps/metallb/l2advertisement-default-pool-l2.yaml
 ```
 
 ---
@@ -193,7 +193,7 @@ echo "YOUR_USERNAME:$(openssl passwd -apr1 YOUR_PASSWORD)"
 
 # Paste the output into apps/traefik/dashboard-auth-secret.yaml, then seal it
 kubeseal --format yaml < apps/traefik/dashboard-auth-secret.yaml \
-  > apps/traefik/dashboard-auth-sealedsecret.yaml
+  > apps/traefik/sealedsecret-dashboard-auth.yaml
 rm apps/traefik/dashboard-auth-secret.yaml
 ```
 
@@ -214,7 +214,7 @@ helm install traefik traefik/traefik \
 
 kubectl rollout status deployment traefik -n traefik
 
-kubectl apply -f apps/traefik/dashboard-auth-sealedsecret.yaml
+kubectl apply -f apps/traefik/sealedsecret-dashboard-auth.yaml
 # Applies the various shared/default middlewares
 kubectl apply -f apps/traefik/middlewares/middleware-default-headers.yaml
 kubectl apply -f apps/traefik/middlewares/middleware-internal-whitelist.yaml
@@ -225,7 +225,7 @@ kubectl apply -f apps/traefik/middlewares/middleware-dashboard-auth.yaml
 # Applies the certificates and default cert
 kubectl apply -f apps/traefik/certificates/certificate-dng-home-wildcard.yaml
 kubectl apply -f apps/traefik/certificates/certificate-dng-root-wildcard.yaml
-kubectl apply -f apps/traefik/tlsstore.yaml
+kubectl apply -f apps/traefik/tlsstore-default.yaml
 
 # IngressRoute for the Traefik dashboard itself
 kubectl apply -f apps/traefik/ingressroute-dashboard.yaml
@@ -271,9 +271,9 @@ kubectl rollout status deployment argocd-repo-server -n argocd
 kubectl rollout status statefulset argocd-application-controller -n argocd
 
 # Apply server config (insecure mode for Traefik TLS termination) and IngressRoute
-# It's normal to see a warning about a missing annotation when applying argocd-cmd-params-cm.yaml
-kubectl apply -f apps/argocd/argocd-cmd-params-cm.yaml
-kubectl apply -f apps/argocd/ingressroute.yaml
+# It's normal to see a warning about a missing annotation when applying configmap-argocd-cmd-params-cm.yaml
+kubectl apply -f apps/argocd/configmap-argocd-cmd-params-cm.yaml
+kubectl apply -f apps/argocd/ingressroute-argocd.yaml
 
 # Restart ArgoCD server to pick up the insecure mode config
 kubectl rollout restart deployment argocd-server -n argocd

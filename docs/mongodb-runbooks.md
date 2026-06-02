@@ -1,6 +1,6 @@
 # MongoDB Runbooks
 
-This document covers day-two operations for the shared MongoDB instance managed by the Percona Operator for MongoDB. For the current MongoDB server version, see the `image` tag in `apps/percona-mongodb/cluster-mongodb.yaml`.
+This document covers day-two operations for the shared MongoDB instance managed by the Percona Operator for MongoDB. For the current MongoDB server version, see the `image` tag in `apps/percona-mongodb/perconaservermongodb-mongodb.yaml`.
 
 > **CPU requirement:** MongoDB 8.x binaries are compiled for the `x86-64-v3`
 > microarchitecture level (AVX, AVX2, BMI, FMA, F16C, LZCNT, MOVBE, XSAVE).
@@ -18,7 +18,7 @@ This document covers day-two operations for the shared MongoDB instance managed 
 | Component | Detail |
 |-----------|--------|
 | Operator | Percona Operator for MongoDB (psmdb-operator) — version: see `apps/manifests/percona-mongodb-operator.yaml` `targetRevision` |
-| MongoDB version | see `image` tag in `apps/percona-mongodb/cluster-mongodb.yaml` |
+| MongoDB version | see `image` tag in `apps/percona-mongodb/perconaservermongodb-mongodb.yaml` |
 | Instances | 3 (single replica set `rs0`, anti-affinity across nodes) |
 | Storage | `local-path` PVCs — MongoDB replication provides data redundancy |
 | Connection | `mongodb-rs0.mongodb.svc.cluster.local:27017` |
@@ -34,7 +34,7 @@ With 3 replicas, the replica set maintains a majority (2/3) for writes even if o
 
 Every application gets its own MongoDB user scoped to its own database. This is enforced at the credential layer — each user has a `readWrite` role on its database only.
 
-Users are declared in `spec.users` in `apps/percona-mongodb/cluster-mongodb.yaml`. Unlike the Postgres cluster (which has no standalone Role CRD and forces roles into the Cluster spec) and unlike MariaDB (which provides standalone User/Database/Grant CRDs), MongoDB uses the cluster CRD's `spec.users` field with a `passwordSecretRef` pointing to a Kubernetes Secret.
+Users are declared in `spec.users` in `apps/percona-mongodb/perconaservermongodb-mongodb.yaml`. Unlike the Postgres cluster (which has no standalone Role CRD and forces roles into the Cluster spec) and unlike MariaDB (which provides standalone User/Database/Grant CRDs), MongoDB uses the cluster CRD's `spec.users` field with a `passwordSecretRef` pointing to a Kubernetes Secret.
 
 Databases are created implicitly by MongoDB on first use — no separate Database resource exists. A user's `db` field sets their authentication database; their role's `db` field sets the target database they have access to.
 
@@ -122,7 +122,7 @@ stringData:
 
 > **Password duplication:** If the application pod reads its database password from a separate app-namespace secret (e.g. `apps/APPNAME/secret-APPNAME.yaml` in the `APPNAME` namespace), the password value must match what is in `sealedsecret-APPNAME-db-credentials` above. Kubernetes pods cannot reference secrets across namespaces, so the credential must appear in both the `mongodb`-namespace secret (for the operator to read) and the app-namespace secret (for the pod to connect). Keep them in sync when rotating passwords.
 
-**2. Add the user to `apps/percona-mongodb/cluster-mongodb.yaml` under `spec.users`:**
+**2. Add the user to `apps/percona-mongodb/perconaservermongodb-mongodb.yaml` under `spec.users`:**
 
 ```yaml
   - name: APPNAME
@@ -199,7 +199,7 @@ Use this workflow when moving an application that already has a MongoDB database
 
 Follow Phase 1 from [Adding a new application](#adding-a-new-application) above. At the end of this phase:
 
-- The user exists in `spec.users` in `cluster-mongodb.yaml`
+- The user exists in `spec.users` in `perconaservermongodb-mongodb.yaml`
 - The `SealedSecret` exists in `apps/APPNAME/`
 - The application's `Deployment` does **not** exist yet
 - The source system is still running normally
@@ -257,7 +257,7 @@ Compare counts against the source. If anything looks wrong, fix it before procee
 The Percona Operator supports PITR backups via the `backup` section in the `PerconaServerMongoDB` CR with S3-compatible storage. When an S3-compatible endpoint is available:
 
 1. Create and seal credentials for the S3 endpoint
-2. Add a `backup` section to `apps/percona-mongodb/cluster-mongodb.yaml` with:
+2. Add a `backup` section to `apps/percona-mongodb/perconaservermongodb-mongodb.yaml` with:
    - `storages` block pointing at the S3 endpoint
    - `tasks` block with a schedule
 3. Document the restore procedure in `docs/disaster-recovery.md`

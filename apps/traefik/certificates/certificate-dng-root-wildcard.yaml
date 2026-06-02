@@ -11,7 +11,7 @@
 # a Certificate resource in the app's own namespace alongside its IngressRoute.
 #
 # Also used by the TLSStore as the cluster-wide fallback certificate —
-# see apps/traefik/tlsstore.yaml.
+# see apps/traefik/tlsstore-default.yaml.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
