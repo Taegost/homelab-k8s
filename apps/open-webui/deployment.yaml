@@ -30,7 +30,7 @@ spec:
       containers:
         - name: open-webui
           # Pin to specific version — update as needed.
-          image: ghcr.io/open-webui/open-webui:v0.9.5
+          image: ghcr.io/open-webui/open-webui:v0.9.6
           ports:
             - containerPort: 8080
           env:
