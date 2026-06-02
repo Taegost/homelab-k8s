@@ -326,9 +326,9 @@ resulted in a split-brain:
 **Step 1 — Remove the CRD from git so ArgoCD prunes it:**
 
 ```bash
-mv apps/percona-mongodb/cluster-mongodb.yaml /tmp/cluster-mongodb.yaml.bak
+mv apps/percona-mongodb/perconaservermongodb-mongodb.yaml /tmp/perconaservermongodb-mongodb.yaml.bak
 git checkout -b fix/mongodb-replica-set-reset
-git rm apps/percona-mongodb/cluster-mongodb.yaml
+git rm apps/percona-mongodb/perconaservermongodb-mongodb.yaml
 git commit -m "fix: temporarily remove MongoDB cluster CRD to reset replica set"
 git push -u origin fix/mongodb-replica-set-reset
 ```
@@ -359,8 +359,8 @@ kubectl get secret -n mongodb
 **Step 3 — Restore the CRD in git so ArgoCD re-creates it:**
 
 ```bash
-cp /tmp/cluster-mongodb.yaml.bak apps/percona-mongodb/cluster-mongodb.yaml
-git add apps/percona-mongodb/cluster-mongodb.yaml
+cp /tmp/perconaservermongodb-mongodb.yaml.bak apps/percona-mongodb/perconaservermongodb-mongodb.yaml
+git add apps/percona-mongodb/perconaservermongodb-mongodb.yaml
 git commit -m "fix: restore MongoDB cluster CRD with clean bootstrap"
 git push
 ```

@@ -80,7 +80,7 @@ apps/<appname>/
 apps/<appname>/
 ├── secret-<appname>-db-credentials.yaml     (namespace: mongodb, wave -3)
 └── sealedsecret-<appname>-db-credentials.yaml (after sealing)
-# Also MODIFY: apps/percona-mongodb/cluster-mongodb.yaml (add user to spec.users)
+# Also MODIFY: apps/percona-mongodb/perconaservermongodb-mongodb.yaml (add user to spec.users)
 ```
 
 ### Step 4: Sync wave pre-fill

@@ -49,7 +49,7 @@ kubectl get certificates -A
 
 ### Step 1 — Update DNS
 
-Point your domain(s) at the Kubernetes Traefik IP (the first IP in your MetalLB pool, reserved for Traefik — see `apps/metallb/ipaddresspool.yaml`):
+Point your domain(s) at the Kubernetes Traefik IP (the first IP in your MetalLB pool, reserved for Traefik — see `apps/metallb/ipaddresspool-default-pool.yaml`):
 
 | Record | Type | Value |
 |--------|------|-------|
@@ -155,7 +155,7 @@ For each service, create the appropriate `IngressRoute` in Kubernetes Traefik. S
 For services that are moving their workloads into the cluster, create the full deployment manifests alongside this routing config.
 
 ```yaml
-# Template: apps/<app-name>/ingressroute.yaml
+# Template: apps/<app-name>/ingressroute-<app-name>.yaml
 #
 # Replace all <PLACEHOLDER> values before applying.
 apiVersion: traefik.io/v1alpha1

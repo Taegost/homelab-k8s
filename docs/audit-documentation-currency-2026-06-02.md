@@ -117,7 +117,7 @@ confirmed against live repo state.
 
 | # | Severity | Finding |
 |---|----------|---------|
-| 34 | **MEDIUM** | **`docs/superpowers/plans/2026-05-23-mongodb-cluster-plan.md` references Percona Operator v1.22.0, MongoDB 8.0.19-7.** The actual deployed version is whatever's in `apps/percona-mongodb/cluster-mongodb.yaml` and `apps/manifests/percona-mongodb-operator.yaml`. These docs are implementation plans — they become stale the moment the actual deployment version drifts. |
+| 34 | **MEDIUM** | **`docs/superpowers/plans/2026-05-23-mongodb-cluster-plan.md` references Percona Operator v1.22.0, MongoDB 8.0.19-7.** The actual deployed version is whatever's in `apps/percona-mongodb/perconaservermongodb-mongodb.yaml` and `apps/manifests/percona-mongodb-operator.yaml`. These docs are implementation plans — they become stale the moment the actual deployment version drifts. |
 | 35 | **LOW** | **`docs/superpowers/specs/2026-05-23-mongodb-cluster-design.md`** — design doc, historical. No staleness issues for a design reference. |
 
 ### 15. App READMEs
