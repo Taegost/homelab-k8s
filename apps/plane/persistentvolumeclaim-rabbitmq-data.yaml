@@ -1,0 +1,19 @@
+# PersistentVolumeClaim — RabbitMQ data
+#
+# RabbitMQ persistent message storage. Required so queued Celery tasks
+# survive pod restarts. RWO with Recreate strategy — single replica only.
+#
+# 2Gi: RabbitMQ at homelab scale stores transient messages. 2Gi is ample
+# headroom for task queue backlogs. Adjust if message volumes grow.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-data
+  namespace: plane
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

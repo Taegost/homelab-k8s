@@ -1,0 +1,104 @@
+# Deployment — Plane API
+#
+# Django REST API backend (Gunicorn). Serves /api/*, /auth/*, /graphql/*.
+# Connects to shared CNPG PostgreSQL via PgBouncer pooler.
+#
+# Image: makeplane/plane-backend — same image serves api, worker, beatworker,
+# and migrator roles via different entrypoint scripts.
+#
+# No PVC mount — file uploads go to MinIO via S3 API, not local filesystem.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plane-api
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plane-api
+  template:
+    metadata:
+      labels:
+        app: plane-api
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # Image runs as root (python:3.12.10-alpine, no USER directive).
+        # Lock down with seccomp + no capabilities + no privilege escalation.
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: docker.io/makeplane/plane-backend:v1.3.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: plane
+            - secretRef:
+                name: plane
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: database-password
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: aws-access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: aws-secret-access-key
+            - name: LIVE_SERVER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: live-server-secret-key
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: rabbitmq-password
+          # Django runs DB migrations on startup. Startup probe gives
+          # generous headroom — migrations can take minutes on first start.
+          startupProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 300Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi

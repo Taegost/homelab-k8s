@@ -1,0 +1,66 @@
+# Deployment — Plane Live (real-time collaboration server)
+#
+# WebSocket server for real-time collaboration features.
+# Dockerfile.live: node:22-alpine, CMD: node apps/live.
+#
+# EXPOSE 3000. node:22-alpine runs as UID 1000 (node user).
+# No env file in docker-compose — gets configuration from the proxy
+# or built-in defaults.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plane-live
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plane-live
+  template:
+    metadata:
+      labels:
+        app: plane-live
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # node:22-alpine runs as node user (UID 1000)
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: live
+          image: docker.io/makeplane/plane-live:v1.3.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 3000
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

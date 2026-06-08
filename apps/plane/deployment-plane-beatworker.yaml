@@ -1,0 +1,79 @@
+# Deployment — Plane Beat Worker (Celery scheduled tasks)
+#
+# Celery beat scheduler — fires periodic tasks (cleanups, reminders,
+# recurring exports). Same image as API, different entrypoint.
+#
+# SINGLE REPLICA ONLY. Duplicate beat schedulers would fire duplicate tasks.
+# No liveness probe — beat is fire-and-forget scheduling; a dead beat
+# means missed schedules until the pod restarts.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plane-beatworker
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plane-beatworker
+  template:
+    metadata:
+      labels:
+        app: plane-beatworker
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: beatworker
+          image: docker.io/makeplane/plane-backend:v1.3.1
+          command: ["./bin/docker-entrypoint-beat.sh"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: plane
+            - secretRef:
+                name: plane
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: database-password
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: aws-access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: aws-secret-access-key
+            - name: LIVE_SERVER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: live-server-secret-key
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: rabbitmq-password
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

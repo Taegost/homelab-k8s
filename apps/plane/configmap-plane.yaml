@@ -1,0 +1,61 @@
+# ConfigMap — Plane (non-sensitive configuration)
+#
+# Environment variables that are safe to store in plaintext.
+# Secrets (passwords, keys) are in secret-plane.yaml — keep them there.
+#
+# Sources: Plane repo docker-compose.yml and apps/api/.env.example
+# (preview branch, verified 2026-06-08).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plane
+  namespace: plane
+data:
+  DEBUG: "0"
+  # WEB_URL is the canonical public URL Plane uses to generate links.
+  WEB_URL: "https://plane.home.diceninjagaming.com"
+  GUNICORN_WORKERS: "2"
+  # Max upload size in bytes (~5MB). Plane enforces this in the proxy and API.
+  FILE_SIZE_LIMIT: "5242880"
+  # Presigned S3 URL TTL in seconds.
+  SIGNED_URL_EXPIRATION: "3600"
+  # Days before soft-deleted items are hard-deleted.
+  HARD_DELETE_AFTER_DAYS: "60"
+  # API key rate limit.
+  API_KEY_RATE_LIMIT: "60/minute"
+
+  # PostgreSQL (shared CNPG cluster via PgBouncer)
+  POSTGRES_USER: "plane"
+  POSTGRES_HOST: "postgres-pooler.postgres.svc.cluster.local"
+  POSTGRES_DB: "plane"
+  POSTGRES_PORT: "5432"
+
+  # Valkey / Redis (cache and sessions)
+  REDIS_HOST: "valkey.plane.svc.cluster.local"
+  REDIS_PORT: "6379"
+
+  # RabbitMQ (Celery message broker)
+  RABBITMQ_HOST: "rabbitmq.plane.svc.cluster.local"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: "plane"
+  RABBITMQ_VHOST: "plane"
+
+  # MinIO (S3-compatible file storage)
+  AWS_REGION: ""
+  AWS_S3_ENDPOINT_URL: "http://minio.plane.svc.cluster.local:9000"
+  AWS_S3_BUCKET_NAME: "uploads"
+  USE_MINIO: "1"
+  MINIO_ENDPOINT_SSL: "0"
+
+  # CORS — comma-separated list of allowed origins
+  CORS_ALLOWED_ORIGINS: "https://plane.home.diceninjagaming.com"
+
+  # Frontend app URLs (all use same hostname — Traefik routes by path prefix)
+  APP_BASE_URL: "https://plane.home.diceninjagaming.com"
+  APP_BASE_PATH: ""
+  ADMIN_BASE_URL: "https://plane.home.diceninjagaming.com"
+  ADMIN_BASE_PATH: "/god-mode"
+  SPACE_BASE_URL: "https://plane.home.diceninjagaming.com"
+  SPACE_BASE_PATH: "/spaces"
+  LIVE_BASE_URL: "https://plane.home.diceninjagaming.com"
+  LIVE_BASE_PATH: "/live"

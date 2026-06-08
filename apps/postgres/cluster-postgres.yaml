@@ -131,3 +131,12 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: librechat-rag-db-credentials
+      - name: plane
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: plane-db-credentials

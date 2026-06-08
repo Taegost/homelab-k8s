@@ -1,0 +1,81 @@
+# Deployment — MinIO (S3-compatible object storage)
+#
+# Plane uses MinIO for file uploads via S3 presigned URLs. The frontend
+# uploads directly to MinIO — not through the Django API. This matches
+# Plane's docker-compose architecture.
+#
+# Mounts a Longhorn RWO PVC at /export (the MinIO data directory).
+# Recreate strategy required — RWO cannot attach to two pods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+        app.kubernetes.io/part-of: plane
+    spec:
+      securityContext:
+        # MinIO runs as root by default; fsGroup ensures the PVC is writable.
+        fsGroup: 0
+      containers:
+        - name: minio
+          image: docker.io/minio/minio:latest
+          args:
+            - server
+            - /export
+            - --console-address
+            - ":9090"
+          ports:
+            - containerPort: 9000
+              name: s3
+            - containerPort: 9090
+              name: console
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: access-key
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: secret-key
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /export
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minio-data

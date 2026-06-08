@@ -1,0 +1,21 @@
+# PersistentVolumeClaim — MinIO data
+#
+# MinIO stores Plane file uploads (issue attachments) on a Longhorn RWO PVC.
+# Single replica with Recreate strategy on the MinIO Deployment — RWO cannot
+# attach to two pods simultaneously.
+#
+# 10Gi: generous starting size for issue attachments. MinIO stores objects
+# directly on the filesystem under /export. Monitor usage and expand if needed
+# via the Longhorn UI.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+  namespace: plane
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
