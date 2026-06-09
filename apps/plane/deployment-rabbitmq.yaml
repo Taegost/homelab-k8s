@@ -71,16 +71,21 @@ spec:
                   key: password
             - name: RABBITMQ_DEFAULT_VHOST
               value: plane
+          # RabbitMQ can take 60+ seconds to initialize. Startup probe
+          # gates liveness/readiness — neither fires until it succeeds.
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "check_running"]
+            failureThreshold: 12
+            periodSeconds: 10
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
-            initialDelaySeconds: 30
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             exec:
-              command: ["rabbitmq-diagnostics", "check_running"]
-            initialDelaySeconds: 10
+              command: ["rabbitmq-diagnostics", "check_port_connectivity"]
             periodSeconds: 10
           resources:
             requests:
