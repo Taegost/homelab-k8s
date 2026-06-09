@@ -45,18 +45,23 @@ spec:
               name: http
           # Router basename is /spaces/ — / returns 404, which Kubernetes
           # treats as probe failure (>= 400). Probe must match the basename.
+          # timeoutSeconds: 10 — the space server calls the API backend to
+          # render pages. If the API is slow or down, responses can take
+          # 5-10s. Default 1s timeout → spurious probe failures.
           livenessProbe:
             httpGet:
               path: /spaces/
               port: 3000
             periodSeconds: 30
             failureThreshold: 3
+            timeoutSeconds: 10
           readinessProbe:
             httpGet:
               path: /spaces/
               port: 3000
             periodSeconds: 10
             failureThreshold: 3
+            timeoutSeconds: 10
           resources:
             requests:
               cpu: 50m

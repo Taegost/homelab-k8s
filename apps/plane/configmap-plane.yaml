@@ -53,6 +53,9 @@ data:
   # CORS — comma-separated list of allowed origins
   CORS_ALLOWED_ORIGINS: "https://plane.home.diceninjagaming.com"
 
+  # Backend API URL (internal cluster DNS — used by live/space servers)
+  API_BASE_URL: "http://plane-api.plane.svc.cluster.local:8000"
+
   # Frontend app URLs (all use same hostname — Traefik routes by path prefix)
   APP_BASE_URL: "https://plane.home.diceninjagaming.com"
   APP_BASE_PATH: ""

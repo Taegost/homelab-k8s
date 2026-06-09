@@ -103,29 +103,38 @@ spec:
           # pressure. Startup probe gates liveness/readiness — neither fires
           # until it succeeds. failureThreshold 20 × periodSeconds 10 = 200s
           # max startup time (observed: 155s).
+          # timeoutSeconds: 10 — Kubernetes default is 1s, which is too short
+          # for rabbitmq-diagnostics under CPU load (takes 2-5s). Without
+          # this, probes time out spuriously and kill RabbitMQ.
           startupProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
             failureThreshold: 20
             periodSeconds: 10
+            timeoutSeconds: 10
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
             periodSeconds: 30
             failureThreshold: 3
+            timeoutSeconds: 10
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_port_connectivity"]
             periodSeconds: 10
+            timeoutSeconds: 10
           # RabbitMQ needs sufficient memory headroom. vm_memory_high_watermark
           # is set to 500MB absolute via configmap-rabbitmq.yaml — the container
           # limit must exceed that by enough for Erlang VM overhead (~200Mi).
+          # CPU: 1000m — RabbitMQ's Erlang BEAM uses ~500m during steady state
+          # but spikes near 1000m during boot (JIT compilation, Mnesia init).
+          # 500m caused CPU throttling → slow boot + probe timeouts.
           resources:
             requests:
               cpu: 100m
               memory: 256Mi
             limits:
-              cpu: 500m
+              cpu: 1000m
               memory: 768Mi
           volumeMounts:
             - name: data
