@@ -32,12 +32,10 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         # RabbitMQ alpine entrypoint runs as root, chowns /var/lib/rabbitmq
-        # to rabbitmq:rabbitmq (UID 100, GID 101), then drops to rabbitmq.
-        # fsGroup: 101 ensures kubelet chowns the Longhorn PVC so rabbitmq
-        # can access everything (including lost+found which is 0700 root:root).
-        # .erlang.cookie gets correct permissions because initContainer
-        # cleans lost+found and chowns the volume before RabbitMQ starts.
-        fsGroup: 101
+        # to rabbitmq:rabbitmq, then drops to rabbitmq. NO fsGroup — it sets
+        # g+rwx+setgid on the volume, causing .erlang.cookie to inherit group
+        # permissions. RabbitMQ requires 0600 (owner only). Init container
+        # handles lost+found removal and volume ownership.
         seccompProfile:
           type: RuntimeDefault
       initContainers:
