@@ -1,0 +1,82 @@
+# Job — Plane Migrator (database migrations)
+#
+# Runs Django database migrations once before the API pod starts.
+# Wave -1 ensures ArgoCD syncs this Job before the wave-0 Deployments.
+# Note: ArgoCD waves control sync ORDER, not Job completion — the API
+# may still start before this Job finishes. The API's startup probe
+# (30 failures × 10s = 5 min) acts as the safety net, refusing traffic
+# until Django reports migrations are applied.
+#
+# Same image as API, different entrypoint.
+# Django's migrate command is idempotent — it checks the django_migrations
+# table and only applies pending migrations. Safe to run multiple times.
+# restartPolicy: OnFailure — retries if the database isn't ready yet.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: plane-migrator
+  namespace: plane
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrator
+          image: docker.io/makeplane/plane-backend:v1.3.1
+          command: ["./bin/docker-entrypoint-migrator.sh"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: plane
+            - secretRef:
+                name: plane
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: database-password
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: s3-root-user
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: s3-root-password
+            - name: LIVE_SERVER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: live-server-secret-key
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq
+                  key: password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,62 @@
+# Deployment — Plane Web (main UI)
+#
+# Next.js frontend served via nginx. Plane's Dockerfile.web uses a
+# multi-stage build: node:22-alpine builder → nginx:1.29-alpine runtime.
+# Nginx proxies API requests to the backend; static assets served directly.
+#
+# EXPOSE 3000. No USER directive — nginx manages its own privilege
+# separation (master as root, workers as non-root).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plane-web
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plane-web
+  template:
+    metadata:
+      labels:
+        app: plane-web
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: docker.io/makeplane/plane-frontend:v1.3.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 3000
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

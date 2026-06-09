@@ -1,0 +1,69 @@
+# Deployment — Valkey (Redis-compatible cache)
+#
+# Plane uses Valkey for Django session caching. Plane's docker-compose
+# explicitly uses valkey/valkey:7.2.11-alpine — match that image.
+#
+# noeviction maxmemory policy: correct for cache/sessions — eviction would
+# cause user sessions to vanish, which is worse than a write error.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: valkey
+          image: docker.io/valkey/valkey:7.2.11-alpine
+          command:
+            - valkey-server
+            - --maxmemory
+            - 96mb
+            - --maxmemory-policy
+            - noeviction
+          ports:
+            - containerPort: 6379
+          livenessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            # Valkey image runs as UID 999 (same as Redis). Bypasses the
+            # entrypoint's privilege-drop step — detects it is already the
+            # correct user and skips chown. ALL capabilities dropped.
+            runAsUser: 999
+            runAsGroup: 999
+            capabilities:
+              drop:
+                - ALL

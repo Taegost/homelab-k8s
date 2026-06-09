@@ -1,0 +1,87 @@
+# IngressRoute — Plane (traefik namespace, wildcard cert)
+#
+# Internal-only Plane CE access via shared wildcard certificate.
+# Path-based routing dispatches to the correct frontend/backend service.
+# Order matters — Traefik evaluates rules top-to-bottom; specific paths
+# must come before the catch-all.
+#
+# default-whitelist restricts access to internal subnets only.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: plane
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # API routes (most specific first)
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/api/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-api
+          namespace: plane
+          port: 8000
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/auth/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-api
+          namespace: plane
+          port: 8000
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/graphql/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-api
+          namespace: plane
+          port: 8000
+    # Space UI
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/spaces/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-space
+          namespace: plane
+          port: 3000
+    # Admin panel
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/god-mode/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-admin
+          namespace: plane
+          port: 3000
+    # Live WebSocket server
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/live/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-live
+          namespace: plane
+          port: 3000
+    # Main web UI (catch-all — must be last)
+    - match: Host(`plane.home.diceninjagaming.com`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: plane-web
+          namespace: plane
+          port: 3000
+  tls:
+    secretName: wildcard-home-diceninjagaming-com-tls

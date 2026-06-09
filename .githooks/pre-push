@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# pre-push hook — blocks push if working tree has uncommitted changes.
+# Installed by: ln -sf ../../.githooks/pre-push .git/hooks/pre-push
+set -euo pipefail
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo ""
+  echo "=== BLOCKED: uncommitted changes ==="
+  echo ""
+  git status --short
+  echo ""
+  echo "Commit or stash before pushing."
+  exit 1
+fi
+
+exit 0

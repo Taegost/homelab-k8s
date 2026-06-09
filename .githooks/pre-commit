@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# pre-commit hook — runs homelab-validate on staged YAML changes.
+# Blocks the commit if any validation fails.
+# Installed by: ln -s ../../.githooks/pre-commit .git/hooks/pre-commit
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+SCRIPTS="$REPO_ROOT/.claude/skills/homelab-validate/scripts"
+
+# Only run if YAML files are staged
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' || true)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+echo "=== homelab-validate pre-commit ==="
+FAILED=0
+
+# 1. Sync waves
+echo ""
+echo "[1/7] Sync wave check..."
+bash "$SCRIPTS/sync-wave-check.sh" || FAILED=1
+
+# 2. YAML validity
+echo ""
+echo "[2/7] YAML validity..."
+bash "$SCRIPTS/yaml-validity.sh" || FAILED=1
+
+# 3. Plaintext secret guard
+echo ""
+echo "[3/7] Plaintext secret guard..."
+bash "$SCRIPTS/plaintext-secret-guard.sh" || FAILED=1
+
+# 4. IngressRoute consistency (only if IngressRoutes changed)
+if echo "$STAGED" | grep -q 'ingressroute'; then
+  echo ""
+  echo "[4/7] IngressRoute consistency..."
+  bash "$SCRIPTS/ingressroute-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[4/7] IngressRoute consistency — SKIP (no IngressRoutes changed)"
+fi
+
+# 5. Longhorn fsGroup (only if PVCs changed)
+if echo "$STAGED" | grep -q 'persistentvolumeclaim'; then
+  echo ""
+  echo "[5/7] Longhorn fsGroup check..."
+  bash "$SCRIPTS/longhorn-fsgroup-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[5/7] Longhorn fsGroup check — SKIP (no PVCs changed)"
+fi
+
+# 6. Secret template verification (filesystem check, not staged)
+echo ""
+echo "[6/7] Secret template verification..."
+bash "$SCRIPTS/secret-template-verify.sh" apps/ || FAILED=1
+
+# 7. :latest tag guard — never allow unpinned images.
+#    Set HOMELAB_ALLOW_LATEST=1 to downgrade to warning (e.g. for apps where
+#    the maintainer only publishes :latest). All other checks still run.
+echo ""
+echo "[7/7] :latest tag guard..."
+LATEST_HITS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -Hn 'image:.*:latest' 2>/dev/null || true)
+if [ -n "$LATEST_HITS" ]; then
+  echo "$LATEST_HITS"
+  if [ "${HOMELAB_ALLOW_LATEST:-0}" = "1" ]; then
+    echo "  WARNING: :latest tag found — allowed by HOMELAB_ALLOW_LATEST=1"
+  else
+    echo "  FAIL: :latest tag found — pin to a specific version (or set HOMELAB_ALLOW_LATEST=1 to override)"
+    FAILED=1
+  fi
+else
+  echo "  PASS: no :latest tags"
+fi
+
+echo ""
+if [ "$FAILED" -eq 0 ]; then
+  echo "=== PASS: homelab-validate ==="
+  exit 0
+else
+  echo "=== FAIL: homelab-validate — commit blocked ==="
+  echo "Fix the issues above and try again."
+  exit 1
+fi

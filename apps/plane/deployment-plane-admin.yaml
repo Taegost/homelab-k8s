@@ -1,0 +1,59 @@
+# Deployment — Plane Admin (god-mode admin panel)
+#
+# Serves admin panel at /god-mode/*.
+# Dockerfile.admin: multi-stage build, node:22-alpine → nginx:1.29-alpine.
+# EXPOSE 3000. Nginx manages its own privilege separation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plane-admin
+  namespace: plane
+  labels:
+    app.kubernetes.io/part-of: plane
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plane-admin
+  template:
+    metadata:
+      labels:
+        app: plane-admin
+        app.kubernetes.io/part-of: plane
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: admin
+          image: docker.io/makeplane/plane-admin:v1.3.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 3000
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

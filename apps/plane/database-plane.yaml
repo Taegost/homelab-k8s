@@ -1,0 +1,18 @@
+# Database CRD — Plane
+#
+# Provisions the plane database on the shared CNPG Postgres cluster.
+# The corresponding role is declared in apps/postgres/cluster-postgres.yaml.
+# Credentials are in secret-plane-db-credentials.yaml (postgres namespace,
+# to be sealed by the operator) and secret-plane.yaml (plane namespace).
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: plane
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  name: plane
+  owner: plane
+  cluster:
+    name: postgres
