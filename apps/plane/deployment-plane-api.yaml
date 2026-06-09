@@ -58,13 +58,13 @@ spec:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: plane
-                  key: aws-access-key-id
+                  name: minio
+                  key: root-user
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: plane
-                  key: aws-secret-access-key
+                  name: minio
+                  key: root-password
             - name: LIVE_SERVER_SECRET_KEY
               valueFrom:
                 secretKeyRef:
