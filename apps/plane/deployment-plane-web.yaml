@@ -38,6 +38,10 @@ spec:
             capabilities:
               drop:
                 - ALL
+              add:
+                # nginx entrypoint chowns /var/cache/nginx/client_temp to the nginx
+                # user (UID 101) at startup. Dropping ALL removes CAP_CHOWN.
+                - CHOWN
           ports:
             - containerPort: 3000
               name: http
