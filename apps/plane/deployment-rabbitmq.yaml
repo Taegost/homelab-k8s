@@ -31,10 +31,11 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext:
-        # RabbitMQ alpine image runs as root (no USER directive). Root can
-        # write to root-owned Longhorn volumes — no fsGroup needed. The
-        # entrypoint chowns /var/lib/rabbitmq to rabbitmq:rabbitmq at startup.
-        # fsGroup exists to help NON-root containers write to root-owned PVCs.
+        # RabbitMQ alpine entrypoint runs as root, chowns /var/lib/rabbitmq
+        # to rabbitmq:rabbitmq (UID 100, GID 101), then drops to rabbitmq.
+        # fsGroup: 101 pre-sets the PVC group so rabbitmq can write even if
+        # the chown step is skipped (e.g. on restart).
+        fsGroup: 101
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -45,6 +46,11 @@ spec:
             capabilities:
               drop:
                 - ALL
+              add:
+                # RabbitMQ entrypoint chowns /var/lib/rabbitmq to rabbitmq:rabbitmq
+                # before dropping privileges. Dropping ALL removes CAP_CHOWN, which
+                # causes "Operation not permitted" on the PVC.
+                - CHOWN
           ports:
             - containerPort: 5672
               name: amqp
