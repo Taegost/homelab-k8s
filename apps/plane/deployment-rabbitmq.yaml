@@ -47,10 +47,12 @@ spec:
               drop:
                 - ALL
               add:
-                # RabbitMQ entrypoint chowns /var/lib/rabbitmq to rabbitmq:rabbitmq
-                # before dropping privileges. Dropping ALL removes CAP_CHOWN, which
-                # causes "Operation not permitted" on the PVC.
+                # RabbitMQ entrypoint: (1) chowns /var/lib/rabbitmq to rabbitmq
+                # (needs CAP_CHOWN), then (2) uses su-exec to drop to rabbitmq user
+                # (needs CAP_SETGID + CAP_SETUID for setgroups()).
                 - CHOWN
+                - SETGID
+                - SETUID
           ports:
             - containerPort: 5672
               name: amqp

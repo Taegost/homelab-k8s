@@ -63,7 +63,11 @@ echo ""
 echo "[7/7] :latest tag guard..."
 # Match both explicit :latest and implicit (no tag suffix after image name)
 LATEST_HITS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -HnE 'image:.*:latest($|[^./-])' 2>/dev/null || true)
-IMPLICIT=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -HnE 'image:\s+\S+/\S+$' 2>/dev/null | grep -v ':latest' | grep -v '@sha256' || true)
+# Only flag images with no tag or digest by extracting the image value
+IMPLICIT=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -HnE 'image:\s+\S+/\S+$' 2>/dev/null | while read line; do
+  img=$(echo "$line" | sed 's/.*image:\s*//')
+  echo "$img" | grep -qE '[:@]' || echo "$line"
+done || true)
 ALL_LATEST="$LATEST_HITS"$'\n'"$IMPLICIT"
 ALL_LATEST=$(echo "$ALL_LATEST" | grep -v '^$' || true)
 if [ -n "$ALL_LATEST" ]; then
