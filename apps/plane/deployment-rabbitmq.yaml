@@ -73,7 +73,12 @@ spec:
                 # RabbitMQ entrypoint: (1) chowns /var/lib/rabbitmq to rabbitmq
                 # (needs CAP_CHOWN), then (2) uses su-exec to drop to rabbitmq user
                 # (needs CAP_SETGID + CAP_SETUID for setgroups()).
+                # (3) DAC_OVERRIDE: probe commands run as root but .erlang.cookie
+                # is mode 0600 owned by rabbitmq:rabbitmq. Without DAC_OVERRIDE,
+                # root without capabilities respects file permissions and cannot
+                # read the cookie — so rabbitmq-diagnostics always fails.
                 - CHOWN
+                - DAC_OVERRIDE
                 - SETGID
                 - SETUID
           ports:

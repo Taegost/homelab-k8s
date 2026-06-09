@@ -43,15 +43,17 @@ spec:
           ports:
             - containerPort: 3000
               name: http
+          # Router basename is /spaces/ — / returns 404, which Kubernetes
+          # treats as probe failure (>= 400). Probe must match the basename.
           livenessProbe:
             httpGet:
-              path: /
+              path: /spaces/
               port: 3000
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /spaces/
               port: 3000
             periodSeconds: 10
             failureThreshold: 3

@@ -37,8 +37,11 @@ spec:
                 - ALL
               add:
                 # nginx entrypoint chowns /var/cache/nginx/client_temp to the nginx
-                # user (UID 101) at startup. Dropping ALL removes CAP_CHOWN.
+                # user (UID 101) at startup (needs CAP_CHOWN). Workers call setgid(101)
+                # + setuid() to drop from root to nginx (needs CAP_SETGID + CAP_SETUID).
                 - CHOWN
+                - SETGID
+                - SETUID
           ports:
             - containerPort: 3000
               name: http
