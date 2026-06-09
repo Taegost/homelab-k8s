@@ -61,17 +61,21 @@ bash "$SCRIPTS/secret-template-verify.sh" apps/ || FAILED=1
 #    the maintainer only publishes :latest). All other checks still run.
 echo ""
 echo "[7/7] :latest tag guard..."
-LATEST_HITS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -Hn 'image:.*:latest' 2>/dev/null || true)
-if [ -n "$LATEST_HITS" ]; then
-  echo "$LATEST_HITS"
+# Match both explicit :latest and implicit (no tag suffix after image name)
+LATEST_HITS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -HnE 'image:.*:latest($|[^./-])' 2>/dev/null || true)
+IMPLICIT=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -HnE 'image:\s+\S+/\S+$' 2>/dev/null | grep -v ':latest' | grep -v '@sha256' || true)
+ALL_LATEST="$LATEST_HITS"$'\n'"$IMPLICIT"
+ALL_LATEST=$(echo "$ALL_LATEST" | grep -v '^$' || true)
+if [ -n "$ALL_LATEST" ]; then
+  echo "$ALL_LATEST"
   if [ "${HOMELAB_ALLOW_LATEST:-0}" = "1" ]; then
-    echo "  WARNING: :latest tag found — allowed by HOMELAB_ALLOW_LATEST=1"
+    echo "  WARNING: :latest or unpinned image found — allowed by HOMELAB_ALLOW_LATEST=1"
   else
-    echo "  FAIL: :latest tag found — pin to a specific version (or set HOMELAB_ALLOW_LATEST=1 to override)"
+    echo "  FAIL: :latest or unpinned image found — pin to a specific version (or set HOMELAB_ALLOW_LATEST=1 to override)"
     FAILED=1
   fi
 else
-  echo "  PASS: no :latest tags"
+  echo "  PASS: no :latest or unpinned images"
 fi
 
 echo ""

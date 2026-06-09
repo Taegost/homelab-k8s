@@ -31,16 +31,20 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext:
-        # MinIO image (ubi9/ubi-micro base, no USER directive) runs as root.
-        # Root can write to root-owned Longhorn volumes — no fsGroup needed.
-        # fsGroup exists to help NON-root containers write to root-owned PVCs.
+        # Chainguard MinIO image runs as non-root UID/GID 65532.
+        # fsGroup is required — Longhorn volumes are root-owned until kubelet
+        # chowns them to the pod's fsGroup before the container starts.
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: minio
-          image: quay.io/minio/minio:RELEASE.2025-10-15T17-29-55Z
+          image: cgr.dev/chainguard/minio:latest
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
             capabilities:
               drop:
                 - ALL
