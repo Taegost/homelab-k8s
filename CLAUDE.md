@@ -49,6 +49,7 @@ The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/
 | IngressRoute | `ingressroute-check.sh` | Wrong namespace, missing middleware, cert issues |
 | Longhorn fsGroup | `longhorn-fsgroup-check.sh` | Missing fsGroup on non-root + Longhorn, fsGroup in wrong location |
 | Secret templates | `secret-template-verify.sh` | Missing sync-wave annotations, bad placeholder format |
+| :latest tag guard | inline in hook | Unpinned image tags (`image: ...:latest`) — must use a specific version |
 
 The same suite can be invoked manually: `/homelab-validate`
 

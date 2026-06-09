@@ -18,43 +18,55 @@ FAILED=0
 
 # 1. Sync waves
 echo ""
-echo "[1/6] Sync wave check..."
+echo "[1/7] Sync wave check..."
 bash "$SCRIPTS/sync-wave-check.sh" || FAILED=1
 
 # 2. YAML validity
 echo ""
-echo "[2/6] YAML validity..."
+echo "[2/7] YAML validity..."
 bash "$SCRIPTS/yaml-validity.sh" || FAILED=1
 
 # 3. Plaintext secret guard
 echo ""
-echo "[3/6] Plaintext secret guard..."
+echo "[3/7] Plaintext secret guard..."
 bash "$SCRIPTS/plaintext-secret-guard.sh" || FAILED=1
 
 # 4. IngressRoute consistency (only if IngressRoutes changed)
 if echo "$STAGED" | grep -q 'ingressroute'; then
   echo ""
-  echo "[4/6] IngressRoute consistency..."
+  echo "[4/7] IngressRoute consistency..."
   bash "$SCRIPTS/ingressroute-check.sh" || FAILED=1
 else
   echo ""
-  echo "[4/6] IngressRoute consistency — SKIP (no IngressRoutes changed)"
+  echo "[4/7] IngressRoute consistency — SKIP (no IngressRoutes changed)"
 fi
 
 # 5. Longhorn fsGroup (only if PVCs changed)
 if echo "$STAGED" | grep -q 'persistentvolumeclaim'; then
   echo ""
-  echo "[5/6] Longhorn fsGroup check..."
+  echo "[5/7] Longhorn fsGroup check..."
   bash "$SCRIPTS/longhorn-fsgroup-check.sh" || FAILED=1
 else
   echo ""
-  echo "[5/6] Longhorn fsGroup check — SKIP (no PVCs changed)"
+  echo "[5/7] Longhorn fsGroup check — SKIP (no PVCs changed)"
 fi
 
 # 6. Secret template verification (filesystem check, not staged)
 echo ""
-echo "[6/6] Secret template verification..."
+echo "[6/7] Secret template verification..."
 bash "$SCRIPTS/secret-template-verify.sh" apps/ || FAILED=1
+
+# 7. :latest tag guard — never allow unpinned images
+echo ""
+echo "[7/7] :latest tag guard..."
+LATEST_HITS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -Hn 'image:.*:latest' 2>/dev/null || true)
+if [ -n "$LATEST_HITS" ]; then
+  echo "$LATEST_HITS"
+  echo "  FAIL: :latest tag found — pin to a specific version"
+  FAILED=1
+else
+  echo "  PASS: no :latest tags"
+fi
 
 echo ""
 if [ "$FAILED" -eq 0 ]; then
