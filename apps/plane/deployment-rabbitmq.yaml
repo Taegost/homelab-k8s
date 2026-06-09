@@ -6,6 +6,9 @@
 #
 # Management plugin enabled on port 15672 for debugging — internal-only,
 # not exposed via IngressRoute.
+#
+# Single replica with Recreate strategy — Longhorn RWO cannot attach to
+# two pods simultaneously.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,6 +18,8 @@ metadata:
     app.kubernetes.io/part-of: plane
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: rabbitmq
@@ -24,9 +29,22 @@ spec:
         app: rabbitmq
         app.kubernetes.io/part-of: plane
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # RabbitMQ alpine image runs as root (no USER directive). Root can
+        # write to root-owned Longhorn volumes — no fsGroup needed. The
+        # entrypoint chowns /var/lib/rabbitmq to rabbitmq:rabbitmq at startup.
+        # fsGroup exists to help NON-root containers write to root-owned PVCs.
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: rabbitmq
           image: docker.io/library/rabbitmq:3.13.6-management-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 5672
               name: amqp

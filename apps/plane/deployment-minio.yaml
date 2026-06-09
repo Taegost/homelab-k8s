@@ -27,11 +27,19 @@ spec:
         app.kubernetes.io/part-of: plane
     spec:
       securityContext:
-        # MinIO runs as root by default; fsGroup ensures the PVC is writable.
-        fsGroup: 0
+        # MinIO image (ubi9/ubi-micro base, no USER directive) runs as root.
+        # Root can write to root-owned Longhorn volumes — no fsGroup needed.
+        # fsGroup exists to help NON-root containers write to root-owned PVCs.
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: minio
           image: docker.io/minio/minio:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           args:
             - server
             - /export

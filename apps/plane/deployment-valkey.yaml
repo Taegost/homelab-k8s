@@ -23,6 +23,10 @@ spec:
         app: valkey
         app.kubernetes.io/part-of: plane
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: valkey
           image: docker.io/valkey/valkey:7.2.11-alpine
