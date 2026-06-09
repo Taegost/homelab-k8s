@@ -41,7 +41,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: minio
-          image: cgr.dev/chainguard/minio
+          image: cgr.dev/chainguard/minio:latest
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
