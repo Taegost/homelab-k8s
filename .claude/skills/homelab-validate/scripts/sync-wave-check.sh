@@ -60,7 +60,8 @@ FAILURES=0
 # Parse the staged files for metadata.name and sync-wave annotation
 declare -A RESOURCE_WAVE
 while IFS= read -r f; do
-  name=$(grep -A2 '^metadata:' "$f" | grep 'name:' | head -1 | awk '{print $2}' || true)
+  # Get the first metadata.name (indented 2 spaces per K8s convention)
+  name=$(grep -m1 '^  name:' "$f" | awk '{print $2}' || true)
   wave=$(grep 'argocd.argoproj.io/sync-wave' "$f" | head -1 | grep -oP '"\K-?\d+' || echo "0")
   [ -n "$name" ] && RESOURCE_WAVE["$name"]="$wave"
 done < <(echo "$STAGED")
@@ -73,7 +74,7 @@ while IFS= read -r f; do
   fi
 
   # Extract configMapRef and secretRef/secretKeyRef names
-  refs=$(grep -E '^\s+name:\s+\S+' "$f" | grep -B1 -E '(configMapRef|secretRef|secretKeyRef)' | grep 'name:' | awk '{print $2}' || true)
+  refs=$(grep -A1 -E '(configMapRef|secretRef|secretKeyRef)' "$f" | grep 'name:' | awk '{print $2}' || true)
 
   for ref in $refs; do
     ref_wave="${RESOURCE_WAVE[$ref]:-0}"
