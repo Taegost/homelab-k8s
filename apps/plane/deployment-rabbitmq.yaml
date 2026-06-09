@@ -33,10 +33,32 @@ spec:
       securityContext:
         # RabbitMQ alpine entrypoint runs as root, chowns /var/lib/rabbitmq
         # to rabbitmq:rabbitmq (UID 100, GID 101), then drops to rabbitmq.
-        # NO fsGroup — it sets g+rwx on the volume which causes .erlang.cookie
-        # to inherit group permissions. RabbitMQ requires 0600 (owner only).
+        # fsGroup: 101 ensures kubelet chowns the Longhorn PVC so rabbitmq
+        # can access everything (including lost+found which is 0700 root:root).
+        # .erlang.cookie gets correct permissions because initContainer
+        # cleans lost+found and chowns the volume before RabbitMQ starts.
+        fsGroup: 101
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        # lost+found is created by ext4 mkfs at the volume root, owned root:root
+        # with mode 0700. RabbitMQ's startup scripts run 'find' as the rabbitmq
+        # user, which can't traverse it unless fsGroup chowns it. Remove it to
+        # avoid the issue entirely — it serves no purpose in a container.
+        - name: fix-data-permissions
+          image: docker.io/library/busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              rm -rf /var/lib/rabbitmq/lost+found
+              # Ensure rabbitmq group owns everything after fsGroup chown
+              chown -R 100:101 /var/lib/rabbitmq
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
       containers:
         - name: rabbitmq
           image: docker.io/library/rabbitmq:3.13.6-management-alpine
