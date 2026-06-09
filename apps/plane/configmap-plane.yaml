@@ -35,6 +35,7 @@ data:
   # Valkey / Redis (cache and sessions)
   REDIS_HOST: "valkey.plane.svc.cluster.local"
   REDIS_PORT: "6379"
+  REDIS_URL: "redis://valkey.plane.svc.cluster.local:6379/"
 
   # RabbitMQ (Celery message broker)
   RABBITMQ_HOST: "rabbitmq.plane.svc.cluster.local"
