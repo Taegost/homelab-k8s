@@ -54,12 +54,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: minio
-                  key: root-user
+                  key: s3-root-user
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio
-                  key: root-password
+                  key: s3-root-password
             - name: LIVE_SERVER_SECRET_KEY
               valueFrom:
                 secretKeyRef:

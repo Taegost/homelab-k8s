@@ -55,12 +55,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: minio
-                  key: root-user
+                  key: s3-root-user
             - name: MINIO_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: minio
-                  key: root-password
+                  key: s3-root-password
           livenessProbe:
             httpGet:
               path: /minio/health/live
