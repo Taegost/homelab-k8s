@@ -1,7 +1,23 @@
 #!/usr/bin/env bash
-# pre-push hook — blocks push if working tree has uncommitted changes.
+# pre-push hook — blocks push to main and dirty working tree.
 # Installed by: ln -sf ../../.githooks/pre-push .git/hooks/pre-push
 set -euo pipefail
+
+# Block direct pushes to main. All changes go through feature branches + PRs.
+# The remote ref being pushed is read from stdin (git push passes refs on stdin).
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    echo ""
+    echo "=== BLOCKED: direct push to main ==="
+    echo ""
+    echo "All changes must go through feature branches + PRs. Never push to main."
+    echo "  1. Create a branch:  git checkout -b feat/my-fix"
+    echo "  2. Commit there:     git commit ..."
+    echo "  3. Push the branch:  git push -u origin feat/my-fix"
+    echo "  4. Create a PR:      gh pr create"
+    exit 1
+  fi
+done
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo ""
