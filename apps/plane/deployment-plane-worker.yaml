@@ -69,16 +69,13 @@ spec:
                 secretKeyRef:
                   name: rabbitmq
                   key: password
+          # exec arrays don't expand $HOSTNAME — use shell to interpolate.
           livenessProbe:
             exec:
               command:
-                - celery
-                - -A
-                - plane
-                - inspect
-                - ping
-                - -d
-                - celery@$HOSTNAME
+                - /bin/sh
+                - -c
+                - celery -A plane inspect ping -d celery@$HOSTNAME
             initialDelaySeconds: 30
             periodSeconds: 60
             failureThreshold: 3

@@ -4,6 +4,9 @@
 # uploads directly to MinIO — not through the Django API. This matches
 # Plane's docker-compose architecture.
 #
+# Image pinned to RELEASE.2025-10-15T17-29-55Z — docker.io/minio/minio is
+# stale (repo archived Apr 2026); quay.io/minio/minio is the current source.
+#
 # Mounts a Longhorn RWO PVC at /export (the MinIO data directory).
 # Recreate strategy required — RWO cannot attach to two pods.
 apiVersion: apps/v1
@@ -26,6 +29,7 @@ spec:
         app: minio
         app.kubernetes.io/part-of: plane
     spec:
+      automountServiceAccountToken: false
       securityContext:
         # MinIO image (ubi9/ubi-micro base, no USER directive) runs as root.
         # Root can write to root-owned Longhorn volumes — no fsGroup needed.
@@ -34,7 +38,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: minio
-          image: docker.io/minio/minio:latest
+          image: quay.io/minio/minio:RELEASE.2025-10-15T17-29-55Z
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

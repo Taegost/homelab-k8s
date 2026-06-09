@@ -52,6 +52,12 @@ The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/
 
 The same suite can be invoked manually: `/homelab-validate`
 
+The IngressRoute and Longhorn fsGroup checks run conditionally — they only fire
+when `ingressroute` or `persistentvolumeclaim` files are staged. The other four
+checks (sync waves, YAML validity, plaintext secrets, secret templates) run on
+every commit that touches `.yaml` or `.yml` files. A "SKIP" for conditional
+checks on unrelated commits is expected and not a failure.
+
 ### Sync wave reference
 
 Only resources that need a **non-default** sync order require an
