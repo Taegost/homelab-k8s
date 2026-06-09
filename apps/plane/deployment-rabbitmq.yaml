@@ -50,8 +50,12 @@ spec:
             - -c
             - |
               rm -rf /var/lib/rabbitmq/lost+found
-              # Ensure rabbitmq group owns everything after fsGroup chown
               chown -R 100:101 /var/lib/rabbitmq
+              # Fix leftover cookie with wrong perms from prior fsGroup runs
+              if [ -f /var/lib/rabbitmq/.erlang.cookie ]; then
+                chmod 0600 /var/lib/rabbitmq/.erlang.cookie
+                chown 100:101 /var/lib/rabbitmq/.erlang.cookie
+              fi
           securityContext:
             runAsUser: 0
           volumeMounts:
