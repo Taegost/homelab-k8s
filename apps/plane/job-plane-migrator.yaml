@@ -1,8 +1,11 @@
 # Job — Plane Migrator (database migrations)
 #
-# Runs Django database migrations once. Must complete before the API pod
-# can serve traffic — the API's startup probe will block until migrations
-# are applied and the health endpoint responds.
+# Runs Django database migrations once before the API pod starts.
+# Wave -1 ensures ArgoCD syncs this Job before the wave-0 Deployments.
+# Note: ArgoCD waves control sync ORDER, not Job completion — the API
+# may still start before this Job finishes. The API's startup probe
+# (30 failures × 10s = 5 min) acts as the safety net, refusing traffic
+# until Django reports migrations are applied.
 #
 # Same image as API, different entrypoint.
 # restartPolicy: OnFailure — retries if the database isn't ready yet.
@@ -11,6 +14,8 @@ kind: Job
 metadata:
   name: plane-migrator
   namespace: plane
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
   labels:
     app.kubernetes.io/part-of: plane
 spec:
