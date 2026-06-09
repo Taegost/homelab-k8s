@@ -8,6 +8,8 @@
 # until Django reports migrations are applied.
 #
 # Same image as API, different entrypoint.
+# Django's migrate command is idempotent — it checks the django_migrations
+# table and only applies pending migrations. Safe to run multiple times.
 # restartPolicy: OnFailure — retries if the database isn't ready yet.
 apiVersion: batch/v1
 kind: Job
@@ -19,6 +21,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: plane
 spec:
+  ttlSecondsAfterFinished: 3600
   backoffLimit: 5
   template:
     metadata:
