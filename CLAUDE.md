@@ -9,6 +9,19 @@ conventions only.
 
 ---
 
+## Bypass Rules (NEVER SELF-AUTHORIZE)
+
+The pre-commit and pre-push hooks have bypass env vars for the human operator:
+
+- `HOMELAB_ALLOW_LATEST=1` — allows `:latest` image tags
+- `HOMELAB_ALLOW_MAIN=1` — allows direct pushes to main
+
+**Claude must NEVER set these.** If a bypass is needed (e.g., Chainguard only
+publishes `:latest`, or a break-fix must land on main), flag it to the user and
+let them decide. The bypasses exist for the human operator, not for Claude.
+
+---
+
 ## Read Before Acting
 
 Before implementing any change, read the relevant documentation first:
