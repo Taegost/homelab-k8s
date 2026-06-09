@@ -94,12 +94,14 @@ spec:
                   key: password
             - name: RABBITMQ_DEFAULT_VHOST
               value: plane
-          # RabbitMQ can take 60+ seconds to initialize. Startup probe
-          # gates liveness/readiness — neither fires until it succeeds.
+          # RabbitMQ can take 2+ minutes to initialize under memory
+          # pressure. Startup probe gates liveness/readiness — neither fires
+          # until it succeeds. failureThreshold 20 × periodSeconds 10 = 200s
+          # max startup time (observed: 155s).
           startupProbe:
             exec:
               command: ["rabbitmq-diagnostics", "check_running"]
-            failureThreshold: 12
+            failureThreshold: 20
             periodSeconds: 10
           livenessProbe:
             exec:
@@ -110,17 +112,26 @@ spec:
             exec:
               command: ["rabbitmq-diagnostics", "check_port_connectivity"]
             periodSeconds: 10
+          # RabbitMQ needs sufficient memory headroom. vm_memory_high_watermark
+          # is set to 500MB absolute via configmap-rabbitmq.yaml — the container
+          # limit must exceed that by enough for Erlang VM overhead (~200Mi).
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 200m
+              cpu: 100m
               memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
           volumeMounts:
             - name: data
               mountPath: /var/lib/rabbitmq
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/conf.d/99-memory.conf
+              subPath: 99-memory.conf
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: rabbitmq-data
+        - name: rabbitmq-config
+          configMap:
+            name: rabbitmq-config

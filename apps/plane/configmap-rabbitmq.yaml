@@ -1,0 +1,22 @@
+# ConfigMap — RabbitMQ configuration overrides
+#
+# The RabbitMQ Docker image reads all .conf files from /etc/rabbitmq/conf.d/
+# in alphabetical order. This file sorts after the image's 10-defaults.conf,
+# so our values take precedence.
+#
+# vm_memory_high_watermark.absolute: RabbitMQ reads /proc/meminfo which reports
+# host-level RAM, NOT the container's cgroup limit. Without this override,
+# RabbitMQ calculates 40% of 13.6GB host RAM (5.4GB watermark) and allocates
+# freely until the kernel OOMKills it at the container limit. Setting an
+# absolute value below the container limit prevents this.
+#
+# 500MB watermark with 768Mi container limit: leaves ~268Mi for Erlang VM
+# and OS overhead, sufficient for Plane's homelab message volume.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: plane
+data:
+  99-memory.conf: |
+    vm_memory_high_watermark.absolute = 500MB

@@ -33,6 +33,19 @@ spec:
         # Lock down with seccomp + no capabilities + no privilege escalation.
         seccompProfile:
           type: RuntimeDefault
+      # Soft anti-affinity to avoid memory-constrained nodes. The API
+      # Deployment has a 1Gi memory limit — it should prefer nodes with
+      # sufficient headroom.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
       containers:
         - name: api
           image: docker.io/makeplane/plane-backend:v1.3.1
@@ -98,7 +111,7 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 300Mi
+              memory: 384Mi
             limits:
               cpu: 1000m
-              memory: 768Mi
+              memory: 1Gi
