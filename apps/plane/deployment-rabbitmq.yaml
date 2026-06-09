@@ -33,9 +33,8 @@ spec:
       securityContext:
         # RabbitMQ alpine entrypoint runs as root, chowns /var/lib/rabbitmq
         # to rabbitmq:rabbitmq (UID 100, GID 101), then drops to rabbitmq.
-        # fsGroup: 101 pre-sets the PVC group so rabbitmq can write even if
-        # the chown step is skipped (e.g. on restart).
-        fsGroup: 101
+        # NO fsGroup — it sets g+rwx on the volume which causes .erlang.cookie
+        # to inherit group permissions. RabbitMQ requires 0600 (owner only).
         seccompProfile:
           type: RuntimeDefault
       containers:
