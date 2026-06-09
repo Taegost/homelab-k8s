@@ -1,7 +1,32 @@
 #!/usr/bin/env bash
-# pre-push hook — blocks push if working tree has uncommitted changes.
+# pre-push hook — blocks push to main and dirty working tree.
 # Installed by: ln -sf ../../.githooks/pre-push .git/hooks/pre-push
 set -euo pipefail
+
+# Block direct pushes to main. All changes go through feature branches + PRs.
+# The remote ref being pushed is read from stdin (git push passes refs on stdin).
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    if [ "${HOMELAB_ALLOW_MAIN:-0}" = "1" ]; then
+      echo ""
+      echo "=== Allowing push to main — HOMELAB_ALLOW_MAIN=1 set ==="
+    else
+      echo ""
+      echo "=== BLOCKED: direct push to main ==="
+      echo ""
+      echo "I am not allowed to push to main without your explicit approval."
+      echo "If you want this push to main, run:"
+      echo "  HOMELAB_ALLOW_MAIN=1 git push origin main"
+      echo ""
+      echo "Otherwise use a feature branch:"
+      echo "  1. git checkout -b feat/my-fix"
+      echo "  2. git commit ..."
+      echo "  3. git push -u origin feat/my-fix"
+      echo "  4. gh pr create"
+      exit 1
+    fi
+  fi
+done
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo ""
