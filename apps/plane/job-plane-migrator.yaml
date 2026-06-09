@@ -71,8 +71,8 @@ spec:
             - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: plane
-                  key: rabbitmq-password
+                  name: rabbitmq
+                  key: password
           resources:
             requests:
               cpu: 100m

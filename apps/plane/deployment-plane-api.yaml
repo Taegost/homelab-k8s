@@ -73,8 +73,8 @@ spec:
             - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: plane
-                  key: rabbitmq-password
+                  name: rabbitmq
+                  key: password
           # Django runs DB migrations on startup. Startup probe gives
           # generous headroom — migrations can take minutes on first start.
           startupProbe:
