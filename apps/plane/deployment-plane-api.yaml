@@ -63,6 +63,11 @@ spec:
             - secretRef:
                 name: plane
           env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: secret-key
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:

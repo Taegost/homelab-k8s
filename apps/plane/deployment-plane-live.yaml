@@ -51,6 +51,11 @@ spec:
             - secretRef:
                 name: plane
           env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: plane
+                  key: secret-key
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -76,15 +81,16 @@ spec:
                 secretKeyRef:
                   name: rabbitmq
                   key: password
+          # Router basename is /live/ — / returns 404. Probe must match.
           livenessProbe:
             httpGet:
-              path: /
+              path: /live/
               port: 3000
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /live/
               port: 3000
             periodSeconds: 10
             failureThreshold: 3
