@@ -7,15 +7,24 @@ set -euo pipefail
 # The remote ref being pushed is read from stdin (git push passes refs on stdin).
 while read -r local_ref local_sha remote_ref remote_sha; do
   if [[ "$remote_ref" == "refs/heads/main" ]]; then
-    echo ""
-    echo "=== BLOCKED: direct push to main ==="
-    echo ""
-    echo "All changes must go through feature branches + PRs. Never push to main."
-    echo "  1. Create a branch:  git checkout -b feat/my-fix"
-    echo "  2. Commit there:     git commit ..."
-    echo "  3. Push the branch:  git push -u origin feat/my-fix"
-    echo "  4. Create a PR:      gh pr create"
-    exit 1
+    if [ "${HOMELAB_ALLOW_MAIN:-0}" = "1" ]; then
+      echo ""
+      echo "=== Allowing push to main — HOMELAB_ALLOW_MAIN=1 set ==="
+    else
+      echo ""
+      echo "=== BLOCKED: direct push to main ==="
+      echo ""
+      echo "I am not allowed to push to main without your explicit approval."
+      echo "If you want this push to main, run:"
+      echo "  HOMELAB_ALLOW_MAIN=1 git push origin main"
+      echo ""
+      echo "Otherwise use a feature branch:"
+      echo "  1. git checkout -b feat/my-fix"
+      echo "  2. git commit ..."
+      echo "  3. git push -u origin feat/my-fix"
+      echo "  4. gh pr create"
+      exit 1
+    fi
   fi
 done
 
