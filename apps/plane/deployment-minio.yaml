@@ -4,8 +4,10 @@
 # uploads directly to MinIO — not through the Django API. This matches
 # Plane's docker-compose architecture.
 #
-# Image pinned to RELEASE.2025-10-15T17-29-55Z — docker.io/minio/minio is
-# stale (repo archived Apr 2026); quay.io/minio/minio is the current source.
+# Image: Chainguard MinIO (cgr.dev/chainguard/minio), pinned by digest.
+# MinIO stopped publishing free Docker images Oct 2025 — docker.io and
+# quay.io are dead. Chainguard provides the free replacement, rebuilt daily.
+# Chainguard free tier only publishes :latest — pinning by digest instead.
 #
 # Mounts a Longhorn RWO PVC at /export (the MinIO data directory).
 # Recreate strategy required — RWO cannot attach to two pods.
@@ -31,16 +33,19 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext:
-        # MinIO image (ubi9/ubi-micro base, no USER directive) runs as root.
-        # Root can write to root-owned Longhorn volumes — no fsGroup needed.
-        # fsGroup exists to help NON-root containers write to root-owned PVCs.
+        # Chainguard MinIO runs as non-root UID/GID 65532. fsGroup required
+        # for Longhorn PVC — kubelet chowns before container starts.
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: minio
-          image: quay.io/minio/minio:RELEASE.2025-10-15T17-29-55Z
+          image: cgr.dev/chainguard/minio@sha256:aee323dfedc990c9856d1098ffa2afa5e480e8bbc6be6e3aec6c21328fd3258d
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
             capabilities:
               drop:
                 - ALL
