@@ -4,8 +4,10 @@
 # uploads directly to MinIO — not through the Django API. This matches
 # Plane's docker-compose architecture.
 #
-# Image pinned to RELEASE.2025-10-15T17-29-55Z — docker.io/minio/minio is
-# stale (repo archived Apr 2026); quay.io/minio/minio is the current source.
+# Image: Chainguard MinIO, pinned by digest. MinIO stopped publishing free
+# Docker images Oct 2025 — both docker.io and quay.io are dead. Chainguard
+# provides the free replacement. Free tier only publishes :latest — pinning
+# by digest instead.
 #
 # Mounts a Longhorn RWO PVC at /export (the MinIO data directory).
 # Recreate strategy required — RWO cannot attach to two pods.
@@ -41,7 +43,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: minio
-          image: cgr.dev/chainguard/minio:latest
+          image: cgr.dev/chainguard/minio@sha256:aee323dfedc990c9856d1098ffa2afa5e480e8bbc6be6e3aec6c21328fd3258d
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
