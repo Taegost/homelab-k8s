@@ -85,6 +85,12 @@ Resources that do NOT need an annotation (wave 0 default):
   Certificates — all app-level resources that don't need to order before or
   after other resources. They sync at the default wave.
 
+**Exception:** If a ConfigMap or Secret is consumed by a resource at a
+non-default wave (e.g. a Job at wave -1 via `configMapRef` or
+`secretKeyRef`), that ConfigMap/Secret must also carry the same or earlier
+wave annotation. Otherwise the lower-wave resource starts before its
+dependency exists.
+
 ---
 
 ## Project Scope

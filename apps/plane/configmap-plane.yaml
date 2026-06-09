@@ -11,7 +11,7 @@ metadata:
   name: plane
   namespace: plane
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "-2"
 data:
   DEBUG: "0"
   # WEB_URL is the canonical public URL Plane uses to generate links.
