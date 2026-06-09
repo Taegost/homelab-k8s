@@ -20,6 +20,10 @@ The pre-commit and pre-push hooks have bypass env vars for the human operator:
 publishes `:latest`, or a break-fix must land on main), flag it to the user and
 let them decide. The bypasses exist for the human operator, not for Claude.
 
+**Claude must NEVER use `git commit --amend`.** It rewrites the commit hash,
+causing merge conflicts when the user has local changes or tries to push.
+Always create a normal commit instead.
+
 ---
 
 ## Read Before Acting
