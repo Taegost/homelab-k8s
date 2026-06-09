@@ -30,11 +30,29 @@ Do not assume context is current. Read the actual files.
 
 ## Pre-Commit Verification (MANDATORY)
 
-Before staging any commit that creates or modifies Kubernetes resources, run
-these checks. Do not skip them — they catch the most common class of errors
-in this repo.
+A git pre-commit hook at `.githooks/pre-commit` runs the full validation
+suite automatically. It fires on every commit that touches `.yaml` or `.yml`
+files. The hook blocks the commit if any check fails.
 
-### Sync wave annotations
+**One-time setup (per clone):**
+```bash
+ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
+```
+
+The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/`):
+
+| Check | Script | What it catches |
+|---|---|---|
+| Sync waves | `sync-wave-check.sh` | Missing/misplaced wave annotations |
+| YAML validity | `yaml-validity.sh` | Invalid YAML syntax |
+| Plaintext secrets | `plaintext-secret-guard.sh` | Accidentally staged `secret-*.yaml` files |
+| IngressRoute | `ingressroute-check.sh` | Wrong namespace, missing middleware, cert issues |
+| Longhorn fsGroup | `longhorn-fsgroup-check.sh` | Missing fsGroup on non-root + Longhorn, fsGroup in wrong location |
+| Secret templates | `secret-template-verify.sh` | Missing sync-wave annotations, bad placeholder format |
+
+The same suite can be invoked manually: `/homelab-validate`
+
+### Sync wave reference
 
 Only resources that need a **non-default** sync order require an
 `argocd.argoproj.io/sync-wave` annotation. Wave `0` is ArgoCD's default —
@@ -59,22 +77,6 @@ Resources that do NOT need an annotation (wave 0 default):
 - Deployments, Services, IngressRoutes, PVCs, ConfigMaps, NetworkPolicies,
   Certificates — all app-level resources that don't need to order before or
   after other resources. They sync at the default wave.
-
-Verify before committing:
-
-```bash
-# List all resources without sync-wave annotations in changed files:
-git diff --cached --name-only | xargs grep -L "sync-wave" 2>/dev/null
-
-# For each hit, check whether it needs a non-default wave:
-# Infrastructure SealedSecrets (consumed by CRDs): wave -3
-# App-level SealedSecrets (consumed by Deployments): wave -1
-# Cross-namespace secret consumers (User CRDs): wave -2
-# Database CRDs: wave -1
-# App resources (Deployments, Services, etc.): wave 0 (OMIT annotation)
-#
-# If the resource is at wave 0, it should NOT carry the annotation.
-```
 
 ---
 

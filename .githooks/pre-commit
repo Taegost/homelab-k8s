@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# pre-commit hook — runs homelab-validate on staged YAML changes.
+# Blocks the commit if any validation fails.
+# Installed by: ln -s ../../.githooks/pre-commit .git/hooks/pre-commit
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+SCRIPTS="$REPO_ROOT/.claude/skills/homelab-validate/scripts"
+
+# Only run if YAML files are staged
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' || true)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+echo "=== homelab-validate pre-commit ==="
+FAILED=0
+
+# 1. Sync waves
+echo ""
+echo "[1/6] Sync wave check..."
+bash "$SCRIPTS/sync-wave-check.sh" || FAILED=1
+
+# 2. YAML validity
+echo ""
+echo "[2/6] YAML validity..."
+bash "$SCRIPTS/yaml-validity.sh" || FAILED=1
+
+# 3. Plaintext secret guard
+echo ""
+echo "[3/6] Plaintext secret guard..."
+bash "$SCRIPTS/plaintext-secret-guard.sh" || FAILED=1
+
+# 4. IngressRoute consistency (only if IngressRoutes changed)
+if echo "$STAGED" | grep -q 'ingressroute'; then
+  echo ""
+  echo "[4/6] IngressRoute consistency..."
+  bash "$SCRIPTS/ingressroute-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[4/6] IngressRoute consistency — SKIP (no IngressRoutes changed)"
+fi
+
+# 5. Longhorn fsGroup (only if PVCs changed)
+if echo "$STAGED" | grep -q 'persistentvolumeclaim'; then
+  echo ""
+  echo "[5/6] Longhorn fsGroup check..."
+  bash "$SCRIPTS/longhorn-fsgroup-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[5/6] Longhorn fsGroup check — SKIP (no PVCs changed)"
+fi
+
+# 6. Secret template verification (filesystem check, not staged)
+echo ""
+echo "[6/6] Secret template verification..."
+bash "$SCRIPTS/secret-template-verify.sh" apps/ || FAILED=1
+
+echo ""
+if [ "$FAILED" -eq 0 ]; then
+  echo "=== PASS: homelab-validate ==="
+  exit 0
+else
+  echo "=== FAIL: homelab-validate — commit blocked ==="
+  echo "Fix the issues above and try again."
+  exit 1
+fi
