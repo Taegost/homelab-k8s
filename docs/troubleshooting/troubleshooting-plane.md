@@ -16,6 +16,7 @@ Plane CE deployment issues and resolutions. All issues occurred during initial d
 | plane-space crash (2026-06-09) | CrashLoopBackOff with Readiness probe failure | Router `basename="/spaces/"` — probe hit `/` returning 404 (≥400 = Kubernetes probe failure). Then space pages called API backend which was down, causing probe timeout | Change probe path to `/spaces/`; add `timeoutSeconds: 10` to probes |
 | plane-api crash (2026-06-09) | CrashLoopBackOff — connection refused to RabbitMQ | Chain of cascading failures: RabbitMQ unstable → Celery tasks fail → API `register_instance` management command crashes on startup. Then `SECRET_KEY` env var was missing (mapped to wrong Secret key). Then probe path `/api/health/` doesn't exist in Plane v1.3.1 — returns 404 | Fix RabbitMQ (above); map `SECRET_KEY` to existing `live-server-secret-key` Secret key; change probe path to `/` |
 | ArgoCD sync stuck (2026-06-09) | OutOfSync — new migrator Job can't be applied | Kubernetes Jobs have immutable `spec.template`. ArgoCD tried to update existing Completed Job with new env vars → rejected | `kubectl delete job plane-migrator -n plane` — ArgoCD recreates with updated spec |
+| Image upload fails (2026-06-10) | "Failed to upload image" — no errors in logs | Plane generates presigned S3 URLs pointing to `plane.home.diceninjagaming.com/uploads/`. Traefik IngressRoute had no `/uploads/` rule — requests fell to catch-all → `plane-web` (no MinIO proxy) | Add `PathPrefix('/uploads/')` → `minio:9000` to IngressRoute |
 
 ---
 
@@ -287,6 +288,76 @@ https://plane.home.diceninjagaming.com/god-mode/
 The setup form renders correctly at `/god-mode/`.
 
 **When the upstream fix ships:** Bump the `makeplane/plane-frontend`, `makeplane/plane-admin`, and other frontend image tags to the fixed version. The trailing slash requirement will be resolved.
+
+---
+
+## File Upload — "Failed to upload image"
+
+### Image attachments fail with no errors in server logs
+
+**Symptom:** Uploading an image or file attachment in Plane's web UI shows
+"Failed to upload image." No errors appear in `plane-api` or `plane-web` pod
+logs. Browser devtools Network tab shows a failed PUT request to
+`https://plane.home.diceninjagaming.com/uploads/...` (non-200 response).
+
+**Cause:** Plane overrides `AWS_S3_CUSTOM_DOMAIN` to
+`plane.home.diceninjagaming.com/uploads` when `USE_MINIO=1` and
+`AWS_S3_ENDPOINT_URL` is set (see `common.py` in the Plane backend). All S3
+presigned URLs — both upload and download — use the external Plane domain.
+
+The Traefik `IngressRoute` has no `/uploads/` path rule. Presigned upload
+requests fall through to the catch-all rule and hit `plane-web:3000` (Next.js
+nginx), which does not proxy MinIO. The failure happens at the HTTP routing
+layer — the request never reaches MinIO, so no errors appear in application
+logs.
+
+See upstream: [makeplane/plane#6740](https://github.com/makeplane/plane/issues/6740)
+confirms `USE_MINIO` assumes MinIO is deployed behind the Plane web proxy.
+
+**Fix — add `/uploads/` route to IngressRoute:**
+
+```yaml
+# In apps/plane/ingressroute-plane.yaml
+# Add before the catch-all rule:
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/uploads/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: minio
+          namespace: plane
+          port: 9000
+```
+
+Traefik's default `passHostHeader: true` preserves the original `Host:
+plane.home.diceninjagaming.com` header. MinIO validates presigned URL
+signatures against this Host header (SigV4 canonical request includes the
+`host` header). If Traefik rewrote it to `minio.plane.svc.cluster.local`,
+MinIO would reject the signature.
+
+**Protocol note (HTTPS):** The presigned URL uses `https://` (Plane derives
+this from `WEB_URL: "https://plane.home.diceninjagaming.com"` via
+`AWS_S3_URL_PROTOCOL`). The browser connects directly to Traefik's
+`websecure` entrypoint (port 443) — no HTTP→HTTPS redirect occurs. The
+connection starts as HTTPS; Traefik terminates TLS and forwards to MinIO
+over plain HTTP internally.
+
+**Also check — MinIO bucket must exist:**
+Plane sets `AWS_S3_BUCKET_NAME: "uploads"` but MinIO does not auto-create
+buckets. Verify the bucket exists:
+
+```bash
+kubectl exec -n plane deploy/minio -- mc alias set local http://localhost:9000 \
+  $(kubectl get secret -n plane minio -o jsonpath='{.data.s3-root-user}' | base64 -d) \
+  $(kubectl get secret -n plane minio -o jsonpath='{.data.s3-root-password}' | base64 -d)
+kubectl exec -n plane deploy/minio -- mc ls local/uploads
+```
+
+If the bucket is missing, create it:
+```bash
+kubectl exec -n plane deploy/minio -- mc mb local/uploads
+```
 
 ---
 

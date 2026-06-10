@@ -73,6 +73,16 @@ spec:
         - name: plane-live
           namespace: plane
           port: 3000
+    # MinIO object storage (file uploads/downloads via S3 presigned URLs)
+    - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/uploads/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: minio
+          namespace: plane
+          port: 9000
     # Main web UI (catch-all — must be last)
     - match: Host(`plane.home.diceninjagaming.com`)
       kind: Rule
