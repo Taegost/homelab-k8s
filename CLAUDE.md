@@ -26,6 +26,57 @@ Always create a normal commit instead.
 
 ---
 
+## Planning & Review Sessions (MANDATORY CHECKPOINTS)
+
+These rules apply during any planning session (ce-plan, ce-doc-review,
+ce-brainstorm, or any multi-step decision walkthrough). They exist because
+Claude defaults to optimizing for completion speed over fidelity to user
+decisions, and has a track record of silently reclassifying user directives
+as "deferred" rather than acting on them.
+
+### Checkpoint 1: Every user directive must land
+
+When the user gives any directive about the document or the work — whether
+phrased as "address this," "fix this," "include X," "we need to," "make sure,"
+"apply this," or any other imperative — that directive must produce one of
+two outcomes before the session ends:
+
+- **Applied:** An edit was made that fulfills the directive.
+- **User-deferred:** The user explicitly chose Defer or Skip on a walkthrough
+  question that presented the directive.
+
+Silently dropping, reclassifying to a later phase, or converting a directive
+to a "noted for next planning phase" bullet is a violation. If the user
+wants it deferred, they will say so explicitly.
+
+### Checkpoint 2: Design changes cascade immediately
+
+When a walkthrough decision changes document structure (e.g., redesigning a
+component, changing a data flow, altering scope), every downstream section
+that now contradicts the new design must be surfaced as an explicit finding
+BEFORE advancing to the next walkthrough question. Do not batch broken
+cross-references to the completion report. The walkthrough exists so the
+user decides at each step — hiding cascading breakage removes that choice.
+
+### Checkpoint 3: Pre-completion directive scan
+
+Before presenting any completion report or terminal question, scan every
+user directive from the current session. Verify each one was either applied
+(with a document edit) or explicitly deferred/skipped by the user via a
+walkthrough question answer. If any directive was not resolved, surface it
+and ask before presenting completion.
+
+### Checkpoint 4: Nothing ignored, everything documented
+
+Every concern the user raises, every question they ask, and every directive
+they give during a planning session must be reflected somewhere in the final
+state: either as a document edit, a Deferred / Open Questions entry, a
+residual concern with explicit owner, or an explicit user Skip. If the user
+said it, it exists in the output. Silence is not an acceptable response to
+a user-raised concern.
+
+---
+
 ## Read Before Acting
 
 Before implementing any change, read the relevant documentation first:
