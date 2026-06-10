@@ -81,16 +81,15 @@ spec:
                 secretKeyRef:
                   name: rabbitmq
                   key: password
-          # Router basename is /live/ — / returns 404. Probe must match.
+          # Live server is WebSocket-based (HocusPocus + Express). HTTP
+          # probes return 404 on all paths. Use TCP socket check instead.
           livenessProbe:
-            httpGet:
-              path: /live/
+            tcpSocket:
               port: 3000
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /live/
+            tcpSocket:
               port: 3000
             periodSeconds: 10
             failureThreshold: 3
