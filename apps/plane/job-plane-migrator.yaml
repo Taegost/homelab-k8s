@@ -52,7 +52,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: plane
-                  key: secret-key
+                  key: live-server-secret-key
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
