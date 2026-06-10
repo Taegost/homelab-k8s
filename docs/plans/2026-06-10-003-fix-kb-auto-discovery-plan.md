@@ -78,23 +78,26 @@ The audit script scans `docs/solutions/` once at startup, builds the pattern map
      [[ "$kb_file" == *"root-generic"* ]] && continue
      # Extract type name from filename: base-images-<type>.md
      type_name=$(basename "$kb_file" .md | sed 's/^base-images-//')
+     TYPE_TO_KB["$type_name"]="$(basename "$kb_file")"
      # Parse Image patterns section for match substrings.
      # Uses awk for section-aware extraction (reads until next ## heading or EOF,
      # not fixed line count) and process substitution to avoid pipeline subshell
      # (which would lose associative array assignments).
+     # Patterns containing * are stripped (grep -qF treats * as literal).
      while read -r pattern; do
        IMAGE_PATTERNS["$pattern"]="$type_name"
      done < <(awk '/^## Image patterns/{flag=1; next} /^## /{flag=0} flag' "$kb_file" \
-       | grep -oP '`\K[^`]+')
+       | grep -oP '`\K[^`]+' | sed 's/\*//g')
    done
    ```
 
-   Also add an explicit `valkey` alias so `--type valkey` works regardless of
-   whether `valkey` appears as a pattern in a KB filename. Before the
+   Also add explicit `valkey` and `redis` aliases so `--type valkey` and
+   `--type redis` both resolve to the canonical `redis-valkey` type. Before the
    non-interactive `--type` check, add:
    ```bash
    declare -A TYPE_ALIASES
-   TYPE_ALIASES[valkey]="redis"
+   TYPE_ALIASES[redis]="redis-valkey"
+   TYPE_ALIASES[valkey]="redis-valkey"
    # Resolve alias before looking up KB file
    [[ -n "${TYPE_ALIASES[$TYPE]:-}" ]] && TYPE="${TYPE_ALIASES[$TYPE]}"
    ```

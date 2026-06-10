@@ -3,7 +3,6 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "$(dirname "$(dirname "$0")")")")"
 KB_DIR="$REPO_ROOT/docs/solutions"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ---------------------------------------------------------------------------
 # Type aliases — maps variant names to canonical type from KB filename.

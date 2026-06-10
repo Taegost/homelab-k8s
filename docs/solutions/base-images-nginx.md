@@ -23,7 +23,7 @@
 
 nginx master process starts as root, spawns worker processes, then workers call `setgid()` and `setuid()` to drop to a non-root user (typically UID 101 for the official image). Without `SETGID` and `SETUID`, workers crash with:
 
-```
+```text
 setgid(101) failed (1: Operation not permitted)
 ```
 

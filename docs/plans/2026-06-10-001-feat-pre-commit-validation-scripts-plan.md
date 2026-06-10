@@ -135,8 +135,8 @@ The capability requirements are sourced from `docs/solutions/` KB files, not har
 **Conditional gating (script-internal):** Exit 0 with "SKIP (no Deployments changed)" when no Deployment files are staged. Before invoking Python3, use a fast grep pre-filter: only parse files containing `capabilities:` to avoid YAML parsing on Deployments without security contexts.
 
 **Test scenarios:**
-1. nginx Deployment with `drop: [ALL]`, only `CHOWN` added → FAIL ("missing SETGID, SETUID, NET_BIND_SERVICE")
-2. nginx Deployment with `drop: [ALL]`, `CHOWN`, `SETGID`, `SETUID`, `NET_BIND_SERVICE` added → PASS
+1. nginx Deployment with `drop: [ALL]`, only `CHOWN` added → FAIL ("missing SETGID, SETUID")
+2. nginx Deployment with `drop: [ALL]`, `CHOWN`, `SETGID`, `SETUID` added → PASS (NET_BIND_SERVICE is conditional — only required when nginx binds privileged ports <1024)
 3. RabbitMQ Deployment with `drop: [ALL]`, missing `DAC_OVERRIDE` → FAIL
 4. RabbitMQ Deployment with `drop: [ALL]`, full set (CHOWN, DAC_OVERRIDE, SETGID, SETUID) → PASS
 5. Valkey Deployment with `drop: [ALL]`, no capabilities added, `runAsUser: 999` → PASS (non-root, skipped)

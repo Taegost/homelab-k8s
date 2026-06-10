@@ -5,11 +5,13 @@ Audit a container image to determine the correct Kubernetes `securityContext`.
 ## Usage
 
 **Interactive mode** (for human operators):
+
 ```bash
 .claude/skills/homelab-image-audit/audit.sh
 ```
 
 **Non-interactive mode** (for Claude or scripting):
+
 ```bash
 .claude/skills/homelab-image-audit/audit.sh --image <image-name> --type <nginx|rabbitmq|redis|other>
 ```
