@@ -30,10 +30,13 @@ _discover_kb() {
         # Section-aware extraction: reads from "## Image patterns" to next
         # heading or EOF. Process substitution avoids pipeline subshell so
         # associative array assignments survive.
+        # Patterns containing * (e.g., nginx:*) are glob-like hints in KB
+        # docs; grep -qF treats * as literal, so we strip them to produce
+        # usable substring patterns (nginx: → matches nginx:1.29 etc.).
         while read -r pattern; do
             IMAGE_PATTERNS["$pattern"]="$type_name"
         done < <(awk '/^## Image patterns/{flag=1; next} /^## /{flag=0} flag' "$kb_file" \
-            | grep -oP '`\K[^`]+')
+            | grep -oP '`\K[^`]+' | sed 's/\*//g')
     done
 }
 _discover_kb

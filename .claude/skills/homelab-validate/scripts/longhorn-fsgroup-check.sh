@@ -17,7 +17,9 @@ fi
 
 failures=0
 
-echo "$longhorn_pvcs" | while read -r pvc_file; do
+# Process substitution (&lt;(...)) avoids the pipeline subshell — failures++
+# must survive the loop to be checked after it completes.
+while read -r pvc_file; do
   claim_name=$(grep "name:" "$pvc_file" | head -1 | awk '{print $2}')
   echo "  PVC: $pvc_file ($claim_name)"
 
@@ -54,7 +56,7 @@ echo "$longhorn_pvcs" | while read -r pvc_file; do
       failures=$((failures + 1))
     fi
   fi
-done
+done < <(echo "$longhorn_pvcs")
 
 if [ "$failures" -gt 0 ]; then
   echo ""
