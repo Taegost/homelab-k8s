@@ -95,21 +95,23 @@ spec:
                   key: password
           # Django runs DB migrations on startup. Startup probe gives
           # generous headroom — migrations can take minutes on first start.
+          # Plane API returns 200 on / (Django admin login). /api/health/
+          # does not exist in Plane v1.3.1 and returns 404.
           startupProbe:
             httpGet:
-              path: /api/health/
+              path: /
               port: 8000
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /api/health/
+              path: /
               port: 8000
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/health/
+              path: /
               port: 8000
             periodSeconds: 10
             failureThreshold: 3
