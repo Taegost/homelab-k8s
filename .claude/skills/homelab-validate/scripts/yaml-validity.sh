@@ -13,7 +13,9 @@ if [ -z "$files" ]; then
   exit 0
 fi
 
-echo "$files" | while read -r f; do
+# Process substitution (&lt;(...)) avoids the pipeline subshell — failures++
+# must survive the loop to be checked after it completes.
+while read -r f; do
   echo -n "  $f ... "
   if python3 -c "import yaml; list(yaml.safe_load_all(open('$f')))" 2>&1; then
     echo "OK"
@@ -21,7 +23,7 @@ echo "$files" | while read -r f; do
     echo "FAIL"
     failures=$((failures + 1))
   fi
-done
+done < <(echo "$files")
 
 if [ "$failures" -gt 0 ]; then
   echo "FAIL: $failures file(s) have invalid YAML"

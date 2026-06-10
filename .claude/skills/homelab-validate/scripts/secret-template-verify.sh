@@ -17,7 +17,9 @@ fi
 
 failures=0
 
-echo "$secrets" | while read -r f; do
+# Process substitution (&lt;(...)) avoids the pipeline subshell — failures++
+# must survive the loop to be checked after it completes.
+while read -r f; do
   echo "--- $f ---"
 
   # Check 1: sync-wave in metadata.annotations
@@ -58,7 +60,7 @@ echo "$secrets" | while read -r f; do
     echo "  FAIL: missing namespace field"
     failures=$((failures + 1))
   fi
-done
+done < <(echo "$secrets")
 
 if [ "$failures" -gt 0 ]; then
   echo ""
