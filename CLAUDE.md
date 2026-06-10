@@ -318,7 +318,7 @@ homelab-k8s/
 - **Always read the relevant docs/ file before implementing** — see the
   "Read Before Acting" section at the top of this file.
 - **Research container security context per app** — never copy `securityContext`
-  from an existing app. Always fetch the target image's Dockerfile and entrypoint
+  from an existing app. Run `.claude/skills/homelab-image-audit/audit.sh --image <image> --type <type>` before writing the securityContext. The script cross-references the base-image knowledge base (`docs/solutions/`) and outputs the recommended capabilities, privilege model, and port. If the image type is unknown, run the script interactively. For images not covered by the KB, fall back to fetching the target image's Dockerfile and entrypoint
   to determine: what USER it runs as, whether it does a root→non-root drop at
   runtime (gosu, su-exec, etc.), and whether capabilities like `CHOWN`,
   `DAC_OVERRIDE`, `SETUID`, or `SETGID` are actually required. Use the minimum
