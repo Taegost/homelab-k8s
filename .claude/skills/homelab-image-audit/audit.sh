@@ -14,6 +14,12 @@ IMAGE_PATTERNS[nginx]="nginx|nginx:|makeplane/plane-admin|makeplane/plane-fronte
 IMAGE_PATTERNS[rabbitmq]="rabbitmq|rabbitmq:"
 IMAGE_PATTERNS[redis]="redis|redis:|valkey|valkey:"
 
+# Map type name to KB filename (handles compound names like redis-valkey)
+declare -A TYPE_TO_KB
+TYPE_TO_KB[nginx]="base-images-nginx.md"
+TYPE_TO_KB[rabbitmq]="base-images-rabbitmq.md"
+TYPE_TO_KB[redis]="base-images-redis-valkey.md"
+
 # ---------------------------------------------------------------------------
 # Non-interactive mode: --image <name> --type <nginx|rabbitmq|redis|other>
 # ---------------------------------------------------------------------------
@@ -41,8 +47,11 @@ if [[ "${1:-}" == "--image" ]]; then
         exit 0
     fi
 
-    # Check if type maps to a known KB pattern
-    KB_FILE="$KB_DIR/base-images-$TYPE.md"
+    # Check if type maps to a known KB file
+    KB_FILE=""
+    if [[ -n "${TYPE_TO_KB[$TYPE]:-}" ]]; then
+        KB_FILE="$KB_DIR/${TYPE_TO_KB[$TYPE]}"
+    fi
     if [[ -f "$KB_FILE" ]]; then
         echo ""
         cat "$KB_FILE"
@@ -101,11 +110,14 @@ if [[ -n "$MATCHED_TYPE" ]]; then
         fi
     fi
 
-    KB_FILE="$KB_DIR/base-images-$MATCHED_TYPE.md"
-    if [[ -f "$KB_FILE" ]]; then
+    KB_FILE=""
+    if [[ -n "${TYPE_TO_KB[$MATCHED_TYPE]:-}" ]]; then
+        KB_FILE="$KB_DIR/${TYPE_TO_KB[$MATCHED_TYPE]}"
+    fi
+    if [[ -n "$KB_FILE" && -f "$KB_FILE" ]]; then
         cat "$KB_FILE"
     else
-        echo "KB entry not found at $KB_FILE"
+        echo "KB entry not found for type: $MATCHED_TYPE"
         echo "Falling back to generic recommendation."
     fi
 else
@@ -143,9 +155,14 @@ else
 
     echo ""
     if [[ "$TYPE" != "other" ]]; then
-        KB_FILE="$KB_DIR/base-images-$TYPE.md"
-        if [[ -f "$KB_FILE" ]]; then
+        KB_FILE=""
+        if [[ -n "${TYPE_TO_KB[$TYPE]:-}" ]]; then
+            KB_FILE="$KB_DIR/${TYPE_TO_KB[$TYPE]}"
+        fi
+        if [[ -n "$KB_FILE" && -f "$KB_FILE" ]]; then
             cat "$KB_FILE"
+        else
+            echo "KB entry not found for type: $TYPE"
         fi
     else
         echo "=== Generic / Root Image ==="
