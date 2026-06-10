@@ -500,6 +500,7 @@ Plane CE project management platform initial deployment troubleshooting (June 20
 | plane-space crash (×2) | Readiness probe 404 → connection refused/timeout | (1) Router `basename="/spaces/"` — `/` returns 404 (2) API down → page render hangs → probe timeout | Probe path `/spaces/` + `timeoutSeconds: 10` |
 | plane-api crash (×3) | RabbitMQ connection refused → SECRET_KEY error → health probe 404 | (1) RabbitMQ cascade (2) `SECRET_KEY` env not mapped (3) `/api/health/` doesn't exist in v1.3.1 | Fix RabbitMQ; map `SECRET_KEY` → `live-server-secret-key`; probe path `/` |
 | ArgoCD sync stuck | OutOfSync — Job can't update | Kubernetes Jobs have immutable `spec.template` — can't patch completed Job | `kubectl delete job plane-migrator -n plane` |
+| Admin setup blank page | React hydration error / loading spinner | Admin React Router `basename="/god-mode/"` can't match URL `/god-mode` without trailing slash. Upstream fix in [PR #9070](https://github.com/makeplane/plane/pull/9070) | Type `/god-mode/` with trailing slash in browser |
 
 **Key takeaways:** Always check what `/proc/meminfo` reports from inside a container vs the cgroup limit. Never assume Kubernetes probe defaults (`timeoutSeconds: 1`) are sufficient for CLI-based exec probes. Always verify probe paths return 2xx from inside the container. Capabilities dropped by default (`ALL`) must be explicitly re-added for every syscall the process makes — dropping `DAC_OVERRIDE` silently breaks root's ability to read non-root files.
 
