@@ -54,16 +54,6 @@ spec:
           namespace: plane
           port: 3000
     # Admin panel
-    # Admin panel — redirect /god-mode → /god-mode/ (see PR #9070)
-    - match: Host(`plane.home.diceninjagaming.com`) && Path(`/god-mode`)
-      kind: Rule
-      middlewares:
-        - name: plane-admin-trailing-slash
-          namespace: traefik
-      services:
-        - name: plane-admin
-          namespace: plane
-          port: 3000
     - match: Host(`plane.home.diceninjagaming.com`) && PathPrefix(`/god-mode/`)
       kind: Rule
       middlewares:
