@@ -270,6 +270,26 @@ ArgoCD will create a fresh Job on next sync. After completion, set `ttlSecondsAf
 
 ---
 
+## Admin Setup — blank page at `/god-mode`
+
+### "Get Started" button loads a blank/loading page
+
+**Symptom:** Clicking "Get Started" on the Plane setup page navigates to `/god-mode` (no trailing slash). The page shows only a loading spinner — the setup form never renders. Chrome console shows React hydration errors (#418, #423).
+
+**Cause:** The admin React app has `basename="/god-mode/"`. React Router cannot match URL `/god-mode` (no trailing slash) against a basename that includes the slash. The route fails to match and the app renders nothing.
+
+**Upstream fix:** [makeplane/plane#9070](https://github.com/makeplane/plane/pull/9070) — normalizes base path to remove trailing slashes. Not yet merged into v1.3.1.
+
+**Workaround:** Type the full URL with trailing slash in the browser address bar:
+```
+https://plane.home.diceninjagaming.com/god-mode/
+```
+The setup form renders correctly at `/god-mode/`.
+
+**When the upstream fix ships:** Bump the `makeplane/plane-frontend`, `makeplane/plane-admin`, and other frontend image tags to the fixed version. The trailing slash requirement will be resolved.
+
+---
+
 ## Resource Recommendations
 
 Minimum resource limits for Plane v1.3.1 in a homelab environment:
