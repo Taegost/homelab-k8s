@@ -486,6 +486,25 @@ Empty string or `"0"` → image runs as root → set `runAsUser`.
 
 ---
 
+## Plane
+
+Plane CE project management platform initial deployment troubleshooting (June 2026). Full details in [`docs/troubleshooting/troubleshooting-plane.md`](troubleshooting/troubleshooting-plane.md).
+
+### TL;DR — what has actually gone wrong
+
+| Incident | Looked like | Actually was | Fix |
+|----------|-------------|--------------|-----|
+| RabbitMQ crash-loop (×3) | OOMKill → still crashing after memory fix → still crashing after DAC fix | (1) cgroup-blind watermark (2) probes need `CAP_DAC_OVERRIDE` to read cookie (3) default 1s probe timeout too short for `rabbitmq-diagnostics` | Absolute watermark ConfigMap + `DAC_OVERRIDE` capability + `timeoutSeconds: 10` + CPU 1000m |
+| plane-admin/web crash | Nginx config error | `setgid(101)` needs `CAP_SETGID` + `CAP_SETUID` — only `CHOWN` was added | Add `SETGID` + `SETUID` |
+| plane-live crash (×3) | No logs → env error → 404 on probes | (1) Zero env vars injected (2) `API_BASE_URL` required but missing (3) WebSocket server — HTTP probes always 404 | `envFrom` + `env` blocks; add `API_BASE_URL` to ConfigMap; TCP socket probes |
+| plane-space crash (×2) | Readiness probe 404 → connection refused/timeout | (1) Router `basename="/spaces/"` — `/` returns 404 (2) API down → page render hangs → probe timeout | Probe path `/spaces/` + `timeoutSeconds: 10` |
+| plane-api crash (×3) | RabbitMQ connection refused → SECRET_KEY error → health probe 404 | (1) RabbitMQ cascade (2) `SECRET_KEY` env not mapped (3) `/api/health/` doesn't exist in v1.3.1 | Fix RabbitMQ; map `SECRET_KEY` → `live-server-secret-key`; probe path `/` |
+| ArgoCD sync stuck | OutOfSync — Job can't update | Kubernetes Jobs have immutable `spec.template` — can't patch completed Job | `kubectl delete job plane-migrator -n plane` |
+
+**Key takeaways:** Always check what `/proc/meminfo` reports from inside a container vs the cgroup limit. Never assume Kubernetes probe defaults (`timeoutSeconds: 1`) are sufficient for CLI-based exec probes. Always verify probe paths return 2xx from inside the container. Capabilities dropped by default (`ALL`) must be explicitly re-added for every syscall the process makes — dropping `DAC_OVERRIDE` silently breaks root's ability to read non-root files.
+
+---
+
 ## Application Configuration
 
 ### Wrong env var names — app connects with defaults, not configured values
