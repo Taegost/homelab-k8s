@@ -59,6 +59,9 @@ nginx entry covers both explicit `nginx:` images and known derived images (`make
 - KB entries for additional image types as they are deployed (PostgreSQL, MySQL, MongoDB)
 - Capability-check.sh alignment — ensure the KB and the pre-commit script agree on required capabilities
 - Automated Dockerfile fetching for images hosted on GitHub (e.g., scrape `https://github.com/<org>/<repo>/blob/<tag>/Dockerfile`)
+- **Auto-discover KB entries:** ~~The audit script hardcodes a TYPE_TO_KB map.~~ **RESOLVED** — `audit.sh` now auto-discovers KB entries via `_discover_kb()`, scanning `docs/solutions/` at startup. Adding a new image type is a single-file operation.
+- **Valkey alias:** ~~`--type valkey` should map to the same KB as `--type redis`.~~ **RESOLVED** — `TYPE_ALIASES` maps `valkey` and `redis` to the canonical `redis-valkey` type. Both `--type redis` and `--type valkey` work.
+- **KB as capability source of truth:** ~~`capability-check.sh` should read requirements from `docs/solutions/` instead of hardcoding them.~~ **RESOLVED** — Origin plan (001) U2 updated to reference KB-based capability lookup with auto-discovery.
 
 ### Outside Scope
 - Modifying existing Deployments to add missing capabilities

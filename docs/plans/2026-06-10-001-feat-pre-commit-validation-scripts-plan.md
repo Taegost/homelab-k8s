@@ -41,7 +41,7 @@ Simple pattern matching (image name, file discovery) uses shell grep. Structured
 ### KTD-3: Capability and env checks use different severity levels
 
 - **probe-timeout-check.sh:** FAIL for known-slow CLIs with tiered thresholds: slow CLIs (rabbitmq-diagnostics, rabbitmqctl, celery) → FAIL if <5s; fast CLIs (redis-cli, valkey-cli, pg_isready, mysqladmin, mongosh) → FAIL if <2s. WARN for generic exec probes with missing or default timeout.
-- **capability-check.sh:** FAIL for nginx and RabbitMQ (well-known hard requirements). WARN for images with known privilege-drop entrypoints (gosu, su-exec, su, chroot) lacking SETUID/SETGID — the script can't know the full Dockerfile behavior without reading it.
+- **capability-check.sh:** FAIL for images matching KB patterns with missing required capabilities. WARN for images with known privilege-drop entrypoints (gosu, su-exec, su, chroot) lacking SETUID/SETGID when not covered by a KB entry. Capability requirements are sourced from `docs/solutions/` KB files — the KB is the single source of truth.
 - **env-check.sh:** All findings are WARN — missing envFrom/env blocks may be intentional. The check is informational only; it does not block commits.
 
 ### KTD-4: Conditional gating, not always-run
@@ -109,28 +109,28 @@ All three scripts exit early with SKIP when no Deployment files are staged, matc
 
 **Goal:** Catch missing capabilities for well-known images when `drop` includes `ALL`.
 
-**Approach:** Python3 inline script reads container `image` and `securityContext.capabilities`. Only fires when `drop` contains `ALL`. Matches image names against a known-requirements map.
+**Approach:** Python3 inline script reads container `image` and `securityContext.capabilities`. Only fires when `drop` contains `ALL`. Matches image names against the base-image knowledge base (`docs/solutions/`) using the same auto-discovery mechanism as `audit.sh` — scans KB files at startup, parses "Image patterns" sections to build a pattern map, then extracts required capabilities from each KB entry's "Required capabilities" table. The KB is the single source of truth for capability requirements; no capability lists are hardcoded in the script.
 
 **Dependencies:** None.
 
 **Files:**
 - `.claude/skills/homelab-validate/scripts/capability-check.sh` (create)
 
-**Patterns to follow:** Same Python3 inline + shell wrapper pattern as `probe-timeout-check.sh`. Uses the existing `runAsUser`/`runAsNonRoot` heuristics from `longhorn-fsgroup-check.sh` for generic root-image detection.
+**Patterns to follow:** Same Python3 inline + shell wrapper pattern as `probe-timeout-check.sh`. KB auto-discovery follows the pattern in `.claude/skills/homelab-image-audit/audit.sh` (section-aware awk extraction, process substitution for associative array population). Uses the existing `runAsUser`/`runAsNonRoot` heuristics from `longhorn-fsgroup-check.sh` for generic root-image detection.
 
 This script is a safety net for the CLAUDE.md research rules — it catches cases where the operator skipped the Dockerfile capability check during debugging or rapid iteration. The research rules remain the primary guard; this script is the automated backstop.
 
 **Checks:**
 
-| Image pattern | Required capabilities when `drop: [ALL]` | Severity |
-|---|---|---|
-| `nginx`, `nginx:` (in image string) | SETGID, SETUID, CHOWN, NET_BIND_SERVICE | FAIL |
-| `rabbitmq` (in image string) | CHOWN, DAC_OVERRIDE, SETGID, SETUID | FAIL |
-| Any image with a known privilege-drop entrypoint (gosu, su-exec, su, chroot) + no `runAsUser` + no `runAsNonRoot: true` | SETUID, SETGID | WARN |
+| Condition | Severity |
+|---|---|
+| Image matches a KB pattern + `drop` contains `ALL` + required capabilities from KB are missing | FAIL |
+| Image matches a KB pattern + `drop` contains `ALL` + required capabilities are present | PASS |
+| Image matches a KB pattern + KB has no capability table (prose "None." like redis-valkey) + `drop` contains `ALL` + `capabilities.add` is empty | PASS |
+| Image does not match any KB pattern + no `runAsUser` + no `runAsNonRoot: true` + known privilege-drop entrypoint detected | WARN |
+| Image does not match any KB pattern (no KB entry exists) | not checked |
 
-Valkey/Redis images are explicitly skipped — they run as non-root (UID 999) and need no capabilities.
-
-nginx detection is limited to explicit `nginx` substring in the image field. Derived images that bundle nginx under a different name (e.g., WordPress images, Open WebUI) will not match — those require per-image capability research per the existing CLAUDE.md rules.
+The capability requirements are sourced from `docs/solutions/` KB files, not hardcoded. Adding a new image type only requires adding a KB entry — the script picks it up automatically. The root-generic KB entry is excluded from auto-discovery and used only as a fallback when no specific KB pattern matches.
 
 **Conditional gating (script-internal):** Exit 0 with "SKIP (no Deployments changed)" when no Deployment files are staged. Before invoking Python3, use a fast grep pre-filter: only parse files containing `capabilities:` to avoid YAML parsing on Deployments without security contexts.
 
