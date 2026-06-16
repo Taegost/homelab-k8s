@@ -1,7 +1,7 @@
 ---
 title: "fix: Rename manifest files to match documented naming conventions"
 type: fix
-status: active
+status: completed
 date: 2026-06-02
 ---
 

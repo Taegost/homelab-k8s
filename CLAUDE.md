@@ -118,14 +118,16 @@ The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/
 | Longhorn fsGroup | `longhorn-fsgroup-check.sh` | Missing fsGroup on non-root + Longhorn, fsGroup in wrong location |
 | Secret templates | `secret-template-verify.sh` | Missing sync-wave annotations, bad placeholder format |
 | :latest tag guard | inline in hook | Unpinned image tags (`image: ...:latest`) — must use a specific version |
+| NetworkPolicy | `networkpolicy-check.sh` | Missing `namespaceSelector` on `podSelector`, deny-all policies |
 
 The same suite can be invoked manually: `/homelab-validate`
 
-The IngressRoute and Longhorn fsGroup checks run conditionally — they only fire
-when `ingressroute` or `persistentvolumeclaim` files are staged. The other four
-checks (sync waves, YAML validity, plaintext secrets, secret templates) run on
-every commit that touches `.yaml` or `.yml` files. A "SKIP" for conditional
-checks on unrelated commits is expected and not a failure.
+The IngressRoute, Longhorn fsGroup, and NetworkPolicy checks run conditionally
+— they only fire when `ingressroute`, `persistentvolumeclaim`, or
+`networkpolicy` files are staged. The other four checks (sync waves, YAML
+validity, plaintext secrets, secret templates) run on every commit that touches
+`.yaml` or `.yml` files. A "SKIP" for conditional checks on unrelated commits is
+expected and not a failure.
 
 ### Sync wave reference
 
@@ -284,6 +286,7 @@ homelab-k8s/
 │   ├── n8n/                      # n8n workflow automation
 │   ├── nfs-csi/                  # NFS CSI driver Helm values
 │   ├── open-webui/               # Open WebUI AI chat interface
+│   ├── plane/                    # Plane CE — project management (issues, cycles, views)
 │   ├── postgres/                 # CNPG Cluster CRD + managed roles
 │   ├── sealed-secrets/           # Sealed Secrets controller manifest
 │   ├── searxng/                  # SearXNG meta search engine

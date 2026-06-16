@@ -3,6 +3,7 @@ type: fix
 status: active
 created: 2026-06-10
 origin: docs/plans/2026-06-10-002-feat-image-audit-skill-plan.md
+notes: "U1 (auto-discovery + valkey alias) complete. U2 (capability-check.sh reads from KB) blocked by docs/plans/2026-06-10-001-feat-pre-commit-validation-scripts-plan.md U2."
 ---
 
 # fix: KB Auto-Discovery, Valkey Alias, and Single Capability Source
