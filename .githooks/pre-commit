@@ -18,49 +18,49 @@ FAILED=0
 
 # 1. Sync waves
 echo ""
-echo "[1/8] Sync wave check..."
+echo "[1/11] Sync wave check..."
 bash "$SCRIPTS/sync-wave-check.sh" || FAILED=1
 
 # 2. YAML validity
 echo ""
-echo "[2/8] YAML validity..."
+echo "[2/11] YAML validity..."
 bash "$SCRIPTS/yaml-validity.sh" || FAILED=1
 
 # 3. Plaintext secret guard
 echo ""
-echo "[3/8] Plaintext secret guard..."
+echo "[3/11] Plaintext secret guard..."
 bash "$SCRIPTS/plaintext-secret-guard.sh" || FAILED=1
 
 # 4. IngressRoute consistency (only if IngressRoutes changed)
 if echo "$STAGED" | grep -q 'ingressroute'; then
   echo ""
-  echo "[4/8] IngressRoute consistency..."
+  echo "[4/11] IngressRoute consistency..."
   bash "$SCRIPTS/ingressroute-check.sh" || FAILED=1
 else
   echo ""
-  echo "[4/8] IngressRoute consistency — SKIP (no IngressRoutes changed)"
+  echo "[4/11] IngressRoute consistency — SKIP (no IngressRoutes changed)"
 fi
 
 # 5. Longhorn fsGroup (only if PVCs changed)
 if echo "$STAGED" | grep -q 'persistentvolumeclaim'; then
   echo ""
-  echo "[5/8] Longhorn fsGroup check..."
+  echo "[5/11] Longhorn fsGroup check..."
   bash "$SCRIPTS/longhorn-fsgroup-check.sh" || FAILED=1
 else
   echo ""
-  echo "[5/8] Longhorn fsGroup check — SKIP (no PVCs changed)"
+  echo "[5/11] Longhorn fsGroup check — SKIP (no PVCs changed)"
 fi
 
 # 6. Secret template verification (filesystem check, not staged)
 echo ""
-echo "[6/8] Secret template verification..."
+echo "[6/11] Secret template verification..."
 bash "$SCRIPTS/secret-template-verify.sh" apps/ || FAILED=1
 
 # 7. :latest tag guard — never allow unpinned images.
 #    Set HOMELAB_ALLOW_LATEST=1 to downgrade to warning (e.g. for apps where
 #    the maintainer only publishes :latest). All other checks still run.
 echo ""
-echo "[7/8] :latest tag guard..."
+echo "[7/11] :latest tag guard..."
 # Match both explicit :latest and implicit (no tag suffix after image name)
 LATEST_HITS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ya?ml$' | xargs grep -HnE 'image:.*:latest($|[^./-])' 2>/dev/null || true)
 # Only flag images with no tag or digest by extracting the image value
@@ -85,11 +85,41 @@ fi
 # 8. NetworkPolicy consistency (only if NetworkPolicies changed)
 if echo "$STAGED" | grep -q 'networkpolicy'; then
   echo ""
-  echo "[8/8] NetworkPolicy consistency..."
+  echo "[8/11] NetworkPolicy consistency..."
   bash "$SCRIPTS/networkpolicy-check.sh" || FAILED=1
 else
   echo ""
-  echo "[8/8] NetworkPolicy consistency — SKIP (no NetworkPolicies changed)"
+  echo "[8/11] NetworkPolicy consistency — SKIP (no NetworkPolicies changed)"
+fi
+
+# 9. Probe timeout check (only if Deployments changed)
+if echo "$STAGED" | grep -q 'deployment'; then
+  echo ""
+  echo "[9/11] Probe timeout check..."
+  bash "$SCRIPTS/probe-timeout-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[9/11] Probe timeout check — SKIP (no Deployments changed)"
+fi
+
+# 10. Capability check (only if Deployments changed)
+if echo "$STAGED" | grep -q 'deployment'; then
+  echo ""
+  echo "[10/11] Capability check..."
+  bash "$SCRIPTS/capability-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[10/11] Capability check — SKIP (no Deployments changed)"
+fi
+
+# 11. Env injection check (only if Deployments changed)
+if echo "$STAGED" | grep -q 'deployment'; then
+  echo ""
+  echo "[11/11] Env injection check..."
+  bash "$SCRIPTS/env-check.sh" || FAILED=1
+else
+  echo ""
+  echo "[11/11] Env injection check — SKIP (no Deployments changed)"
 fi
 
 echo ""

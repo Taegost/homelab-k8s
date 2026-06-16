@@ -119,15 +119,19 @@ The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/
 | Secret templates | `secret-template-verify.sh` | Missing sync-wave annotations, bad placeholder format |
 | :latest tag guard | inline in hook | Unpinned image tags (`image: ...:latest`) — must use a specific version |
 | NetworkPolicy | `networkpolicy-check.sh` | Missing `namespaceSelector` on `podSelector`, deny-all policies |
+| Probe timeout | `probe-timeout-check.sh` | Exec probes with default/too-short `timeoutSeconds` on known-slow CLIs |
+| Capabilities | `capability-check.sh` | Missing capabilities for images that drop ALL (reads from KB) |
+| Env injection | `env-check.sh` | Deployments missing `envFrom`/`env` blocks (WARN only) |
 
 The same suite can be invoked manually: `/homelab-validate`
 
-The IngressRoute, Longhorn fsGroup, and NetworkPolicy checks run conditionally
-— they only fire when `ingressroute`, `persistentvolumeclaim`, or
-`networkpolicy` files are staged. The other four checks (sync waves, YAML
-validity, plaintext secrets, secret templates) run on every commit that touches
-`.yaml` or `.yml` files. A "SKIP" for conditional checks on unrelated commits is
-expected and not a failure.
+The IngressRoute, Longhorn fsGroup, NetworkPolicy, probe timeout, capability,
+and env injection checks run conditionally — they only fire when `ingressroute`,
+`persistentvolumeclaim`, `networkpolicy`, or `deployment` files are staged. The
+other five checks (sync waves, YAML validity, plaintext secrets, secret
+templates, :latest tag guard) run on every commit that touches `.yaml` or `.yml`
+files. A "SKIP" for conditional checks on unrelated commits is expected and not
+a failure.
 
 ### Sync wave reference
 

@@ -16,6 +16,9 @@ Scripts live in `scripts/` — run them from the repo root:
 .claude/skills/homelab-validate/scripts/ingressroute-check.sh
 .claude/skills/homelab-validate/scripts/longhorn-fsgroup-check.sh
 .claude/skills/homelab-validate/scripts/networkpolicy-check.sh
+.claude/skills/homelab-validate/scripts/probe-timeout-check.sh
+.claude/skills/homelab-validate/scripts/capability-check.sh
+.claude/skills/homelab-validate/scripts/env-check.sh
 ```
 
 ---
@@ -117,3 +120,53 @@ Two hard rules, both enforced as failures:
 2. No deny-all policies — every `Ingress` policy MUST have at least one `from` block.
 
 The script uses YAML-aware parsing (`yaml.safe_load_all()`). Grep-based heuristics won't work — every NetworkPolicy has `spec.podSelector` (policy's own target pods) which would false-match `from[].podSelector`.
+
+---
+
+## 8. Probe Timeout Check
+
+**Script:** `scripts/probe-timeout-check.sh`
+
+This check runs only when Deployment files are staged. On other commits it exits 0 with SKIP.
+
+Catches exec probes with default (too-short) `timeoutSeconds`. Kubernetes defaults to 1s when omitted, which kills slow CLI commands before they complete.
+
+| CLI pattern | Minimum timeout | Severity |
+|---|---|---|
+| `rabbitmq-diagnostics`, `rabbitmqctl`, `celery` | 5s | FAIL |
+| `redis-cli`, `valkey-cli`, `pg_isready`, `mysqladmin`, `mongosh` | 2s | FAIL |
+| Any other exec probe | >1s | WARN (non-blocking) |
+
+Only checks `livenessProbe`, `readinessProbe`, and `startupProbe` with `exec` fields. `httpGet` and `tcpSocket` probes are not checked.
+
+---
+
+## 9. Capability Check
+
+**Script:** `scripts/capability-check.sh`
+
+This check runs only when Deployment files are staged. On other commits it exits 0 with SKIP.
+
+Catches missing capabilities for well-known images when `drop` includes `ALL`. Reads capability requirements from `docs/solutions/` KB files — the KB is the single source of truth. No capability lists are hardcoded in the script.
+
+| Condition | Severity |
+|---|---|
+| Image matches KB pattern + `drop: [ALL]` + required capabilities missing | FAIL |
+| Image matches KB pattern + `drop: [ALL]` + required capabilities present | PASS |
+| Image matches KB pattern + KB says no capabilities needed + `add` empty | PASS |
+| Image not in KB | not checked (manual Dockerfile review required) |
+| No `drop: [ALL]` | not checked |
+
+Adding a new image type only requires adding a KB entry — the script picks it up automatically.
+
+---
+
+## 10. Env Injection Check
+
+**Script:** `scripts/env-check.sh`
+
+This check runs only when Deployment files are staged. On other commits it exits 0 with SKIP.
+
+Warns when Deployments have no `envFrom` or `env` blocks. All findings are WARN — this check never blocks commits. It catches accidental omissions (e.g., a new Deployment created without copying the namespace-standard envFrom block).
+
+Checks main containers only (`spec.containers`), not init containers — init containers legitimately have no env injection.
