@@ -121,7 +121,8 @@ for doc in docs:
         missing = [c for c in required if c not in add_upper]
 
         if missing:
-            errors.append(f'    FAIL: container \x27{cname}\x27 ({matched_type}) — drop: [ALL] but missing: {', '.join(missing)}')
+            missing_str = ', '.join(missing)
+            errors.append(f'    FAIL: container \x27{cname}\x27 ({matched_type}) — drop: [ALL] but missing: {missing_str}')
         else:
             errors.append(f'    PASS: container \x27{cname}\x27 ({matched_type}) — all required capabilities present')
 
@@ -135,10 +136,10 @@ if errors:
 else:
     print('    PASS: no containers with drop: [ALL] matched KB patterns')
     sys.exit(0)
-" 2>&1) || true
+" 2>&1) && rc=0 || rc=$?
 
   echo "$result"
-  if echo "$result" | grep -q "FAIL:"; then
+  if [ "$rc" -ne 0 ] || echo "$result" | grep -q "FAIL:"; then
     failures=$((failures + 1))
   fi
 done < <(echo "$files")

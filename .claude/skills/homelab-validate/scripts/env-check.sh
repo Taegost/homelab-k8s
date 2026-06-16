@@ -46,10 +46,12 @@ for doc in docs:
             print(f'    PASS: container \x27{cname}\x27 — has env')
         else:
             print(f'    WARN: container \x27{cname}\x27 — no envFrom or env blocks')
-" 2>&1) || true
+" 2>&1) && rc=0 || rc=$?
 
   echo "$result"
-  if echo "$result" | grep -q "WARN:"; then
+  if [ "$rc" -ne 0 ]; then
+    echo "    ERROR: script crashed (exit code $rc)"
+  elif echo "$result" | grep -q "WARN:"; then
     warn_count=$((warn_count + 1))
   fi
 done < <(echo "$files")

@@ -84,10 +84,10 @@ if errors:
 else:
     print('    PASS: no exec probes found')
     sys.exit(0)
-" 2>&1) || true
+" 2>&1) && rc=0 || rc=$?
 
   echo "$result"
-  if echo "$result" | grep -q "FAIL:"; then
+  if [ "$rc" -ne 0 ] || echo "$result" | grep -q "FAIL:"; then
     failures=$((failures + 1))
   fi
 done < <(echo "$files")

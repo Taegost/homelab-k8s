@@ -128,9 +128,10 @@ The same suite can be invoked manually: `/homelab-validate`
 The IngressRoute, Longhorn fsGroup, NetworkPolicy, probe timeout, capability,
 and env injection checks run conditionally — they only fire when `ingressroute`,
 `persistentvolumeclaim`, `networkpolicy`, or `deployment` files are staged. The
-other four checks (sync waves, YAML validity, plaintext secrets, secret
-templates) run on every commit that touches `.yaml` or `.yml` files. A "SKIP"
-for conditional checks on unrelated commits is expected and not a failure.
+other five checks (sync waves, YAML validity, plaintext secrets, secret
+templates, :latest tag guard) run on every commit that touches `.yaml` or `.yml`
+files. A "SKIP" for conditional checks on unrelated commits is expected and not
+a failure.
 
 ### Sync wave reference
 

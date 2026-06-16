@@ -81,13 +81,15 @@ Shell wrapper + Python3 inline, following the `networkpolicy-check.sh` pattern.
 - Generic exec probes with missing/default timeout: WARN (not FAIL)
 
 **Output format** (matching existing scripts):
-```
+
+```text
 === Probe Timeout Check ===
   apps/plane/deployment-rabbitmq.yaml
     PASS: exec probe timeoutSeconds: 10
   apps/foo/deployment-foo.yaml
     FAIL: livenessProbe exec [redis-cli ping] — timeoutSeconds missing (default 1s), need >= 2
 PASS: all exec probe timeouts adequate
+
 ```
 
 **Test scenarios:**
@@ -118,6 +120,7 @@ rather than hardcoding them.
 **KB auto-discovery (shell, at startup):**
 
 Reuse the pattern from `audit.sh`:
+
 ```bash
 KB_DIR="$REPO_ROOT/docs/solutions"
 declare -A IMAGE_PATTERNS
@@ -132,11 +135,13 @@ for kb_file in "$KB_DIR"/base-images-*.md; do
     done < <(awk '/^## Image patterns/{flag=1; next} /^## /{flag=0} flag' "$kb_file" \
         | grep -oP '`\K[^`]+' | sed 's/\*//g')
 done
+
 ```
 
 **Capability extraction from KB (shell function):**
 
 For a given KB file, extract the required capabilities from the markdown table:
+
 ```bash
 _extract_caps() {
     local kb_file="$1"
@@ -145,6 +150,7 @@ _extract_caps() {
     awk '/^\| Capability \| Why \|/{flag=1; next} /^$|^## /{flag=0} flag' "$kb_file" \
         | grep -oP '`\K[^`]+'
 }
+
 ```
 
 If the KB file has "None." in the prose after the heading (like redis-valkey),
@@ -183,7 +189,8 @@ by `networkpolicy-check.sh` (Python3 reads files directly) and is more robust
 than shell-constructed JSON.
 
 **Output format:**
-```
+
+```text
 === Capability Check ===
   apps/plane/deployment-plane-admin.yaml
     FAIL: container 'admin' (nginx-derived) — drop: [ALL] but missing: SETGID, SETUID
@@ -192,6 +199,7 @@ than shell-constructed JSON.
   apps/plane/deployment-valkey.yaml
     PASS: container 'valkey' — no capabilities required (non-root image)
 PASS: all capability checks passed
+
 ```
 
 **Test scenarios:**
@@ -238,13 +246,15 @@ Simplest of the three scripts. Shell wrapper + Python3 inline.
 Exit code is always 0.
 
 **Output format:**
-```
+
+```text
 === Env Check ===
   apps/plane/deployment-plane-api.yaml
     PASS: has envFrom
   apps/foo/deployment-foo.yaml
     WARN: no envFrom or env blocks — may be missing ConfigMap/Secret injection
 WARN: 1 Deployment(s) with missing env injection (non-blocking)
+
 ```
 
 **Test scenarios:**
@@ -271,6 +281,7 @@ blocks after the NetworkPolicy check (step 8). Renumber all steps to 1/11
 through 11/11.
 
 Each new block follows the existing conditional pattern:
+
 ```bash
 # N. Check name (only if Deployments changed)
 if echo "$STAGED" | grep -q 'deployment'; then
@@ -281,6 +292,7 @@ else
   echo ""
   echo "[N/11] Check name — SKIP (no Deployments changed)"
 fi
+
 ```
 
 **Placement:** After step 8 (NetworkPolicy), before the final PASS/FAIL summary.
