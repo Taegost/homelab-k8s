@@ -41,22 +41,6 @@ work in production were the right ones.
 
 ## Tracks
 
-### Documentation currency **[COMPLETE — 2026-05-22]**
-
-Close the gap between the live cluster and what's written: migration is complete, the
-third node is online, and the docs need to reflect reality.
-
-_Why it serves the approach:_ The repo can't teach if it describes a cluster that no
-longer exists.
-
-### Personal portfolio WordPress **[COMPLETE — 2026-05-22]**
-
-Add a WordPress site for Mike's personal portfolio and blog, using the same
-production patterns as other WordPress deployments in the cluster.
-
-_Why it serves the approach:_ Demonstrates the MariaDB + Helm WordPress pattern while
-serving the "Production-Grade Homelabbing" content niche directly.
-
 ### Observability
 
 Deploy Prometheus and Grafana to provide visibility into cluster and app metrics
@@ -85,6 +69,20 @@ _Why it serves the approach:_ Documentation drift undermines the repo's value as
 teaching artifact. A doc that describes a cluster that no longer exists is worse
 than no doc at all — it teaches the wrong thing with the authority of being written
 down.
+
+## Completed Tracks
+
+### Documentation currency **[COMPLETE — 2026-05-22]**
+
+Close the gap between the live cluster and what's written: migration is complete, the
+third node is online, and the docs need to reflect reality.
+
+### Personal portfolio WordPress **[COMPLETE — 2026-05-22]**
+
+Add a WordPress site for Mike's personal portfolio and blog, using the same
+production patterns as other WordPress deployments in the cluster.
+
+---
 
 ## Marketing
 

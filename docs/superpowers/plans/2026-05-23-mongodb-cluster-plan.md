@@ -8,6 +8,8 @@
 
 **Tech Stack:** Percona Operator for MongoDB 1.22.0, Percona Server for MongoDB 8.0.19-7, local-path StorageClass, Sealed Secrets, ArgoCD
 
+> **Version note:** Versions shown are from plan-writing time (2026-05-23). Check `apps/percona-mongodb-operator/` and `apps/percona-mongodb/` for current deployed versions.
+
 **Design doc:** `docs/superpowers/specs/2026-05-23-mongodb-cluster-design.md`
 
 ---

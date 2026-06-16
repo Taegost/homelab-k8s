@@ -24,6 +24,7 @@ The `kubeseal` CLI is pre-installed in the [DevOps Toolbox](https://github.com/T
 brew install kubeseal
 
 # Linux — check https://github.com/bitnami-labs/sealed-secrets/releases for the latest version
+# Replace v0.36.6 with the latest release tag from the link above
 curl -OL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.36.6/kubeseal-0.36.6-linux-amd64.tar.gz"
 tar -xvzf kubeseal-0.36.6-linux-amd64.tar.gz kubeseal
 sudo install -m 755 kubeseal /usr/local/bin/kubeseal

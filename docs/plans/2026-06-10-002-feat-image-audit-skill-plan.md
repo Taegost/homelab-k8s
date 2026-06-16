@@ -1,6 +1,6 @@
 ---
 type: feat
-status: active
+status: completed
 created: 2026-06-10
 origin: docs/plans/2026-06-10-001-feat-pre-commit-validation-scripts-plan.md
 ---

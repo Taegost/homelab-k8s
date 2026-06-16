@@ -71,7 +71,7 @@ gets a materially inaccurate picture of the cluster.
 - `bootstrap/README.md` Step 4 — docker-traefik apply commands appear at the
   end of the Traefik bootstrap section after the main `helm install` block.
 - docker-traefik source: recoverable via `git show 6f7fcdf^:apps/traefik/docker-traefik-forward.yaml`
-  and `git show 6f7fcdf^:apps/traefik/docker-traefik-catchall.yaml` — both are
+  and `git show 6f7fcdf^:apps/traefik/docker-traefik-catchall.yaml` (commit `6f7fcdf` — "Traefik Migration: Phase 2") — both are
   well-commented in the original and serve as the source for the archive copies.
 
 ### Institutional Learnings

@@ -42,7 +42,7 @@ The script reads entries from `docs/solutions/`:
 
 ## When to skip
 
-- If the image type is already covered by an explicit check in `capability-check.sh` (the pre-commit hook catches regressions)
+- If the image type is already covered by a KB entry in `docs/solutions/` — the audit script auto-discovers and applies it
 - Infrastructure components managed by operators (CNPG, mariadb-operator, Longhorn) — their security contexts are operator-managed
 
 ## Example

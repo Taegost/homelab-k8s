@@ -2,6 +2,7 @@
 type: feat
 status: active
 created: 2026-06-10
+notes: "Merge conflicts resolved (kept KB-based approach). U1 (probe-timeout-check.sh), U2 (capability-check.sh), U3 (env-check.sh), U4 (hook wiring), U5 (docs) all remaining. networkpolicy-check.sh was wired into the hook separately."
 ---
 
 # feat: Add Three Pre-Commit Validation Scripts
@@ -109,28 +110,19 @@ All three scripts exit early with SKIP when no Deployment files are staged, matc
 
 **Goal:** Catch missing capabilities for well-known images when `drop` includes `ALL`.
 
-<<<<<<< HEAD
 **Approach:** Python3 inline script reads container `image` and `securityContext.capabilities`. Only fires when `drop` contains `ALL`. Matches image names against the base-image knowledge base (`docs/solutions/`) using the same auto-discovery mechanism as `audit.sh` — scans KB files at startup, parses "Image patterns" sections to build a pattern map, then extracts required capabilities from each KB entry's "Required capabilities" table. The KB is the single source of truth for capability requirements; no capability lists are hardcoded in the script.
-=======
-**Approach:** Python3 inline script reads container `image` and `securityContext.capabilities`. Only fires when `drop` contains `ALL`. Matches image names against a known-requirements map.
->>>>>>> 24543b7 (feat(plan): pre-commit validation scripts plan with review refinements)
 
 **Dependencies:** None.
 
 **Files:**
 - `.claude/skills/homelab-validate/scripts/capability-check.sh` (create)
 
-<<<<<<< HEAD
 **Patterns to follow:** Same Python3 inline + shell wrapper pattern as `probe-timeout-check.sh`. KB auto-discovery follows the pattern in `.claude/skills/homelab-image-audit/audit.sh` (section-aware awk extraction, process substitution for associative array population). Uses the existing `runAsUser`/`runAsNonRoot` heuristics from `longhorn-fsgroup-check.sh` for generic root-image detection.
-=======
-**Patterns to follow:** Same Python3 inline + shell wrapper pattern as `probe-timeout-check.sh`. Uses the existing `runAsUser`/`runAsNonRoot` heuristics from `longhorn-fsgroup-check.sh` for generic root-image detection.
->>>>>>> 24543b7 (feat(plan): pre-commit validation scripts plan with review refinements)
 
 This script is a safety net for the CLAUDE.md research rules — it catches cases where the operator skipped the Dockerfile capability check during debugging or rapid iteration. The research rules remain the primary guard; this script is the automated backstop.
 
 **Checks:**
 
-<<<<<<< HEAD
 | Condition | Severity |
 |---|---|
 | Image matches a KB pattern + `drop` contains `ALL` + required capabilities from KB are missing | FAIL |
@@ -140,28 +132,12 @@ This script is a safety net for the CLAUDE.md research rules — it catches case
 | Image does not match any KB pattern (no KB entry exists) | not checked |
 
 The capability requirements are sourced from `docs/solutions/` KB files, not hardcoded. Adding a new image type only requires adding a KB entry — the script picks it up automatically. The root-generic KB entry is excluded from auto-discovery and used only as a fallback when no specific KB pattern matches.
-=======
-| Image pattern | Required capabilities when `drop: [ALL]` | Severity |
-|---|---|---|
-| `nginx`, `nginx:` (in image string) | SETGID, SETUID, CHOWN, NET_BIND_SERVICE | FAIL |
-| `rabbitmq` (in image string) | CHOWN, DAC_OVERRIDE, SETGID, SETUID | FAIL |
-| Any image with a known privilege-drop entrypoint (gosu, su-exec, su, chroot) + no `runAsUser` + no `runAsNonRoot: true` | SETUID, SETGID | WARN |
-
-Valkey/Redis images are explicitly skipped — they run as non-root (UID 999) and need no capabilities.
-
-nginx detection is limited to explicit `nginx` substring in the image field. Derived images that bundle nginx under a different name (e.g., WordPress images, Open WebUI) will not match — those require per-image capability research per the existing CLAUDE.md rules.
->>>>>>> 24543b7 (feat(plan): pre-commit validation scripts plan with review refinements)
 
 **Conditional gating (script-internal):** Exit 0 with "SKIP (no Deployments changed)" when no Deployment files are staged. Before invoking Python3, use a fast grep pre-filter: only parse files containing `capabilities:` to avoid YAML parsing on Deployments without security contexts.
 
 **Test scenarios:**
-<<<<<<< HEAD
 1. nginx Deployment with `drop: [ALL]`, only `CHOWN` added → FAIL ("missing SETGID, SETUID")
 2. nginx Deployment with `drop: [ALL]`, `CHOWN`, `SETGID`, `SETUID` added → PASS (NET_BIND_SERVICE is conditional — only required when nginx binds privileged ports <1024)
-=======
-1. nginx Deployment with `drop: [ALL]`, only `CHOWN` added → FAIL ("missing SETGID, SETUID, NET_BIND_SERVICE")
-2. nginx Deployment with `drop: [ALL]`, `CHOWN`, `SETGID`, `SETUID`, `NET_BIND_SERVICE` added → PASS
->>>>>>> 24543b7 (feat(plan): pre-commit validation scripts plan with review refinements)
 3. RabbitMQ Deployment with `drop: [ALL]`, missing `DAC_OVERRIDE` → FAIL
 4. RabbitMQ Deployment with `drop: [ALL]`, full set (CHOWN, DAC_OVERRIDE, SETGID, SETUID) → PASS
 5. Valkey Deployment with `drop: [ALL]`, no capabilities added, `runAsUser: 999` → PASS (non-root, skipped)

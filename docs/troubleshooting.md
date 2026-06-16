@@ -366,7 +366,7 @@ git push
 ```
 
 ArgoCD syncs, operator bootstraps a fresh 3-node replica set with all secrets
-present and consistent. The sync wave annotations (added in commit `eb9faa2`)
+present and consistent. The sync wave annotations (added in commit `eb9faa2` — "fix: add sync wave annotations to MongoDB secrets and cluster CRD")
 ensure SealedSecrets decrypt at wave `-3` before the CRD applies at wave `-2`,
 preventing recurrence.
 

@@ -81,6 +81,7 @@ The cluster runs **multiple combined control-plane/worker nodes** for high avail
 | [Mealie](https://mealie.io/) | Recipe manager and meal planner | `mealie` |
 | [n8n](https://n8n.io/) | Workflow automation | `n8n` |
 | [Open WebUI](https://openwebui.com/) | Web chat interface for AI models (backed by LiteLLM) | `open-webui` |
+| [Plane](https://plane.so/) | Project management (issues, cycles, views) | `plane` |
 | [SearXNG](https://github.com/searxng/searxng) | Privacy-respecting meta search engine | `searxng` |
 | [DiceNinjaGaming WordPress](https://wordpress.org/) | WordPress site for the DiceNinjaGaming blog | `wordpress-dng` |
 | [WordPress (taegost.com)](https://wordpress.org/) | Mike's professional portfolio and blog | `wordpress-taegost` |
@@ -256,14 +257,13 @@ DaemonSets. **SMB (`apps/manifests/smb-csi.yaml`, sync wave `-1`) is the
 default for all deployed applications.** NFS (`apps/manifests/nfs-csi.yaml`)
 is installed for reference but not used by any deployed application.
 
-Four StorageClasses are available, defined in `apps/infrastructure/storage/`:
+Three StorageClasses are available, defined in `apps/infrastructure/storage/`:
 
 | StorageClass | Backend | Access | Use |
 |---|---|---|---|
 | `longhorn` | Longhorn replicated block | RWO/RWX | App config and data — see `docs/storage.md` |
 | **`smb-backups`** | Unraid Backups (SMB) | RWX | **Primary** backup storage — default for all app backup volumes |
 | `nfs-backups` | Unraid Backups (NFS) | RWX | Reference-only — kept for future flexibility, not used by any deployed app |
-| **`smb-multimedia`** | Unraid Multimedia (SMB) | RWX | Media library — shared across *arr stack apps |
 
 - **`smb-backups`** provisions a dedicated subdirectory per PVC
   (`<namespace>/<pvc-name>`) on the Unraid Backups share. **This is the
@@ -271,12 +271,8 @@ Four StorageClasses are available, defined in `apps/infrastructure/storage/`:
 - **`nfs-backups`** is functionally identical but over NFS instead of SMB.
   It exists for reference; no deployed application uses it. If you need a
   second backup path (e.g. different NAS share), use this as a template.
-- **`smb-multimedia`** mounts the Unraid Multimedia share root directly.
-  Use `subPath` in the Deployment's `volumeMounts` to access specific
-  subdirectories (e.g. `TV`, `Movies`). Create one PVC per namespace that
-  needs media access.
 
-All four StorageClasses use `reclaimPolicy: Retain` — deleting a PVC never
+All three StorageClasses use `reclaimPolicy: Retain` — deleting a PVC never
 deletes data on the NAS. Released PVs must be manually cleaned up.
 
 To add backup storage to a new application:
