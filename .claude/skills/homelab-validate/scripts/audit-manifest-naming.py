@@ -14,7 +14,7 @@ filenames. The rename table in the implementation plan is authoritative for
 the correct new paths.
 
 Usage:
-    python3 scripts/audit-manifest-naming.py
+    python3 .claude/skills/homelab-validate/scripts/audit-manifest-naming.py
 
 Exit code: 0 when zero violations found, 1 when violations exist.
 """

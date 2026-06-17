@@ -14,9 +14,9 @@ Rules (from CLAUDE.md):
            NetworkPolicies, Certificates (OMIT annotation)
 
 Usage:
-    python3 scripts/check-sync-waves.py              # check staged files
-    python3 scripts/check-sync-waves.py --all         # check all committed files
-    python3 scripts/check-sync-waves.py --files a.yaml b.yaml  # specific files
+    python3 .claude/skills/homelab-validate/scripts/check-sync-waves.py              # check staged files
+    python3 .claude/skills/homelab-validate/scripts/check-sync-waves.py --all         # check all committed files
+    python3 .claude/skills/homelab-validate/scripts/check-sync-waves.py --files a.yaml b.yaml  # specific files
 
 Exit code: 0 when no issues found, 1 when issues exist.
 """
