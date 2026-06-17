@@ -1,0 +1,9 @@
+{
+  "aiTools": [
+    "claude"
+  ],
+  "scaffold_id": "00f1ca2d-f9b0-4d6b-a4c2-65b4c59fe109",
+  "scaffold_name": "homelab-k8s",
+  "origin": null,
+  "upstream": null
+}
