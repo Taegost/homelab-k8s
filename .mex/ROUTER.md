@@ -14,7 +14,7 @@ edges:
     condition: when debugging, restarting, recovering, or inspecting services
   - target: HEARTBEAT.md
     condition: when handling a scheduled heartbeat
-last_updated: [YYYY-MM-DD]
+last_updated: 2026-06-16
 ---
 
 # Session Bootstrap
@@ -26,6 +26,8 @@ Read `AGENTS.md` first if it is not already loaded. Then read this file.
 
 ## Routing Table
 
+### Context Files
+
 | Task type | Load |
 |-----------|------|
 | System architecture or service topology | `context/architecture.md` |
@@ -35,6 +37,25 @@ Read `AGENTS.md` first if it is not already loaded. Then read this file.
 | Run, inspect, restart, recover | `context/setup.md` |
 | Scheduled heartbeat | `HEARTBEAT.md` |
 | Recurring task | `patterns/INDEX.md` |
+
+### User-Facing Documentation
+
+| Task type | Load |
+|-----------|------|
+| Deploying a new app with Postgres | `docs/postgres-runbooks.md` |
+| Deploying a new app with MariaDB | `docs/mariadb-runbooks.md` |
+| Deploying a new app with MongoDB | `docs/mongodb-runbooks.md` |
+| Sealed secrets workflow | `docs/sealed-secrets.md` |
+| Cluster recovery or node loss | `docs/disaster-recovery.md` |
+| DNS or networking issues | `docs/troubleshooting.md` |
+| Storage utilisation or trim jobs | `docs/storage.md` |
+| n8n HA migration (S3, queue mode) | `docs/n8n-ha-migration.md` |
+| ArgoCD HA migration | `docs/argocd-ha-migration.md` |
+| External service routing | `apps/traefik/external/README.md` |
+| Bootstrap from scratch | `bootstrap/README.md` |
+| Pre-commit validation scripts | `.claude/skills/homelab-validate/SKILL.md` |
+| Image security context audit | `.claude/skills/homelab-image-audit/SKILL.md` |
+| Planning artifacts | `docs/plans/`, `docs/brainstorms/` |
 
 ## Behavioural Contract
 
