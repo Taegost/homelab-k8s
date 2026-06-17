@@ -12,47 +12,60 @@ edges:
     condition: when specific technology details are needed
   - target: context/decisions.md
     condition: when understanding why the architecture is structured this way
-last_updated: [YYYY-MM-DD]
+last_updated: 2026-06-16
 ---
 
 # Architecture
 
 ## System Overview
-<!-- Describe how the major pieces connect.
-     Focus on FLOW not technology — how does a request/action move through the system?
-     Use the actual names of components, services, and modules from this codebase.
-     Format: a simple text flow diagram or short prose description.
-     Length: 5-15 lines. Minimum 5 lines. Should be readable in 30 seconds.
-     Example:
-     "Request comes in via Express router → validated by middleware →
-     passed to service layer → service calls repository for data →
-     repository queries PostgreSQL → result returned up the chain →
-     formatted by serializer → sent as JSON response." -->
+
+Git commit pushed to `main` triggers ArgoCD reconciliation. ArgoCD reads the
+app-of-apps pattern: one root Application points at `apps/manifests/*.yaml`,
+each of which points at a directory of manifests or a Helm chart. Helm-based
+apps resolve chart versions from `targetRevision` in the Application manifest.
+Static-manifest apps have version frozen in image tags.
+
+Within the cluster: pfSense handles routing at the network edge; MetalLB
+provides L2/ARP LoadBalancer IPs; Traefik is the sole ingress controller,
+terminating TLS via cert-manager (Let's Encrypt DNS-01 over Route53). Apps
+expose themselves as IngressRoutes; external (non-Kubernetes) services use
+ExternalName Services with raw IPs, also routed through Traefik.
+
+Data tier: shared CNPG PostgreSQL (2 instances, PgBouncer pooler), shared
+mariadb-operator MariaDB (2 instances, async GTID replication), Percona MongoDB
+(1 instance). Each app gets its own database/role per database engine. Secrets
+are SealedSecrets only, decrypted by the controller in `kube-system` before
+dependent resources deploy (sync-wave ordering).
+
+Storage tier: Longhorn provides replicated RWO block storage for app config.
+SMB CSI (`csi-driver-smb`) provides RWX backup volumes on Unraid. NFS CSI
+exists as reference-only. `local-path` backs CNPG (replication provides
+redundancy). Single-replica apps use `strategy: Recreate` on Longhorn volumes.
 
 ## Key Components
-<!-- List the major components, modules, or services in this project.
-     For each: name, what it does, what it depends on.
-     Only include components that are non-obvious or have important constraints.
-     Minimum 3 components. If you cannot identify 3, write "[TO DETERMINE]" as a placeholder.
-     Length: 1-2 lines per component.
-     Example:
-     - **AuthService** — handles all authentication logic, depends on UserRepository and JWTLib
-     - **EventBus** — async communication between services, all side effects go through here -->
+
+- **ArgoCD** (namespace `argocd`) — GitOps controller, syncs all workloads from git. Root Application (`app-of-apps.yaml`) bootstraps; not managed by ArgoCD itself.
+- **Traefik** (namespace `traefik`) — sole ingress controller, handles HTTP-to-HTTPS redirect at entrypoint level, uses `forwardedHeaders.trustedIPs: 10.0.0.0/8` for real client IPs. HostRegexp catch-all: `` HostRegexp(`.+`) `` (Traefik v3 syntax).
+- **Sealed Secrets** (namespace `kube-system`) — sole secrets mechanism; plaintext secrets are never committed. `secret-*.yaml` is gitignored; `sealedsecret-*.yaml` is committed.
+- **CloudNativePG (CNPG)** (namespace `cnpg-system`) — operator for shared PostgreSQL 18 cluster (2 instances). Roles declared in `apps/postgres/cluster-postgres.yaml`.
+- **mariadb-operator** (namespace `mariadb`) — operator for shared MariaDB 12.2.2 cluster (2 instances, async GTID). Standalone Database/User/Grant CRDs live in the app's own folder.
+- **Percona MongoDB Operator** (namespace `psmdb-operator`) — manages PSMDB CRD for MongoDB cluster.
+- **Longhorn** (namespace `longhorn-system`) — replicated RWO storage. `csi.kubeletRootDir: /var/lib/kubelet` (do not change). Opt-in via `storageClassName: longhorn`.
+- **MetalLB** (namespace `metallb-system`) — L2/ARP mode LoadBalancer IP allocation.
+- **cert-manager** (namespace `cert-manager`) — Let's Encrypt DNS-01 via Route53. ClusterIssuers: `letsencrypt-diceninjagaming-prod` and `letsencrypt-diceninjagaming-staging`.
+- **Authentik** (namespace `authentik`) — primary SSO layer, 2 server replicas, 1 worker, Redis, LDAP outpost. Forward-auth middleware in traefik namespace.
+- **SMB CSI Driver** (`apps/manifests/smb-csi.yaml`) — dynamic SMB provisioning to Unraid (`firebird.lan`), credentials in `apps/smb-csi/sealedsecret-smb-creds.yaml`.
 
 ## External Dependencies
-<!-- Third-party services, APIs, or databases this project connects to.
-     For each: what it is, what we use it for, any important constraints.
-     Minimum 3 items. If you cannot find 3, write "[TO DETERMINE]" as a placeholder.
-     Length: 1-2 lines per dependency.
-     Example:
-     - **PostgreSQL** — primary database, all writes go through the repository layer only
-     - **SendGrid** — transactional email, use the EmailService wrapper, never call directly -->
+
+- **pfSense** — network edge router, not managed in this repo
+- **Unraid NAS** (`firebird.lan`) — SMB and NFS storage target for `csi-driver-smb` and `csi-driver-nfs`
+- **Route53** — public DNS and Let's Encrypt DNS-01 challenge solver
+- **kube-vip** — pre-cluster load balancer, installed manually outside this repo
 
 ## What Does NOT Exist Here
-<!-- Explicit boundaries — what is deliberately outside this system.
-     This prevents the agent from building things that belong elsewhere or making wrong assumptions.
-     Minimum 2 items. If you cannot find 2, write "[TO DETERMINE]" as a placeholder.
-     Length: 2-5 items.
-     Example:
-     - No background job processing — that lives in the worker service (separate repo)
-     - No file storage — we use S3 directly, no abstraction layer -->
+
+- Ansible, LLM server configuration, Docker Compose files (unless being migrated), pfSense config, Unraid config, or any non-Kubernetes homelab work
+- Direct `kubectl apply` usage — all cluster changes must go through git commits and ArgoCD sync (never bypass the GitOps pipeline)
+- `git commit --amend` — forbidden; rewrites commit hash, causes merge conflicts
+- Bypass env vars (`HOMELAB_ALLOW_LATEST`, `HOMELAB_ALLOW_MAIN`) — Claude must never set these; flag to user if a bypass is needed
