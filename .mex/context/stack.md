@@ -70,7 +70,7 @@ Percona Server for MongoDB, managed by Percona MongoDB Operator. Cluster CRD + s
 
 ## LibreChat NetworkPolicy Note
 
-The meilisearch and redis NetworkPolicies in `apps/librechat/` use `podSelector` without `namespaceSelector` in their `from` entries. These are same-namespace policies and work correctly, but do not comply with the updated `networkpolicy-check.sh` rule. Files to update: `apps/librechat/networkpolicy-meilisearch.yaml`, `apps/librechat/networkpolicy-redis.yaml`. Fix: add `namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: librechat } }` alongside each `podSelector`.
+The meilisearch and redis NetworkPolicies in `apps/librechat/` use `podSelector` without `namespaceSelector` in their `from` entries. These are same-namespace policies and work correctly, but do not comply with the updated `.claude/skills/homelab-validate/scripts/networkpolicy-check.sh` rule. Files to update: `apps/librechat/networkpolicy-meilisearch.yaml`, `apps/librechat/networkpolicy-redis.yaml`. Fix: add `namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: librechat } }` alongside each `podSelector`.
 
 ## Version Constraints
 

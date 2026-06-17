@@ -160,17 +160,17 @@ Checks (scripts at `.claude/skills/homelab-validate/scripts/`):
 
 | Check | Script | What it catches |
 |---|---|---|
-| Sync waves | `sync-wave-check.sh` | Missing/misplaced wave annotations |
-| YAML validity | `yaml-validity.sh` | Invalid YAML syntax |
-| Plaintext secrets | `plaintext-secret-guard.sh` | Accidentally staged `secret-*.yaml` files |
-| IngressRoute | `ingressroute-check.sh` | Wrong namespace, missing middleware, cert issues |
-| Longhorn fsGroup | `longhorn-fsgroup-check.sh` | Missing fsGroup on non-root + Longhorn, fsGroup in wrong location |
-| Secret templates | `secret-template-verify.sh` | Missing sync-wave annotations, bad placeholder format |
+| Sync waves | `.claude/skills/homelab-validate/scripts/sync-wave-check.sh` | Missing/misplaced wave annotations |
+| YAML validity | `.claude/skills/homelab-validate/scripts/yaml-validity.sh` | Invalid YAML syntax |
+| Plaintext secrets | `.claude/skills/homelab-validate/scripts/plaintext-secret-guard.sh` | Accidentally staged `secret-*.yaml` files |
+| IngressRoute | `.claude/skills/homelab-validate/scripts/ingressroute-check.sh` | Wrong namespace, missing middleware, cert issues |
+| Longhorn fsGroup | `.claude/skills/homelab-validate/scripts/longhorn-fsgroup-check.sh` | Missing fsGroup on non-root + Longhorn, fsGroup in wrong location |
+| Secret templates | `.claude/skills/homelab-validate/scripts/secret-template-verify.sh` | Missing sync-wave annotations, bad placeholder format |
 | :latest tag guard | inline in hook | Unpinned image tags |
-| NetworkPolicy | `networkpolicy-check.sh` | Missing `namespaceSelector` on `podSelector`, deny-all policies |
-| Probe timeout | `probe-timeout-check.sh` | Exec probes with default/too-short `timeoutSeconds` on known-slow CLIs |
-| Capabilities | `capability-check.sh` | Missing capabilities for images that drop ALL |
-| Env injection | `env-check.sh` | Deployments missing `envFrom`/`env` blocks (WARN only) |
+| NetworkPolicy | `.claude/skills/homelab-validate/scripts/networkpolicy-check.sh` | Missing `namespaceSelector` on `podSelector`, deny-all policies |
+| Probe timeout | `.claude/skills/homelab-validate/scripts/probe-timeout-check.sh` | Exec probes with default/too-short `timeoutSeconds` on known-slow CLIs |
+| Capabilities | `.claude/skills/homelab-validate/scripts/capability-check.sh` | Missing capabilities for images that drop ALL |
+| Env injection | `.claude/skills/homelab-validate/scripts/env-check.sh` | Deployments missing `envFrom`/`env` blocks (WARN only) |
 
 Manual invocation: `/homelab-validate`. Conditional checks (IngressRoute, fsGroup, NetworkPolicy, probe timeout, capabilities, env injection) only fire when matching file types are staged — a "SKIP" on unrelated commits is expected, not a failure.
 
