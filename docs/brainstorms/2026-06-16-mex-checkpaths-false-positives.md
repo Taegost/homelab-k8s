@@ -159,6 +159,28 @@ checker that returns 0/100 on a correct scaffold:
 3. **Undermines trust in the tool** — "mex says everything is broken" is worse
    than "mex says nothing is wrong"
 
+## The Deeper Problem: Backticks ≠ Paths
+
+The checker's core assumption — that backtick-wrapped strings are file paths —
+is wrong for general markdown usage. Backticks are inline code formatting. They
+are used for:
+
+- File paths (`src/auth.ts`) — the only case the checker handles correctly
+- Config values (`csi.kubeletRootDir: /var/lib/kubelet`)
+- Commands (`sudo ls /var/lib/`)
+- Annotation keys (`argocd.argoproj.io/sync-wave`)
+- IP addresses (`192.168.5.0/24`)
+- Example filenames (`clusterissuer-dng-prod.yaml`)
+- Emphasis and technical terms (`drop: [ALL]`, `this is important`)
+
+The mex templates themselves are empty skeletons — no backtick-wrapped content
+to trigger false positives. The tool was built for code repos where backtick
+strings typically ARE file paths. Nobody has tested it on infrastructure repos
+or general documentation where backticks serve many other purposes.
+
+This affects any mex user who writes documentation with inline code formatting
+that isn't file paths — not just Kubernetes repos.
+
 ## Options for Resolution
 
 ### Option A: File upstream issue, wait for fix
