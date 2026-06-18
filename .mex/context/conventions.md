@@ -11,6 +11,12 @@ triggers:
 edges:
   - target: context/architecture.md
     condition: when a convention depends on understanding the system structure
+  - target: patterns/add-app.md
+    condition: when deploying a new application
+  - target: patterns/seal-secret.md
+    condition: when creating or managing secrets
+  - target: patterns/add-database-app.md
+    condition: when adding an app with a database
 last_updated: 2026-06-16
 ---
 

@@ -12,6 +12,10 @@ edges:
     condition: when specific technology details are needed
   - target: context/decisions.md
     condition: when understanding why the architecture is structured this way
+  - target: patterns/add-app.md
+    condition: when adding a new app to the cluster
+  - target: patterns/debug-sync-failure.md
+    condition: when diagnosing sync or reconciliation issues
 last_updated: 2026-06-16
 ---
 

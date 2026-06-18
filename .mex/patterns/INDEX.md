@@ -23,3 +23,7 @@ Lookup table for all pattern files in this directory. Check here before starting
 
 | Pattern | Use when |
 |---------|----------|
+| [add-app.md](add-app.md) | Deploying a new application to the cluster |
+| [add-database-app.md](add-database-app.md) | Adding an app that requires PostgreSQL, MariaDB, or MongoDB |
+| [debug-sync-failure.md](debug-sync-failure.md) | Diagnosing ArgoCD sync failures, stuck resources, or reconciliation issues |
+| [seal-secret.md](seal-secret.md) | Creating, sealing, or managing Kubernetes secrets via SealedSecrets |

@@ -22,7 +22,22 @@ last_updated: 2026-06-16
 Read `AGENTS.md` first if it is not already loaded. Then read this file.
 
 ## Current Operational State
-<!-- Active systems, known issues, current projects, and anything the agent must know before acting. -->
+
+**Cluster:** k3s on 3 combined control-plane/worker nodes. All workloads managed by ArgoCD (app-of-apps pattern).
+
+**Running:**
+- Core infra: Traefik (ingress), MetalLB (L2/ARP), cert-manager (Let's Encrypt DNS-01), Longhorn (storage), Sealed Secrets, SMB CSI Driver
+- Data tier: CNPG PostgreSQL (2 instances, PgBouncer), MariaDB (2 instances, async GTID), Percona MongoDB (1 instance)
+- SSO: Authentik (2 server replicas, 1 worker, Redis, LDAP outpost)
+- Apps: Arr-stack, Authentik, AWS DDNS, Firefly3, Leantime, LibreChat, LiteLLM, Manyfold, Mealie, n8n, Open WebUI, Plane, SearXNG, WordPress (dng, taegost)
+
+**Pending:**
+- ArgoCD HA migration — all 3 nodes active, follow `docs/argocd-ha-migration.md`
+- LibreChat NetworkPolicy hardening — meilisearch and redis policies need `namespaceSelector` added (see `context/stack.md`)
+- Pre-commit hook one-time setup per clone: `ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit`
+
+**External dependencies (not managed in this repo):**
+- pfSense (network edge), Unraid NAS `firebird.lan` (SMB/NFS), Route53 (DNS), kube-vip (control-plane VIP)
 
 ## Routing Table
 

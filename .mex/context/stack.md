@@ -12,6 +12,8 @@ edges:
     condition: when the reasoning behind a tech choice is needed
   - target: context/conventions.md
     condition: when understanding how to use a technology in this codebase
+  - target: patterns/add-database-app.md
+    condition: when adding an app that needs PostgreSQL, MariaDB, or MongoDB
 last_updated: 2026-06-16
 ---
 

@@ -13,6 +13,10 @@ edges:
     condition: when specific technology versions or library details are needed
   - target: context/architecture.md
     condition: when understanding how components connect during setup
+  - target: patterns/debug-sync-failure.md
+    condition: when troubleshooting deployment or sync issues
+  - target: patterns/add-app.md
+    condition: when adding a new app to the cluster
 last_updated: 2026-06-16
 ---
 
