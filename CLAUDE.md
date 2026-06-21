@@ -81,6 +81,7 @@ a user-raised concern.
 
 Before implementing any change, read the relevant documentation first:
 
+- **Known problems, best practices, or patterns** → `docs/solutions/` — documented solutions organized by category with searchable YAML frontmatter (`module`, `tags`, `problem_type`)
 - **New app deployment or Postgres migration** → `docs/postgres-runbooks.md`
 - **New app deployment with MariaDB database** → `docs/mariadb-runbooks.md`
 - **New app deployment with MongoDB database** → `docs/mongodb-runbooks.md`
@@ -313,7 +314,9 @@ homelab-k8s/
 │   ├── storage.md                # Longhorn PVC utilisation and trim job docs
 │   ├── troubleshooting.md        # DNS, networking, and known gotchas
 │   ├── brainstorms/              # Requirements and brainstorming documents
-│   └── plans/                    # Implementation plans
+│   ├── plans/                    # Implementation plans
+│   └── solutions/                # Documented solutions to past problems (bugs, best practices, patterns), organized by category with YAML frontmatter (module, tags, problem_type)
+├── CONCEPTS.md                   # Shared domain vocabulary (entities, named processes, status concepts) — relevant when orienting to the codebase or discussing domain concepts
 └── README.md
 ```
 
