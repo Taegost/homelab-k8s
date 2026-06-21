@@ -7,13 +7,13 @@ full paths (apps/foo/old.yaml) and bare filenames (old.yaml).
 
 Usage:
     # Preview changes without writing:
-    python3 scripts/update-filename-refs.py --mapping renames.csv --dry-run
+    python3 .claude/skills/homelab-validate/scripts/update-filename-refs.py --mapping renames.csv --dry-run
 
     # Apply changes:
-    python3 scripts/update-filename-refs.py --mapping renames.csv
+    python3 .claude/skills/homelab-validate/scripts/update-filename-refs.py --mapping renames.csv
 
     # Single pair on command line:
-    python3 scripts/update-filename-refs.py --old apps/foo/deployment.yaml --new apps/foo/deployment-foo.yaml
+    python3 .claude/skills/homelab-validate/scripts/update-filename-refs.py --old apps/foo/deployment.yaml --new apps/foo/deployment-foo.yaml
 
 Mapping file format (CSV with header):
     old_path,new_path
