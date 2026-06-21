@@ -14,6 +14,9 @@
 
 At the start of every session, read `.mex/ROUTER.md` before doing anything else. Its routing table entries are mandatory pre-action reads — before implementing any change, load the relevant context file.
 
+docs/solutions/  # documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (module, tags, problem_type)
+CONCEPTS.md  # shared domain vocabulary (entities, named processes, status concepts) — relevant when orienting to the codebase or discussing domain concepts
+
 ## Reference
 
 The original 752-line CLAUDE.md is preserved at `CLAUDE.md.pre-mex` during the mex migration period. Delete it after the migration is verified and stable.
