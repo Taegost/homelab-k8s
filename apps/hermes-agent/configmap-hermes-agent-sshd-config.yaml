@@ -1,0 +1,25 @@
+# ConfigMap — hermes-agent-sshd-config
+#
+# sshd configuration for the sandbox pod. Configures non-privileged
+# port 2222, key-only authentication, and restricts to the hermes user.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-agent-sshd-config
+  namespace: hermes-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  sshd_config: |
+    Port 2222
+    ListenAddress 0.0.0.0
+    PermitRootLogin no
+    AllowUsers hermes
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    ChallengeResponseAuthentication no
+    UsePAM yes
+    StrictModes no
+    HostKey /etc/ssh/ssh_host_ed25519_key
+    AuthorizedKeysFile /home/hermes/.ssh/authorized_keys
+    Subsystem sftp /usr/lib/openssh/sftp-server

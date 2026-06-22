@@ -40,6 +40,9 @@ The MariaDB operator managing the shared MariaDB cluster. Uses standalone CRDs: 
 
 ## Deployment Patterns
 
+### SSH Sandbox
+A deployment pattern where an AI agent executes code in an isolated pod via SSH. The agent and sandbox run as separate Deployments in the same namespace. The sandbox runs sshd with specific capabilities (SETUID, SETGID, SYS_CHROOT, CHOWN, AUDIT_WRITE) and `allowPrivilegeEscalation: true`. NetworkPolicy isolates the sandbox: ingress restricted to the agent pod, egress limited to DNS and open internet (cluster CIDR and local network blocked via `ipBlock.except`). SSH keypairs authenticate the agent to the sandbox; the host keypair must be generated first because `known_hosts` derives from it.
+
 ### Base-Image Knowledge Base
 A set of markdown files in `docs/solutions/base-images-*.md` that map container image types to their required Linux capabilities, privilege models, and port conventions. The pre-commit capability-check and the image-audit script auto-discover entries from this KB. Adding support for a new image type requires only creating a new KB file.
 

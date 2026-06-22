@@ -1,0 +1,21 @@
+# ConfigMap — hermes-agent-known-hosts
+#
+# SSH known_hosts file for the hermes-agent pod. Contains the sandbox's
+# host public key so the SSH client can verify the sandbox identity.
+#
+# Generate the content from the sandbox host keypair:
+#   echo "hermes-sandbox.hermes-agent.svc.cluster.local $(cat hermes-sandbox-host.pub)" > known_hosts_content
+#
+# Then replace the placeholder below with the actual content.
+# See apps/hermes-agent/README.md for the full keypair generation workflow.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-agent-known-hosts
+  namespace: hermes-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  known_hosts: |
+    hermes-sandbox.hermes-agent.svc.cluster.local ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJT8gLKPpllURxcEmovUBey66HGEup1phiqLf419WvOe hermes-sandbox-host
+  

@@ -1,0 +1,29 @@
+# PersistentVolumeClaim — hermes-agent-data
+#
+# Longhorn-backed storage for Hermes Agent's /opt/data directory.
+# Stores: SQLite session DB, config, memories, skills, credentials,
+# per-profile gateway state, and SSH keys.
+#
+# Single-replica deployment with strategy: Recreate — RWO is correct.
+#
+# ** SECURITY NOTE: ** The hermes-agent process writes API keys to
+# /opt/data/.env in plaintext on this Longhorn volume. Longhorn does not
+# encrypt data at rest. If the physical disk, Longhorn replica, or backup
+# is accessed, all credentials stored by hermes-agent are exposed. The SSH
+# private key is NOT on this volume (it's mounted from a Secret via
+# subPath). The sandbox pod does NOT write credentials to its PVC — all
+# sensitive data in the sandbox is mounted read-only from Secrets.
+# Monitor OQ5 for whether hermes-agent can read keys from env vars
+# instead of .env.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes-agent-data
+  namespace: hermes-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

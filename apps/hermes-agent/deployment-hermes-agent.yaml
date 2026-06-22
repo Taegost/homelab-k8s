@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-agent
+  namespace: hermes-agent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hermes-agent
+  template:
+    metadata:
+      labels:
+        app: hermes-agent
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
+      # shareProcessNamespace required per Hermes docs for dashboard
+      # gateway-liveness detection. Both gateway and dashboard run in
+      # the same container under s6-overlay, so this may be unnecessary
+      # — test without it during implementation. Kept for now per R4.
+      shareProcessNamespace: true
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 10000
+      containers:
+        - name: hermes-agent
+          image: nousresearch/hermes-agent:v2026.6.19
+          command: ["gateway", "run"]
+          ports:
+            - name: dashboard
+              containerPort: 9119
+            - name: api
+              containerPort: 8642
+            - name: webhook
+              containerPort: 8644
+          env:
+            - name: HERMES_DASHBOARD
+              value: "1"
+            - name: HERMES_DASHBOARD_HOST
+              value: "0.0.0.0"
+            - name: HERMES_DASHBOARD_PORT
+              value: "9119"
+            - name: HERMES_DASHBOARD_PUBLIC_URL
+              value: "https://hermes.taegost.com"
+            - name: HERMES_DASHBOARD_OIDC_ISSUER
+              value: "https://authentik.diceninjagaming.com/application/o/hermes/"
+            - name: HERMES_DASHBOARD_OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-agent
+                  key: oidc-client-id
+            # Note: HERMES_DASHBOARD_OIDC_ISSUER does NOT need a Client Secret
+            # because Hermes uses PKCE (authorization-code + PKCE), not a
+            # confidential client flow. Only the Client ID is needed.
+            - name: API_SERVER_ENABLED
+              value: "true"
+            - name: API_SERVER_HOST
+              value: "0.0.0.0"
+            - name: API_SERVER_PORT
+              value: "8642"
+            - name: API_SERVER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-agent
+                  key: api-server-key
+            - name: WEBHOOK_ENABLED
+              value: "true"
+            - name: WEBHOOK_PORT
+              value: "8644"
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-agent
+                  key: webhook-secret
+            # ── Model / LiteLLM Backend ──────────────────────────────────────
+            # Points Hermes at the existing LiteLLM instance. The model name
+            # is set post-deployment via `hermes model` — these vars just
+            # configure the provider endpoint.
+            - name: OPENAI_BASE_URL
+              value: "https://litellm.diceninjagaming.com/v1"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-agent
+                  key: litellm-api-key
+          securityContext:
+            runAsUser: 10000
+            runAsGroup: 10000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: ssh-client-key
+              mountPath: /opt/data/.ssh/id_ed25519
+              subPath: id_ed25519
+              readOnly: true
+            - name: known-hosts
+              mountPath: /opt/data/.ssh/known_hosts
+              subPath: known_hosts
+              readOnly: true
+            - name: ssh-config
+              mountPath: /opt/data/.ssh/config
+              subPath: config
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 9119
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9119
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9119
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 500Mi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hermes-agent-data
+        - name: ssh-client-key
+          secret:
+            secretName: hermes-agent-ssh-agent-keys
+            items:
+              - key: id_ed25519
+                path: id_ed25519
+            defaultMode: 0400
+        - name: known-hosts
+          configMap:
+            name: hermes-agent-known-hosts
+        - name: ssh-config
+          configMap:
+            name: hermes-agent-ssh-config

@@ -1,0 +1,64 @@
+# NetworkPolicy — hermes-sandbox
+#
+# Restricts the sandbox pod's network access:
+# - Ingress: only port 2222 from the hermes-agent pod (same namespace)
+# - Egress: DNS only + all non-cluster, non-local traffic (open internet)
+#
+# This ensures the sandbox cannot reach cluster-internal services (pods,
+# services, Kubernetes API) or the local network by default. As trust
+# builds, specific cluster services can be added as explicit egress rules.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-sandbox
+  namespace: hermes-agent
+spec:
+  podSelector:
+    matchLabels:
+      app: hermes-agent-sandbox
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hermes-agent
+          podSelector:
+            matchLabels:
+              app: hermes-agent
+      ports:
+        - protocol: TCP
+          port: 2222
+  egress:
+    # Allow DNS resolution (kube-dns)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow all non-cluster, non-local egress (open internet).
+    # Block cluster CIDR (10.0.0.0/8) and local network (192.168.0.0/16).
+    # The `except` clause in ipBlock is the standard k8s NetworkPolicy
+    # mechanism for excluding CIDRs. To allow access to specific cluster
+    # services (e.g., LiteLLM), add explicit egress rules with ipBlock
+    # or namespaceSelector entries — the deny-all baseline makes this
+    # additive.
+    #
+    # Note: FQDN-based egress filtering is not supported by standard
+    # k8s NetworkPolicy. If the sandbox needs access to a specific
+    # cluster hostname, either add an ipBlock rule for the service's
+    # ClusterIP, or use Calico NetworkPolicy which supports FQDN rules.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 192.168.0.0/16

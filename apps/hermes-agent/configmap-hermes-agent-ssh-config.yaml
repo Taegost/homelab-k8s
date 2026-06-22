@@ -1,0 +1,21 @@
+# ConfigMap — hermes-agent-ssh-config
+#
+# SSH client configuration for the hermes-agent pod. Configures the
+# SSH client to connect to the sandbox using the correct hostname,
+# key, and known_hosts file.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-agent-ssh-config
+  namespace: hermes-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  config: |
+    Host hermes-sandbox
+        HostName hermes-sandbox.hermes-agent.svc.cluster.local
+        User hermes
+        IdentityFile /opt/data/.ssh/id_ed25519
+        UserKnownHostsFile /opt/data/.ssh/known_hosts
+        StrictHostKeyChecking yes
+        Port 22
