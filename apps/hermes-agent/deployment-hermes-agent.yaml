@@ -25,11 +25,11 @@ spec:
                     operator: NotIn
                     values:
                       - small
-      # shareProcessNamespace required per Hermes docs for dashboard
-      # gateway-liveness detection. Both gateway and dashboard run in
-      # the same container under s6-overlay, so this may be unnecessary
-      # — test without it during implementation. Kept for now per R4.
-      shareProcessNamespace: true
+      # shareProcessNamespace is NOT set (defaults to false).
+      # s6-overlay requires PID 1 to function. When shareProcessNamespace
+      # is true, the pause container becomes PID 1, breaking s6-overlay.
+      # Since both gateway and dashboard run in the same container under
+      # s6-overlay, process namespace sharing is unnecessary.
       automountServiceAccountToken: false
       securityContext:
         seccompProfile:
