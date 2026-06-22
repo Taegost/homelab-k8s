@@ -109,9 +109,6 @@ Hermes runs as UID 10000. Longhorn volumes provisioned owned by root require `fs
 **SSH keypair generation workflow (manual, before any manifests are applied):**
 
 ```bash
-# Generate agent keypair (hermes-agent authenticates to sandbox)
-ssh-keygen -t ed25519 -f hermes-agent-client -C "hermes-agent-client" -N ""
-
 # Generate sandbox host keypair (sandbox sshd identity)
 ssh-keygen -t ed25519 -f hermes-sandbox-host -C "hermes-sandbox-host" -N ""
 
@@ -119,6 +116,9 @@ ssh-keygen -t ed25519 -f hermes-sandbox-host -C "hermes-sandbox-host" -N ""
 # The hostname must match the sandbox Service FQDN:
 # hermes-sandbox.hermes-agent.svc.cluster.local
 echo "hermes-sandbox.hermes-agent.svc.cluster.local $(cat hermes-sandbox-host.pub)" > known_hosts_content
+
+# Generate agent keypair (hermes-agent authenticates to sandbox)
+ssh-keygen -t ed25519 -f hermes-agent-client -C "hermes-agent-client" -N ""
 ```
 
 **Generation order matters:** The sandbox host keypair must be generated first because the known_hosts content is derived from it. All four artifacts (both keypairs, known_hosts, and the SSH config) must be ready before any secrets are sealed.
@@ -876,7 +876,7 @@ Three routes, one per port:
 # Three routes for the three Hermes ports:
 # - /               → dashboard (9119) — internal only (default-whitelist)
 # - /api            → API server (8642) — internal only (default-whitelist)
-# - /webhook        → webhook adapter (8644) — public (default-headers)
+# - /webhooks       → webhook adapter (8644) — public (default-headers)
 #
 # The webhook route MUST be publicly accessible — external services
 # (GitHub, GitLab, etc.) need to reach it. Dashboard and API are
