@@ -1,6 +1,7 @@
 ---
 title: "ArgoCD Sync Wave Ordering Conventions"
 date: 2026-06-21
+last_updated: 2026-06-22
 category: conventions
 module: homelab
 problem_type: convention
@@ -42,15 +43,77 @@ SealedSecrets require the wave annotation in **two** places:
 ```yaml
 metadata:
   annotations:
-    argocd.argoproj.io/sync-wave: "-3"
+    argocd.argoproj.io/sync-wave: "-3"   # Controls when the SealedSecret CRD syncs
 spec:
   template:
     metadata:
       annotations:
-        argocd.argoproj.io/sync-wave: "-3"
+        argocd.argoproj.io/sync-wave: "-3"   # Controls the wave of the decrypted Secret
 ```
 
-The top-level annotation controls when ArgoCD syncs the SealedSecret CRD. The template annotation controls what wave the resulting Secret should sync at after decryption.
+The top-level annotation controls when ArgoCD syncs the SealedSecret CRD. The template annotation controls what wave the resulting Secret should sync at after decryption. If only one is present, the other defaults to wave 0, which can cause the CRD to sync at the wrong time relative to its consumers.
+
+#### Failure modes when one annotation is missing
+
+**Missing `metadata.annotations`:** ArgoCD applies the SealedSecret at wave 0 (default). If a Deployment at wave 0 references the decrypted Secret, both attempt to sync simultaneously. If the Sealed Secrets controller has not yet decrypted the Secret, the Deployment enters `CreateContainerConfigError` and crash-loops until the next ArgoCD sync cycle.
+
+**Missing `spec.template.metadata.annotations`:** The SealedSecret CRD syncs at the correct wave, but the decrypted Secret inherits wave 0. Any resource that depends on the Secret existing at a lower wave (e.g., a CNPG Database CRD at wave -1) will attempt to start before the Secret is available. This produces silent failures — the operator generates random credentials or refuses to start with no clear error.
+
+#### Wave values by SealedSecret type
+
+| SealedSecret location | Wave | Why |
+|------------------------|------|-----|
+| Infrastructure credentials consumed by operator CRDs (e.g., MongoDB users, CNPG roles via `passwordSecretRef`) | `-3` | Must decrypt before the operator reconciles the CRD |
+| App-level credentials consumed by Deployments (via `secretKeyRef` or `envFrom`) | `-1` | Must decrypt before the Deployment starts at wave 0 |
+
+### Before/after examples
+
+#### Wrong — only `spec.template` annotated
+
+```yaml
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: my-app
+  namespace: my-app
+  # Missing: argocd.argoproj.io/sync-wave not here
+spec:
+  encryptedData:
+    API_KEY: AgB...
+  template:
+    metadata:
+      annotations:
+        argocd.argoproj.io/sync-wave: "-1"
+      name: my-app
+      namespace: my-app
+    type: Opaque
+```
+
+The SealedSecret CRD syncs at wave 0 (default), racing with the Deployment.
+
+#### Correct — dual annotation
+
+```yaml
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: my-app
+  namespace: my-app
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  encryptedData:
+    API_KEY: AgB...
+  template:
+    metadata:
+      annotations:
+        argocd.argoproj.io/sync-wave: "-1"
+      name: my-app
+      namespace: my-app
+    type: Opaque
+```
+
+Both the CRD and the decrypted Secret sync at wave -1, ensuring the Secret exists before the Deployment at wave 0.
 
 ### ConfigMap/Secret exception rule
 
