@@ -97,13 +97,16 @@ spec:
                   name: hermes-agent
                   key: litellm-api-key
           securityContext:
-            runAsUser: 10000
-            runAsGroup: 10000
-            runAsNonRoot: true
+            # s6-overlay starts as root to set up /run, then drops to
+            # the hermes user (UID 10000). runAsUser/runAsNonRoot are
+            # intentionally omitted — s6-overlay handles user switching.
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
+              add:
+                - SETUID
+                - SETGID
           volumeMounts:
             - name: data
               mountPath: /opt/data
