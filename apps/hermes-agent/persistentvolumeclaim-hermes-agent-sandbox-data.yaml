@@ -1,0 +1,20 @@
+# PersistentVolumeClaim — hermes-agent-sandbox-data
+#
+# Longhorn-backed storage for the Hermes sandbox.
+# Stores: agent-executed code, installed packages, and working state.
+# Mounted at /home/hermes, /opt/data, and /workspace (librechat pattern —
+# multiple volume names referencing the same PVC claim).
+#
+# Separate from the main hermes-agent PVC — the sandbox has its own lifecycle.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes-agent-sandbox-data
+  namespace: hermes-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

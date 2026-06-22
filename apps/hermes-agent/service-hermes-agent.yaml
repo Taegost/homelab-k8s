@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-agent
+  namespace: hermes-agent
+spec:
+  selector:
+    app: hermes-agent
+  ports:
+    - name: dashboard
+      port: 9119
+      targetPort: 9119
+    - name: api
+      port: 8642
+      targetPort: 8642
+    - name: webhook
+      port: 8644
+      targetPort: 8644

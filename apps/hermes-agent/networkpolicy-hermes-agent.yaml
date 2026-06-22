@@ -1,0 +1,31 @@
+# NetworkPolicy — hermes-agent
+#
+# Allows ingress only from Traefik (dashboard, API, webhook ports).
+# All other ingress is denied. Egress is unrestricted — the agent needs
+# access to LiteLLM, Authentik, and external services.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-agent
+  namespace: hermes-agent
+spec:
+  podSelector:
+    matchLabels:
+      app: hermes-agent
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 9119
+        - protocol: TCP
+          port: 8642
+        - protocol: TCP
+          port: 8644

@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-agent-sandbox
+  namespace: hermes-agent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hermes-agent-sandbox
+  template:
+    metadata:
+      labels:
+        app: hermes-agent-sandbox
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 10000
+      containers:
+        - name: sandbox
+          image: taegost/hermes-sandbox:v1.0.0
+          ports:
+            - name: ssh
+              containerPort: 2222
+          securityContext:
+            # The sandbox image starts as root (required for sshd privilege
+            # separation) and drops to user hermes via its entrypoint.
+            # allowPrivilegeEscalation is required — without it, every SSH
+            # session fails. Capabilities needed for sshd: SETUID, SETGID,
+            # SYS_CHROOT, CHOWN, AUDIT_WRITE.
+            allowPrivilegeEscalation: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - SETUID
+                - SETGID
+                - SYS_CHROOT
+                - CHOWN
+                - AUDIT_WRITE
+          volumeMounts:
+            # Three mounts from the same PVC — librechat pattern.
+            # Each path gets its own persistent storage backed by
+            # the same Longhorn volume.
+            - name: home-hermes
+              mountPath: /home/hermes
+            - name: opt-data
+              mountPath: /opt/data
+            - name: workspace
+              mountPath: /workspace
+            - name: authorized-keys
+              mountPath: /home/hermes/.ssh/authorized_keys
+              subPath: authorized_keys
+              readOnly: true
+            - name: ssh-sandbox-keys
+              mountPath: /etc/ssh/ssh_host_ed25519_key
+              subPath: ssh_host_ed25519_key
+              readOnly: true
+            - name: ssh-sandbox-keys
+              mountPath: /etc/ssh/ssh_host_ed25519_key.pub
+              subPath: ssh_host_ed25519_key.pub
+              readOnly: true
+            - name: sshd-config
+              mountPath: /etc/ssh/sshd_config
+              subPath: sshd_config
+              readOnly: true
+          startupProbe:
+            tcpSocket:
+              port: 2222
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 2222
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 2222
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: home-hermes
+          persistentVolumeClaim:
+            claimName: hermes-agent-sandbox-data
+        - name: opt-data
+          persistentVolumeClaim:
+            claimName: hermes-agent-sandbox-data
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: hermes-agent-sandbox-data
+        - name: authorized-keys
+          secret:
+            secretName: hermes-agent-ssh-agent-keys
+            items:
+              - key: id_ed25519.pub
+                path: authorized_keys
+            defaultMode: 0644
+        - name: ssh-sandbox-keys
+          secret:
+            secretName: hermes-agent-ssh-sandbox-keys
+            defaultMode: 0400
+        - name: sshd-config
+          configMap:
+            name: hermes-agent-sshd-config

@@ -1,0 +1,20 @@
+# Certificate — hermes.taegost.com
+#
+# Hermes is publicly exposed (webhook adapter must be reachable from
+# external services like GitHub), so it gets a dedicated certificate
+# rather than relying on the shared wildcard.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hermes-taegost-com
+  namespace: hermes-agent
+spec:
+  secretName: hermes-taegost-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - hermes.taegost.com
+  issuerRef:
+    name: letsencrypt-diceninjagaming-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
