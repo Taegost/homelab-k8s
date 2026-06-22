@@ -51,7 +51,7 @@ spec:
         - name: litellm
           # non_root variant runs as saasapi (UID 1000) — no root-drop at runtime,
           # no capabilities required. Port 4000 is non-privileged.
-          image: ghcr.io/berriai/litellm-non_root:main-v1.89.3
+          image: ghcr.io/berriai/litellm-non_root:v1.89.3
           args:
             - "--config"
             - "/app/config.yaml"
