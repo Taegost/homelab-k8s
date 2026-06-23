@@ -290,6 +290,54 @@ kubectl logs -n hermes-agent -l app=hermes-agent
 2. Check the Authentik provider redirect URI: `https://hermes.taegost.com/oauth/oidc/callback`
 3. Verify the Authentik provider has the correct scopes: `openid`, `profile`, `email`
 
+### Dashboard tabs don't load / "Invalid API key" errors in logs
+
+**Symptoms:**
+- Chat tab shows 403 on `/api/auth/ws-ticket` and 401 "Invalid API key"
+- Config and Keys tabs never load (spinner forever)
+- Gateway logs show repeated `WARNING gateway.platforms.api_server: API server rejected invalid API key`
+- All dashboard logs show "Error: 404: Not Found"
+
+**Root cause:** The IngressRoute is routing dashboard API calls (`/api/sessions`,
+`/api/auth/ws-ticket`, `/api/config`, `/api/keys`) to port 8642 (the API server)
+instead of port 9119 (the dashboard). The API server rejects these requests because
+the browser sends OIDC session cookies, not an `API_SERVER_KEY` Bearer token.
+
+**Fix:** Ensure the IngressRoute has separate routes for `/api/v1` and `/api/jobs`
+(port 8642) and the broader `/api` prefix (port 9119). See the "IngressRoute
+Routing" section above. The key is that Traefik evaluates routes in declaration
+order — more specific paths must come first.
+
+**How to verify:**
+
+```bash
+# Check current IngressRoute
+kubectl get ingressroute -n hermes-agent hermes-agent -o yaml
+
+# Test dashboard API endpoint (should return JSON, not 401)
+curl -s https://hermes.taegost.com/api/sessions?limit=1
+
+# Check gateway logs for auth rejections (should be quiet after fix)
+kubectl logs -n hermes-agent deployment/hermes-agent --tail=50 | grep "rejected invalid API key"
+```
+
+### Hermes Desktop can't connect to remote gateway
+
+**Symptoms:**
+- Hermes Desktop shows "Could not connect to Hermes gateway" or similar
+- Desktop may misleadingly report "OpenRouter API key missing" (GitHub #39365)
+- Gateway logs show `API server rejected invalid API key` for Desktop's requests
+
+**Root cause:** Same as above — Desktop connects to the dashboard backend on
+port 9119 and uses `/api/sessions`, `/api/auth/ws-ticket`, and `/api/config`
+endpoints. If the IngressRoute routes these to port 8642 instead of 9119,
+Desktop's OIDC-authenticated requests are rejected by the API server's Bearer
+token check.
+
+**Fix:** Same as above — ensure the IngressRoute routing is correct. Once
+dashboard API calls reach port 9119, Desktop can authenticate via OIDC and
+function normally.
+
 ### SSH to sandbox fails
 
 ```bash
