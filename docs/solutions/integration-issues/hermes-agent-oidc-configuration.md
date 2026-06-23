@@ -9,10 +9,11 @@ symptoms:
   - "Invalid redirect_uri" error from Authentik after login
   - "invalid_client" error during token exchange
   - Dashboard accessible but desktop app cannot connect
+  - "Dashboard logs out after 15 minutes of inactivity"
 root_cause: config_error
 resolution_type: config_change
 severity: medium
-tags: [hermes-agent, oidc, authentik, pkce, desktop-app, websocket]
+tags: [hermes-agent, oidc, authentik, pkce, desktop-app, websocket, offline_access, refresh-token]
 ---
 
 # Hermes Agent OIDC authentication failures
@@ -24,6 +25,7 @@ Multiple OIDC configuration issues when deploying Hermes Agent with Authentik as
 1. Redirect URI mismatch causing "Invalid redirect_uri" error
 2. Client type mismatch causing "invalid_client" error during token exchange
 3. Desktop app WebSocket connection rejected (upstream bug)
+4. Missing `offline_access` scope causing 15-minute session timeout
 
 ## Symptoms
 
@@ -64,6 +66,25 @@ The Hermes Desktop app has a known upstream bug where WebSocket connections to r
 
 **Workaround:** Use the web dashboard at `https://hermes.taegost.com` until the upstream fix is merged.
 
+### 4. Add `offline_access` Scope for Refresh Tokens
+
+The dashboard logs out after 15 minutes because Authentik 2024.2+ requires the
+`offline_access` scope to issue refresh tokens. Without it, only the access token
+is issued (15-minute TTL) and when it expires the SPA redirects to `/login`.
+
+**Deployment env var:**
+```yaml
+- name: HERMES_DASHBOARD_OIDC_SCOPES
+  value: "openid profile email offline_access"
+```
+
+**Authentik Provider Configuration:**
+- **Scopes:** Include `offline_access` alongside `openid`, `profile`, `email`
+
+The Hermes self-hosted OIDC provider already supports refresh tokens — when the
+IDP issues them, the dashboard uses the `refresh_token` grant for silent re-auth
+before the access token expires. No user interaction needed.
+
 ## Why This Works
 
 1. **Redirect URI:** The OIDC spec requires exact match between registered and requested redirect URIs. Hermes hardcodes `/auth/callback` as the path.
@@ -71,6 +92,8 @@ The Hermes Desktop app has a known upstream bug where WebSocket connections to r
 2. **Public Client:** PKCE is designed for public clients that cannot securely store secrets. The authorization code exchange uses the code_verifier instead of a client_secret. Authentik's "Confidential" mode rejects requests without a secret.
 
 3. **Desktop App:** The Electron client sends `file:///null` as the Origin header, which fails the WebSocket security check. This is an upstream bug in the gateway code.
+
+4. **Refresh Tokens:** The OIDC `offline_access` scope tells the IDP to issue a refresh token alongside the access token. The Hermes dashboard stores the refresh token and uses it to silently obtain a new access token before the 15-minute TTL expires. Authentik 2024.2+ requires this scope to be explicitly requested — it is not included in the default `openid profile email` set.
 
 ## Prevention
 

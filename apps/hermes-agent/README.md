@@ -142,7 +142,9 @@ All four artifacts (both keypairs, known_hosts content, and the SSH config) must
    - **Client Secret:** (auto-generated — not used by Hermes, but Authentik may still show it)
    - **Signing Key:** Select default
    - **Redirect URIs:** `https://hermes.taegost.com/auth/callback`
-   - **Scopes:** Include `openid`, `profile`, `email`
+   - **Scopes:** Include `openid`, `profile`, `email`, `offline_access`
+     (Authentik 2024.2+ requires `offline_access` to issue refresh tokens —
+     without it, the dashboard session expires after 15 minutes)
 
 4. **Bind Provider to Application:**
 
@@ -238,6 +240,7 @@ This prevents the sandbox from reaching cluster-internal services or the local n
 | `HERMES_DASHBOARD_PUBLIC_URL` | Public URL for OIDC callback | `https://hermes.taegost.com` |
 | `HERMES_DASHBOARD_OIDC_ISSUER` | Authentik OIDC issuer URL | `https://authentik.diceninjagaming.com/application/o/hermes/` |
 | `HERMES_DASHBOARD_OIDC_CLIENT_ID` | OIDC client ID | from sealed secret |
+| `HERMES_DASHBOARD_OIDC_SCOPES` | OIDC scopes (must include `offline_access` for refresh tokens) | `openid profile email offline_access` |
 | `API_SERVER_ENABLED` | Enable API server | `true` |
 | `API_SERVER_HOST` | API server listen address | `0.0.0.0` |
 | `API_SERVER_PORT` | API server port | `8642` |
@@ -337,6 +340,34 @@ token check.
 **Fix:** Same as above — ensure the IngressRoute routing is correct. Once
 dashboard API calls reach port 9119, Desktop can authenticate via OIDC and
 function normally.
+
+### Dashboard logs out after 15 minutes
+
+**Symptoms:**
+- Dashboard redirects to login page after ~15 minutes of inactivity
+- No refresh occurs — user must re-authenticate through Authentik each time
+
+**Root cause:** The Hermes dashboard's self-hosted OIDC provider supports
+refresh tokens, but Authentik 2024.2+ requires the `offline_access` scope
+to issue them. Without it, only the access token is issued (15-minute TTL)
+and when it expires the SPA does a full-page redirect to `/login`.
+
+**Fix:**
+
+1. Add `offline_access` to the OIDC scopes in the Deployment:
+   ```yaml
+   - name: HERMES_DASHBOARD_OIDC_SCOPES
+     value: "openid profile email offline_access"
+   ```
+
+2. Verify `offline_access` is in the Authentik provider's allowed scopes:
+   Authentik Admin → Providers → Hermes Provider → Scopes
+
+**How it works:** With `offline_access`, Authentik issues a refresh token
+alongside the access token. The Hermes dashboard stores the refresh token
+and uses it to silently obtain a new access token before the 15-minute TTL
+expires — no user interaction needed. The session persists as long as the
+refresh token is valid (controlled by Authentik's provider settings).
 
 ### SSH to sandbox fails
 

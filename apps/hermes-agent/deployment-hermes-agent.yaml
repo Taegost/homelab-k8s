@@ -75,6 +75,15 @@ spec:
             # Note: HERMES_DASHBOARD_OIDC_ISSUER does NOT need a Client Secret
             # because Hermes uses PKCE (authorization-code + PKCE), not a
             # confidential client flow. Only the Client ID is needed.
+            #
+            # offline_access is required for Authentik to issue refresh tokens.
+            # Without it, the dashboard's access token expires after 15 minutes
+            # and the user is forced to re-authenticate. With it, the Hermes
+            # dashboard silently re-authenticates via the refresh_token grant.
+            # Authentik 2024.2+ requires offline_access to be explicitly
+            # requested — it is not included in the default scopes.
+            - name: HERMES_DASHBOARD_OIDC_SCOPES
+              value: "openid profile email offline_access"
             - name: API_SERVER_ENABLED
               value: "true"
             - name: API_SERVER_HOST
