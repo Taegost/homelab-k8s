@@ -27,6 +27,22 @@ A Kubernetes pod securityContext field that causes the kubelet to recursively ch
 ### multipathd
 A Linux daemon that claims block devices for multi-path I/O in enterprise SAN environments. Enabled by default on Ubuntu even on single-path hardware. Aggressively claims Longhorn's iSCSI-backed volumes via device-mapper, preventing the CSI driver from mounting them. Must be disabled on all cluster nodes before deploying Longhorn.
 
+## TLS & Certificates
+
+### ClusterIssuer
+A cert-manager resource that defines how to obtain TLS certificates from an ACME CA (Let's Encrypt). Each ClusterIssuer has its own ACME account and DNS credentials. In this project, issuers are scoped to specific Route53 hosted zones: `letsencrypt-diceninjagaming-prod` for `*.diceninjagaming.com`, `letsencrypt-taegost-prod` for `*.taegost.com`. A Certificate must reference the issuer that has access to its domain's hosted zone.
+
+### DNS-01 Challenge
+An ACME challenge type where cert-manager proves domain ownership by creating a TXT record (`_acme-challenge.<domain>`) in Route53. Used for wildcard certs and when HTTP-01 isn't possible. The challenge takes 1-3 minutes after the TXT record is created. If the challenge is stuck, check cert-manager logs for "zone not found" — this means the issuer's credentials don't have access to the domain's hosted zone.
+
+## Authentication
+
+### OIDC (OpenID Connect)
+An identity layer on top of OAuth 2.0 used for SSO. In this project, Authentik acts as the identity provider. Applications register as either "public" (PKCE, no client secret) or "confidential" (client secret required). Mismatching the client type causes `invalid_client` errors during token exchange.
+
+### PKCE (Proof Key for Code Exchange)
+An OAuth 2.0 extension for public clients that cannot securely store client secrets. The client generates a code_verifier/code_challenge pair instead of sending a client_secret. Applications using PKCE must be registered as "public" clients in the identity provider — registering as "confidential" causes the IdP to reject the token exchange.
+
 ## Operators
 
 ### CNPG (CloudNativePG)
