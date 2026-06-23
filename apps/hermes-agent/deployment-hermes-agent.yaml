@@ -52,13 +52,11 @@ spec:
             - name: webhook
               containerPort: 8644
           env:
-            # s6-overlay: run services as root (uid=0) instead of dropping
-            # to hermes (uid=10000). Required because user namespace
-            # remapping prevents root from chowning to arbitrary UIDs.
-            - name: S6_KEEP_UID
-              value: "0"
-            - name: S6_KEEP_GID
-              value: "0"
+            # s6-overlay: allow world-writable /run directory in Kubernetes.
+            # Required when running as non-root (UID 10000) because s6-overlay
+            # needs a writable /run directory but can't chown it.
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
             - name: HERMES_DASHBOARD
               value: "1"
             - name: HERMES_DASHBOARD_HOST
@@ -109,17 +107,17 @@ spec:
                   name: hermes-agent
                   key: litellm-api-key
           securityContext:
-            # s6-overlay starts as root to set up /run, then drops to
-            # the hermes user (UID 10000). runAsUser/runAsNonRoot are
-            # intentionally omitted — s6-overlay handles user switching.
+            # The hermes-agent image is designed to run as UID 10000 (hermes).
+            # s6-overlay handles initialization and privilege dropping.
+            # S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES=1 allows
+            # s6-overlay to boot with a world-writable /run directory.
+            runAsUser: 10000
+            runAsGroup: 10000
+            runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-              add:
-                - CHOWN
-                - SETUID
-                - SETGID
           volumeMounts:
             - name: run
               mountPath: /run
