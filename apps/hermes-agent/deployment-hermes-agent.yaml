@@ -52,6 +52,13 @@ spec:
             - name: webhook
               containerPort: 8644
           env:
+            # s6-overlay: run services as root (uid=0) instead of dropping
+            # to hermes (uid=10000). Required because user namespace
+            # remapping prevents root from chowning to arbitrary UIDs.
+            - name: S6_KEEP_UID
+              value: "0"
+            - name: S6_KEEP_GID
+              value: "0"
             - name: HERMES_DASHBOARD
               value: "1"
             - name: HERMES_DASHBOARD_HOST
