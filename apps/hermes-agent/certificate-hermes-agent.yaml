@@ -15,6 +15,6 @@ spec:
   dnsNames:
     - hermes.taegost.com
   issuerRef:
-    name: letsencrypt-diceninjagaming-prod
+    name: letsencrypt-taegost-prod
     kind: ClusterIssuer
     group: cert-manager.io
