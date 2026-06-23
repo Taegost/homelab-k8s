@@ -110,6 +110,7 @@ spec:
               drop:
                 - ALL
               add:
+                - CHOWN
                 - SETUID
                 - SETGID
           volumeMounts:
