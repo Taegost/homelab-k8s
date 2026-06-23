@@ -145,6 +145,13 @@ All four artifacts (both keypairs, known_hosts content, and the SSH config) must
    - **Scopes:** Include `openid`, `profile`, `email`, `offline_access`
      (Authentik 2024.2+ requires `offline_access` to issue refresh tokens —
      without it, the dashboard session expires after 15 minutes)
+   - **Advanced protocol settings → Refresh Token validity:** Set to 1 day.
+     This controls how long the refresh token is valid. The access token TTL
+     is 15 minutes (set by Hermes); the refresh token lets the dashboard
+     silently obtain new access tokens without re-authenticating. 1 day
+     balances convenience against the risk of a stolen refresh token being
+     usable indefinitely. The dashboard is internal-only (`default-whitelist`),
+     so this is a reasonable trade-off for a homelab.
 
 4. **Bind Provider to Application:**
 
@@ -362,6 +369,10 @@ and when it expires the SPA does a full-page redirect to `/login`.
 
 2. Verify `offline_access` is in the Authentik provider's allowed scopes:
    Authentik Admin → Providers → Hermes Provider → Scopes
+
+3. Set the refresh token lifetime:
+   Authentik Admin → Providers → Hermes Provider → Advanced protocol settings
+   → Refresh Token validity → 1 day
 
 **How it works:** With `offline_access`, Authentik issues a refresh token
 alongside the access token. The Hermes dashboard stores the refresh token

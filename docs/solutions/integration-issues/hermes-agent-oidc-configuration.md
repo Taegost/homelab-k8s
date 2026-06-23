@@ -80,6 +80,8 @@ is issued (15-minute TTL) and when it expires the SPA redirects to `/login`.
 
 **Authentik Provider Configuration:**
 - **Scopes:** Include `offline_access` alongside `openid`, `profile`, `email`
+- **Advanced protocol settings → Refresh Token validity:** Set to 1 day
+  (balances convenience against risk — the dashboard is internal-only)
 
 The Hermes self-hosted OIDC provider already supports refresh tokens — when the
 IDP issues them, the dashboard uses the `refresh_token` grant for silent re-auth
