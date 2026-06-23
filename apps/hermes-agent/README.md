@@ -380,6 +380,37 @@ and uses it to silently obtain a new access token before the 15-minute TTL
 expires — no user interaction needed. The session persists as long as the
 refresh token is valid (controlled by Authentik's provider settings).
 
+### New model added to LiteLLM not showing in Hermes
+
+**Symptoms:**
+- A new model was added to the LiteLLM instance but doesn't appear in the
+  Hermes model picker or is not available for chat
+
+**Root cause:** Hermes caches the model list from LiteLLM's `/v1/models`
+endpoint. Adding a new model to LiteLLM doesn't automatically refresh the
+cache in the running Hermes instance.
+
+**Fix:**
+
+1. **Run `hermes model` in the pod** — this queries `/v1/models` and should
+   refresh the cache:
+   ```bash
+   kubectl exec -it -n hermes-agent deployment/hermes-agent -- hermes model
+   ```
+
+2. **If that doesn't work, force a cache refresh directly:**
+   ```bash
+   kubectl exec -n hermes-agent deployment/hermes-agent -- /opt/hermes/.venv/bin/python -c "from hermes_cli.model_switch import list_authenticated_providers; list_authenticated_providers()"
+   ```
+   This calls the same function `hermes model` uses internally but bypasses
+   the interactive picker. No need to select anything — it just refreshes
+   the model list from LiteLLM.
+
+3. **If neither works, restart the gateway:**
+   ```bash
+   kubectl rollout restart deployment/hermes-agent -n hermes-agent
+   ```
+
 ### SSH to sandbox fails
 
 ```bash
