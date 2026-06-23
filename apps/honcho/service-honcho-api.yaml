@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: honcho-api
   namespace: honcho
+  labels:
+    app.kubernetes.io/part-of: honcho
 spec:
   selector:
     app: honcho-api
