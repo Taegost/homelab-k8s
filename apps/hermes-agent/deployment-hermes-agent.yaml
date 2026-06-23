@@ -114,6 +114,8 @@ spec:
                 - SETUID
                 - SETGID
           volumeMounts:
+            - name: run
+              mountPath: /run
             - name: data
               mountPath: /opt/data
             - name: ssh-client-key
@@ -153,6 +155,8 @@ spec:
               cpu: 2000m
               memory: 4Gi
       volumes:
+        - name: run
+          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: hermes-agent-data
