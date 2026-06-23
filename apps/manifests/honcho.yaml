@@ -1,0 +1,28 @@
+# ArgoCD Application -- Honcho AI memory backend
+#
+# Managed by app-of-apps. Sync-wave 0 (default). CreateNamespace=true
+# handles the honcho namespace creation on first sync.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: honcho
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/honcho
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: honcho
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

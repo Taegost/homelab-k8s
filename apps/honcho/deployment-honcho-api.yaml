@@ -1,0 +1,107 @@
+# Deployment -- Honcho API server
+#
+# FastAPI REST server on port 8000. Alembic runs migrations automatically
+# on startup -- the startup probe budget accounts for migration time.
+#
+# Auth is ALWAYS enabled (AUTH_USE_AUTH=true). This is non-negotiable.
+#
+# This deployment CAN be scaled beyond 1 replica -- Alembic handles concurrent
+# migrations via database locking. Set to 1 for single-user homelab use;
+# increase if additional services connect later.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: honcho-api
+  namespace: honcho
+  labels:
+    app.kubernetes.io/part-of: honcho
+spec:
+  replicas: 1
+  # Recreate strategy -- ensures clean state transition during upgrades.
+  # At replicas=1 this is functionally equivalent to RollingUpdate, but
+  # Recreate makes the intent explicit: terminate old, then start new.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: honcho-api
+  template:
+    metadata:
+      labels:
+        app: honcho-api
+        app.kubernetes.io/part-of: honcho
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: honcho-api
+          image: ghcr.io/plastic-labs/honcho:v3.0.10
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: honcho-config
+          env:
+            # --- Secrets (from SealedSecret) ---
+            - name: DB_CONNECTION_URI
+              valueFrom:
+                secretKeyRef:
+                  name: honcho
+                  key: database-url
+            - name: LLM_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: honcho
+                  key: llm-api-key
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: honcho
+                  key: jwt-secret
+            # DERIVER_ENABLED is deployment-specific, NOT in the shared ConfigMap.
+            # API pod does NOT run the deriver -- a separate deployment handles it.
+            - name: DERIVER_ENABLED
+              value: "false"
+          securityContext:
+            # UID/GID 100/100 from Dockerfile: "addgroup --system app &&
+            # adduser --system --group app" on Debian bookworm. Deterministic,
+            # not random -- safe to hardcode.
+            runAsUser: 100
+            runAsGroup: 100
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              # /health returns 200 once the API is fully initialized,
+              # including Alembic migration completion. Honcho holds port
+              # 8000 closed until this point, so early probes get
+              # "connection refused" -- that is expected and counts
+              # against the failureThreshold budget.
+              # Budget: 30 x 10s = 300s.
+              path: /health
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi

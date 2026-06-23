@@ -1,0 +1,20 @@
+# Certificate -- honcho.taegost.com
+#
+# Internal-only service. Uses letsencrypt-taegost-prod issuer (not the
+# wildcard) because this is a per-app cert in the honcho namespace.
+# Follows the pattern from apps/hermes-agent/certificate-hermes-agent.yaml.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: honcho-taegost-com
+  namespace: honcho
+spec:
+  secretName: honcho-taegost-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - honcho.taegost.com
+  issuerRef:
+    name: letsencrypt-taegost-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

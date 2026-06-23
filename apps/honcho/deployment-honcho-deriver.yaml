@@ -1,0 +1,101 @@
+# Deployment -- Honcho Deriver (background memory worker)
+#
+# Same image as the API -- override CMD to run the deriver process.
+# The deriver reads from Postgres and processes memory data in the background
+# (observations, conclusions, dialectic reasoning, dream consolidation).
+#
+# DERIVER_ENABLED=true here (vs "false" in the API deployment).
+# This is set in the Deployment env block, NOT the shared ConfigMap,
+# because the value differs between the two deployments.
+#
+# No HTTP probes -- the deriver is a background worker with no health endpoint.
+# Uses an exec probe to verify the Python process is still running.
+#
+# Single-replica: database queue coordination means multiple replicas work
+# but are unnecessary for a single-user homelab deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: honcho-deriver
+  namespace: honcho
+  labels:
+    app.kubernetes.io/part-of: honcho
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: honcho-deriver
+  template:
+    metadata:
+      labels:
+        app: honcho-deriver
+        app.kubernetes.io/part-of: honcho
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: honcho-deriver
+          # Same image as the API -- override CMD to run the deriver worker.
+          image: ghcr.io/plastic-labs/honcho:v3.0.10
+          # Override the default CMD to run the deriver process instead of
+          # the API server. The deriver reads from Postgres and processes
+          # memory data in the background.
+          command: ["python", "-m", "src.deriver"]
+          ports:
+            # Prometheus metrics endpoint (METRICS_ENABLED=true in ConfigMap)
+            - containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: honcho-config
+          env:
+            - name: DB_CONNECTION_URI
+              valueFrom:
+                secretKeyRef:
+                  name: honcho
+                  key: database-url
+            - name: LLM_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: honcho
+                  key: llm-api-key
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: honcho
+                  key: jwt-secret
+            # DERIVER_ENABLED is deployment-specific, NOT in the shared ConfigMap.
+            # This IS the deriver -- enable it here (overrides the API's "false").
+            - name: DERIVER_ENABLED
+              value: "true"
+          securityContext:
+            # UID/GID 100/100 -- same image as the API (see deployment-honcho-api.yaml).
+            runAsUser: 100
+            runAsGroup: 100
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          # No HTTP probes -- the deriver is a background worker with no health
+          # endpoint. Check that the actual deriver process is running, not just
+          # that Python is installed.
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "pgrep -f src.deriver || exit 1"
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

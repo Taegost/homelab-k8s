@@ -1,0 +1,79 @@
+# NetworkPolicy -- honcho-api
+#
+# Restricts ingress to the API server to only Traefik (for the IngressRoute)
+# and hermes-agent (for cluster-internal memory calls). All other ingress is
+# denied by the implicit default-deny when policyTypes includes Ingress.
+#
+# Egress is explicitly allowed to: DNS, Postgres (direct connection bypassing
+# PgBouncer), Valkey (cache), and LiteLLM (via external HTTPS domain). All
+# other egress is denied by the implicit default-deny when policyTypes includes
+# Egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: honcho-api
+  namespace: honcho
+spec:
+  podSelector:
+    matchLabels:
+      app: honcho-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # --- Traefik ingress (IngressRoute -> honcho-api:8000) ---
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 8000
+    # --- hermes-agent ingress (cluster-internal memory API calls) ---
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hermes-agent
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # --- DNS (kube-system CoreDNS) ---
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # --- PostgreSQL (direct connection, bypasses PgBouncer) ---
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # --- Valkey cache (session caching) ---
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: honcho
+          podSelector:
+            matchLabels:
+              app: honcho-valkey
+      ports:
+        - protocol: TCP
+          port: 6379
+    # --- LiteLLM proxy (LLM API calls via external HTTPS domain) ---
+    # litellm.diceninjagaming.com resolves to a MetalLB IP, which is
+    # outside any Kubernetes namespace. Allow egress on port 443 for
+    # this and any future HTTPS external API calls.
+    - ports:
+        - protocol: TCP
+          port: 443

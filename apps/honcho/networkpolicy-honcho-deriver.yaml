@@ -1,0 +1,57 @@
+# NetworkPolicy -- honcho-deriver
+#
+# Egress-only policy for the deriver background worker. The deriver pulls
+# work from a database-backed queue (Postgres) and never receives inbound
+# network requests, so no ingress rules are needed.
+#
+# Egress is explicitly allowed to: DNS, Postgres, LiteLLM (LLM API calls),
+# and Valkey (cache). All other egress is denied by the implicit default-deny
+# when policyTypes includes Egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: honcho-deriver
+  namespace: honcho
+spec:
+  podSelector:
+    matchLabels:
+      app: honcho-deriver
+  policyTypes:
+    - Egress
+  egress:
+    # --- DNS (kube-system CoreDNS) ---
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # --- PostgreSQL (direct connection, bypasses PgBouncer) ---
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # --- LiteLLM proxy (LLM API calls via external HTTPS domain) ---
+    # litellm.diceninjagaming.com resolves to a MetalLB IP, which is
+    # outside any Kubernetes namespace. Allow egress on port 443 for
+    # this and any future HTTPS external API calls.
+    - ports:
+        - protocol: TCP
+          port: 443
+    # --- Valkey cache (session caching) ---
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: honcho
+          podSelector:
+            matchLabels:
+              app: honcho-valkey
+      ports:
+        - protocol: TCP
+          port: 6379

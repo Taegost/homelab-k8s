@@ -1,0 +1,18 @@
+# Database CRD -- creates the honcho database and assigns honcho as owner.
+# The role is declared in apps/postgres/cluster-postgres.yaml under spec.managed.roles.
+#
+# pgvector extension: available in the CNPG cluster (installed in librechat_rag).
+# Honcho will run "CREATE EXTENSION IF NOT EXISTS vector" on first startup
+# during Alembic migration. No manual extension setup required.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: honcho
+  namespace: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  name: honcho
+  owner: honcho
+  cluster:
+    name: postgres

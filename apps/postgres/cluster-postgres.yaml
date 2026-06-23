@@ -140,3 +140,15 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: plane-db-credentials
+      # honcho — AI memory backend for Hermes Agent.
+      # Uses postgres-rw (direct, bypasses PgBouncer) because Alembic takes
+      # advisory locks during startup — incompatible with transaction-mode pooling.
+      - name: honcho
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        connectionLimit: -1
+        passwordSecret:
+          name: honcho-db-credentials
