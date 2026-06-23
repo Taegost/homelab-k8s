@@ -11,7 +11,7 @@ A Kubernetes CRD that stores an encrypted Secret. The Sealed Secrets controller 
 An ArgoCD annotation (`argocd.argoproj.io/sync-wave`) that controls the order resources are applied. Negative waves sync first (infrastructure before apps), wave 0 is the default. SealedSecrets at wave -3 must decrypt before CRDs at wave -2 that consume them. Missing annotations cause race conditions where operators read empty secrets.
 
 ### IngressRoute
-Traefik's CRD for HTTP routing. Replaces the standard Kubernetes Ingress resource. Lives in the `traefik` namespace when using the wildcard cert, or in the app's own namespace when using a per-app cert. Cross-namespace middleware references require `allowCrossNamespace: true`.
+Traefik's CRD for HTTP routing. Replaces the standard Kubernetes Ingress resource. Lives in the `traefik` namespace when using the wildcard cert, or in the app's own namespace when using a per-app cert. Cross-namespace middleware references require `allowCrossNamespace: true`. Routes are evaluated in declaration order — more specific `PathPrefix` rules must come before broader ones to avoid unintended matches.
 
 ### ArgoCD Application
 A CRD that declares what to deploy and where. Points at a directory in this repo; ArgoCD reconciles the cluster state to match. The app-of-apps pattern uses a root Application that points at `apps/manifests/`, which contains one Application per app.

@@ -82,3 +82,7 @@ The Hermes Desktop app has a known upstream bug where WebSocket connections to r
 
 - Hermes Agent OIDC docs: https://hermes-agent.nousresearch.com/docs/user-guide/features/web-dashboard
 - Desktop WebSocket bug: https://github.com/NousResearch/hermes-agent/issues/38412
+- [Hermes Agent IngressRoute misrouted /api/* to API server instead of dashboard](../runtime-errors/hermes-agent-ingressroute-api-misroute.md)
+  — same symptom family (401/403 on dashboard, Desktop can't connect) but
+  different root cause (IngressRoute port routing vs. OIDC config). Check
+  both when debugging dashboard auth errors.
