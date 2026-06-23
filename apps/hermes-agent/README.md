@@ -137,8 +137,9 @@ All four artifacts (both keypairs, known_hosts content, and the SSH config) must
    - Go to **Applications → Providers → Create**
    - **Name:** Hermes Provider
    - **Type:** OAuth2/OIDC Provider
+   - **Client Type:** Public (Hermes uses PKCE — confidential clients require a client secret that Hermes doesn't send)
    - **Client ID:** (auto-generated — copy to the `oidc-client-id` field in your SealedSecret)
-   - **Client Secret:** (auto-generated — Hermes uses PKCE so this is not needed in the env var)
+   - **Client Secret:** (auto-generated — not used by Hermes, but Authentik may still show it)
    - **Signing Key:** Select default
    - **Redirect URIs:** `https://hermes.taegost.com/auth/callback`
    - **Scopes:** Include `openid`, `profile`, `email`
