@@ -294,11 +294,39 @@ kubectl describe pod -n hermes-agent -l app=hermes-agent
 kubectl logs -n hermes-agent -l app=hermes-agent
 ```
 
+### Certificate stuck pending
+
+If the Hermes certificate shows `Ready: False` and the challenge is stuck
+pending, the most common cause is a ClusterIssuer mismatch — the issuer's
+Route53 zone doesn't match the domain.
+
+```bash
+# Check certificate status
+kubectl get certificate -n hermes-agent
+
+# Check challenge status
+kubectl get challenge -n hermes-agent
+
+# Inspect the challenge for errors
+kubectl describe challenge -n hermes-agent
+```
+
+Look for `reason: Waiting for authorization` or Route53 access denied errors.
+Verify the ClusterIssuer matches your domain's Route53 hosted zone. If a
+challenge is stuck with a finalizer, force-remove it:
+
+```bash
+kubectl patch challenge <name> -n hermes-agent --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
+```
+
+See `docs/solutions/runtime-errors/certificate-wrong-route53-issuer.md` for the
+full diagnosis walkthrough.
+
 ### Dashboard shows 401
 
 1. Verify the OIDC client ID in the SealedSecret matches Authentik
-2. Check the Authentik provider redirect URI: `https://hermes.taegost.com/oauth/oidc/callback`
-3. Verify the Authentik provider has the correct scopes: `openid`, `profile`, `email`
+2. Check the Authentik provider redirect URI: `https://hermes.taegost.com/auth/callback`
+3. Verify the Authentik provider has the correct scopes: `openid`, `profile`, `email`, `offline_access`
 
 ### Dashboard tabs don't load / "Invalid API key" errors in logs
 
@@ -413,16 +441,40 @@ cache in the running Hermes instance.
 
 ### SSH to sandbox fails
 
-```bash
-# Check NetworkPolicy
-kubectl get networkpolicy -n hermes-agent
+**Symptoms:** Connection refused, connection timeout, or "Host key verification
+failed" when connecting to the Hermes sandbox via SSH.
 
-# Check key permissions
-kubectl exec -n hermes-agent deployment/hermes-agent -- ls -la /opt/data/.ssh/
+**Common causes:**
 
-# Check sshd logs
-kubectl logs -n hermes-agent deployment/hermes-agent-sandbox
-```
+1. **Port mismatch** — the Hermes sandbox SSH runs on port 2222, not the
+   standard port 22. This is a sandbox implementation detail, not a security
+   measure. Always specify `-p 2222`:
+   ```bash
+   ssh -p 2222 user@hermes.taegost.com
+   ```
+
+2. **Host key mismatch** — if you've reconnected the agent or rebuilt the
+   sandbox, the host key will have changed. Remove the stale entry:
+   ```bash
+   ssh-keygen -R [hermes.taegost.com]:2222
+   ```
+
+3. **NetworkPolicy blocking SSH** — verify the NetworkPolicy allows ingress
+   on port 2222:
+   ```bash
+   kubectl get networkpolicy -n hermes-agent
+   kubectl describe networkpolicy -n hermes-agent
+   ```
+
+4. **Key permissions** — verify the SSH key has correct permissions:
+   ```bash
+   kubectl exec -n hermes-agent deployment/hermes-agent -- ls -la /opt/data/.ssh/
+   ```
+
+5. **sshd not running** — check the sandbox container logs:
+   ```bash
+   kubectl logs -n hermes-agent deployment/hermes-agent-sandbox
+   ```
 
 ### Sandbox can't reach internet
 
