@@ -18,4 +18,4 @@ data:
         IdentityFile /opt/data/.ssh/id_ed25519
         UserKnownHostsFile /opt/data/.ssh/known_hosts
         StrictHostKeyChecking yes
-        Port 22
+        Port 2222
