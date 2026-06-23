@@ -1,15 +1,23 @@
 # IngressRoute — hermes.taegost.com
 #
-# Three routes for the three Hermes ports:
-# - /api            → API server (8642) — internal only (default-whitelist)
-# - /webhooks       → webhook adapter (8644) — public (default-headers)
-# - /               → dashboard (9119) — internal only (default-whitelist)
+# Hermes runs two separate HTTP servers in the same container:
 #
-# The webhook route MUST be publicly accessible — external services
-# (GitHub, GitLab, etc.) need to reach it. Dashboard and API are
-# restricted to internal subnets via default-whitelist.
+# - Dashboard (port 9119) — web UI + internal API endpoints
+#   - /api/sessions, /api/auth/ws-ticket, /api/config, /api/keys
+#   - Authenticated via OIDC (Authentik session cookies)
+#
+# - API Server (port 8642) — OpenAI-compatible API + Jobs API
+#   - /v1/chat/completions, /v1/models, /v1/capabilities, /v1/runs
+#   - /api/v1/*, /api/jobs/*
+#   - Authenticated via API_SERVER_KEY Bearer token
+#
+# - Webhook adapter (port 8644) — inbound webhooks
+#   - /webhooks/*
+#   - Public (default-headers), verified via WEBHOOK_SECRET HMAC
 #
 # Traefik evaluates routes in order — more specific paths must come first.
+# /api/v1 and /api/jobs are API server endpoints; everything else under
+# /api belongs to the dashboard.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -19,7 +27,8 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`hermes.taegost.com`) && PathPrefix(`/api`)
+    # ── API Server: OpenAI-compatible endpoints ──────────────────────────
+    - match: Host(`hermes.taegost.com`) && PathPrefix(`/api/v1`)
       kind: Rule
       middlewares:
         - name: default-whitelist
@@ -28,6 +37,29 @@ spec:
         - name: hermes-agent
           namespace: hermes-agent
           port: 8642
+    # ── API Server: Jobs API (programmatic access) ───────────────────────
+    - match: Host(`hermes.taegost.com`) && PathPrefix(`/api/jobs`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: hermes-agent
+          namespace: hermes-agent
+          port: 8642
+    # ── Dashboard: internal API (sessions, auth, config, keys) ───────────
+    # Must come AFTER the more specific /api/v1 and /api/jobs routes.
+    # The dashboard SPA calls these endpoints using OIDC session cookies.
+    - match: Host(`hermes.taegost.com`) && PathPrefix(`/api`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: hermes-agent
+          namespace: hermes-agent
+          port: 9119
+    # ── Webhook adapter (public) ─────────────────────────────────────────
     - match: Host(`hermes.taegost.com`) && PathPrefix(`/webhooks`)
       kind: Rule
       middlewares:
@@ -37,6 +69,7 @@ spec:
         - name: hermes-agent
           namespace: hermes-agent
           port: 8644
+    # ── Dashboard: SPA and everything else ───────────────────────────────
     - match: Host(`hermes.taegost.com`)
       kind: Rule
       middlewares:

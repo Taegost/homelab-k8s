@@ -252,9 +252,28 @@ This prevents the sandbox from reaching cluster-internal services or the local n
 
 | Port | Purpose | Middleware |
 |------|---------|------------|
-| 9119 | Dashboard | `default-whitelist` (internal only) |
-| 8642 | API server | `default-whitelist` (internal only) |
+| 9119 | Dashboard (SPA + internal API) | `default-whitelist` (internal only) |
+| 8642 | API server (OpenAI-compatible + Jobs) | `default-whitelist` (internal only) |
 | 8644 | Webhook adapter | `default-headers` (public) |
+
+## IngressRoute Routing
+
+Hermes runs two separate HTTP servers in the same container. The IngressRoute
+splits traffic by path prefix:
+
+| Path prefix | Target port | Auth method | Purpose |
+|-------------|-------------|-------------|---------|
+| `/api/v1/*` | 8642 | `API_SERVER_KEY` Bearer token | OpenAI-compatible endpoints (chat, models, capabilities, runs) |
+| `/api/jobs/*` | 8642 | `API_SERVER_KEY` Bearer token | Jobs API (scheduled/background work) |
+| `/api/*` (everything else) | 9119 | OIDC session cookies | Dashboard internal API (sessions, auth/ws-ticket, config, keys) |
+| `/webhooks/*` | 8644 | HMAC verification | Inbound webhooks (public) |
+| `/*` (catch-all) | 9119 | OIDC session cookies | Dashboard SPA |
+
+Route order matters — Traefik evaluates in declaration order, so `/api/v1`
+and `/api/jobs` are matched before the broader `/api` prefix. Without this
+split, dashboard API calls (sessions, auth, config, keys) get routed to the
+API server on 8642, which rejects them with 401/403 because the browser sends
+OIDC cookies instead of an `API_SERVER_KEY` Bearer token.
 
 ## Troubleshooting
 
