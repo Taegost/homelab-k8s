@@ -29,7 +29,11 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
-        fsGroup: 10000
+        # fsGroup intentionally omitted — the container starts as root
+        # and the entrypoint chowns PVCs to the hermes user before
+        # dropping privileges. Setting fsGroup would add group-read
+        # permissions to ALL mounted volumes, including the SSH host
+        # key — sshd rejects group-readable private keys.
       containers:
         - name: sandbox
           image: taegost/hermes-sandbox:v1.0.0

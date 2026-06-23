@@ -34,7 +34,12 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
-        fsGroup: 10000
+        # fsGroup intentionally omitted — the container starts as root
+        # and s6-overlay handles user switching. Setting fsGroup would
+        # add group-read permissions to ALL mounted volumes, including
+        # the SSH client key — OpenSSH rejects group-readable private
+        # keys. It also caused /run permission issues that required an
+        # emptyDir workaround.
       containers:
         - name: hermes-agent
           image: nousresearch/hermes-agent:v2026.6.19
@@ -108,8 +113,6 @@ spec:
                 - SETUID
                 - SETGID
           volumeMounts:
-            - name: run
-              mountPath: /run
             - name: data
               mountPath: /opt/data
             - name: ssh-client-key
@@ -149,8 +152,6 @@ spec:
               cpu: 2000m
               memory: 4Gi
       volumes:
-        - name: run
-          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: hermes-agent-data
