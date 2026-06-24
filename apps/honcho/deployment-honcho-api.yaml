@@ -38,6 +38,14 @@ spec:
       containers:
         - name: honcho-api
           image: ghcr.io/plastic-labs/honcho:v3.0.10
+          # Use the image's entrypoint script (Docker Compose pattern) which
+          # runs provision_db.py before starting FastAPI. This handles:
+          #   1. CREATE SCHEMA IF NOT EXISTS
+          #   2. CREATE EXTENSION IF NOT EXISTS vector
+          #   3. alembic upgrade head
+          # Without this, the default CMD skips migrations and the API fails
+          # on first deploy because tables don't exist.
+          command: ["sh", "docker/entrypoint.sh"]
           ports:
             - containerPort: 8000
           envFrom:
