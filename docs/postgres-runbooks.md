@@ -219,6 +219,53 @@ Verify the application is healthy and can read/write its database. Once confirme
 
 ---
 
+## PostgreSQL extensions
+
+Some applications require PostgreSQL extensions (e.g., `pgvector`, `pg_trgm`,
+`uuid-ossp`). Most extensions require **superuser** to create, but application
+roles are intentionally non-superuser. Extensions must be pre-created by the
+postgres superuser before the application starts.
+
+### When to check
+
+If an application's Alembic migrations or startup code runs
+`CREATE EXTENSION IF NOT EXISTS ...`, and the role is non-superuser, the pod will
+fail with:
+
+```
+permission denied to create extension "vector"
+HINT:  Must be superuser to create this extension.
+```
+
+### How to create an extension
+
+```bash
+kubectl exec -n postgres $(kubectl get pod -n postgres -l role=primary -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d APPNAME -c "CREATE EXTENSION IF NOT EXISTS EXTENSION_NAME;"
+```
+
+### Common extensions
+
+| Extension | Used by | Purpose | Notes |
+|-----------|---------|---------|-------|
+| `vector` (pgvector) | Honcho | Vector similarity search for AI memory/embeddings | HNSW index limit: 2000 dimensions for `vector` type |
+
+### Embedding dimension limits
+
+pgvector's HNSW and IVFFlat indexes have a hard limit of **2000 dimensions** for
+the `vector` type. If an application needs more than 2000 dimensions, the
+options are: use MRL truncation to stay under 2000, skip the index (sequential
+scan supports up to 16,000 dimensions), or use the `halfvec` type (up to 4,000
+dimensions with HNSW). See `apps/honcho/README.md` for an example of how this
+constraint affected model selection.
+
+### When to repeat
+
+Extensions are database-scoped. If the database is dropped and recreated (e.g.,
+after deleting and re-syncing the CNPG Database CRD), the extension must be
+re-created before the application pods start.
+
+---
+
 ## Migrating an existing application
 
 Use this workflow when moving an application that already has a database (on any Postgres version) into the shared cluster.

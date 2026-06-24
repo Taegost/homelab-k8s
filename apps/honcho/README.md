@@ -1,32 +1,33 @@
 # Honcho — Manual Runbook
 
-## tiktoken Tokenizer Cache
+## Initial Setup (one-time)
 
-### Background
+After ArgoCD syncs the new PVC, ConfigMap, and deployments, complete these
+steps before the pods will start successfully.
+
+### 1. pgvector Extension
+
+Honcho's Alembic migrations run `CREATE EXTENSION IF NOT EXISTS vector` on
+startup. The `vector` (pgvector) extension requires PostgreSQL superuser to
+create, but the `honcho` role is not a superuser (by design). Pre-create it:
+
+```bash
+kubectl exec -n postgres $(kubectl get pod -n postgres -l role=primary -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d honcho -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+If the database is recreated, run this again before the honcho pods start.
+
+### 2. tiktoken Tokenizer Cache
 
 Honcho imports Python's `tiktoken` library at startup. Tiktoken downloads the
 `o200k_base` BPE merge file (~4 MB) from `openaipublic.blob.core.windows.net`
-(Azure Blob Storage) on first use. This causes two problems:
-
-1. **NetworkPolicy** — the honcho namespace has default-deny egress. Azure Blob
-   Storage IPs rotate frequently (roughly weekly), making `ipBlock` rules
-   unreliable. Allowing broad CIDR ranges defeats the purpose of the policy.
-
-2. **Startup failures** — without network access, the pod crashes with
-   `ConnectionError: HTTPSConnectionPool(host='openaipublic.blob.core.windows.net')`
-   and enters CrashLoopBackOff.
-
-### Solution
+(Azure Blob Storage) on first use. The honcho namespace has default-deny egress,
+so this download is blocked by NetworkPolicy.
 
 A Longhorn RWM PVC (`honcho-tiktoken-cache`) is mounted into both the API and
 deriver deployments at `/home/app/.tiktoken_cache`. The `TIKTOKEN_CACHE_DIR`
 environment variable tells tiktoken to read from this path instead of fetching
-over the network. The file must be pre-downloaded into the PVC manually.
-
-### Initial Setup (one-time)
-
-After ArgoCD syncs the new PVC and updated deployments, the pods will be in
-CrashLoopBackOff because the PVC is empty. Pre-download the tokenizer file:
+over the network. Pre-download the file using a temporary pod:
 
 ```bash
 # 1. Download the tokenizer file locally
@@ -35,62 +36,49 @@ curl -fsSL https://openaipublic.blob.core.windows.net/encodings/o200k_base.tikto
 # 2. Verify the download (should be ~4 MB)
 ls -lh /tmp/o200k_base.tiktoken
 
-# 3. Wait for at least one honcho-api pod to exist (even in CrashLoopBackOff)
-kubectl wait --for=condition=Ready pod -n honcho -l app=honcho-api --timeout=60s 2>/dev/null || true
+# 3. Create a temporary pod that mounts the PVC
+kubectl run tiktoken-loader -n honcho --image=busybox --restart=Never --overrides='{"spec":{"containers":[{"name":"tiktoken-loader","image":"busybox","command":["sleep","3600"],"volumeMounts":[{"name":"tiktoken-cache","mountPath":"/cache"}]}],"volumes":[{"name":"tiktoken-cache","persistentVolumeClaim":{"claimName":"honcho-tiktoken-cache"}}]}}' && kubectl wait --for=condition=Ready pod/tiktoken-loader -n honcho --timeout=30s
 
-# 4. Copy the file into the PVC via the API pod
-#    (the PVC is mounted at /home/app/.tiktoken_cache in both pods)
-POD=$(kubectl get pod -n honcho -l app=honcho-api -o jsonpath='{.items[0].metadata.name}')
-kubectl cp /tmp/o200k_base.tiktoken honcho/$POD:/home/app/.tiktoken_cache/o200k_base.tiktoken
+# 4. Copy the file into the PVC via the temporary pod
+#    Tiktoken caches files by SHA-1 hash of the download URL, not by the
+#    original filename. The hash for o200k_base is precomputed below.
+kubectl cp /tmp/o200k_base.tiktoken honcho/tiktoken-loader:/cache/fb374d419588a4632f3f557e76b4b70aebbca790
 
-# 5. Restart both deployments
+# 5. Clean up the temporary pod
+kubectl delete pod -n honcho tiktoken-loader
+
+# 6. Restart both deployments
 kubectl rollout restart deployment -n honcho honcho-api
 kubectl rollout restart deployment -n honcho honcho-deriver
 
-# 6. Verify pods start successfully
+# 7. Verify pods start successfully
 kubectl get pods -n honcho
 ```
 
-### After Node Reschedule or PVC Re-creation
+The PVC uses `ReadWriteMany` so the file persists across pod restarts. This
+only needs to be repeated if the PVC itself is recreated.
 
-If the PVC is deleted or the pods move to a node where the PVC hasn't been
-mounted, repeat the steps above. The PVC uses `ReadWriteMany` so the file
-persists across pod restarts on the same node — this should only be needed if
-the PVC itself is recreated.
+---
 
-### Why Not an Egress Rule?
+## Embedding Dimension Limitation
 
-| Approach | Pros | Cons |
-|---|---|---|
-| `ipBlock` egress rule | Simple, no manual steps | Azure Blob IPs rotate weekly; rule breaks frequently |
-| Broad Azure CIDR | More stable than single IP | Still not guaranteed; overly permissive |
-| Pre-downloaded PVC | No external dependency; works forever | Manual one-time setup step |
+pgvector's HNSW index has a hard limit of **2000 dimensions** for the `vector`
+type. The current configuration uses `openai/text-embedding-3-small` (1536
+dimensions), which is within this limit and matches Honcho's default.
 
-The PVC approach was chosen because it eliminates the external dependency entirely
-and aligns with the NetworkPolicy default-deny egress posture.
+If a future model requires more than 2000 dimensions, the options are:
+- Use `text-embedding-3-small` at 1536 dimensions (current)
+- Use `text-embedding-3-large` with MRL truncation to 2048 dimensions
+- Skip the HNSW index entirely (sequential scan, supports up to 16,000
+  dimensions — fine for small datasets)
+- Use the `halfvec` type (supports up to 4,000 dimensions with HNSW)
 
-## pgvector Extension
+Changing the embedding model or dimensions after data exists requires a
+destroy-and-rebuild — Honcho's `configure_embeddings.py` refuses to ALTER
+columns that already contain non-null embeddings.
+See [Honcho's docs](https://honcho.dev/docs/v3/contributing/changing-embeddings).
 
-### Background
-
-Honcho's Alembic migrations run `CREATE EXTENSION IF NOT EXISTS vector` on
-startup. The `vector` (pgvector) extension requires PostgreSQL superuser to
-create, but the `honcho` role is not a superuser (by design).
-
-### Fix
-
-Pre-create the extension as the postgres superuser:
-
-```bash
-# Find the primary pod
-kubectl get pods -n postgres -l role=primary
-
-# Create the extension (replace <primary-pod> with the pod name from above)
-kubectl exec -n postgres <primary-pod> -- psql -U postgres -d honcho -c "CREATE EXTENSION IF NOT EXISTS vector;"
-```
-
-This only needs to be done once per database lifetime. If the database is
-recreated, run this command again before the honcho pods start.
+---
 
 ## Database Password Reconciliation
 
@@ -110,10 +98,105 @@ Pods fail with: `FATAL: password authentication failed for user "honcho"`
 Manually set the password in PostgreSQL to match the secret:
 
 ```bash
-# Find the primary pod
-kubectl get pods -n postgres -l role=primary
-
-# Set the password (replace <primary-pod> and <password>)
-# The password must match what's in the honcho-db-credentials secret
-kubectl exec -n postgres <primary-pod> -- psql -U postgres -c "ALTER ROLE honcho PASSWORD '<password>';"
+kubectl exec -n postgres $(kubectl get pod -n postgres -l role=primary -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -c "ALTER ROLE honcho PASSWORD '<password>';"
 ```
+
+The password must match what's in the `honcho-db-credentials` secret.
+
+---
+
+## Hermes Integration
+
+Hermes connects to Honcho for persistent memory and personalization via the
+`hermes memory setup honcho` CLI command. The NetworkPolicy already allows
+ingress from the `hermes-agent` namespace to `honcho-api` on port 8000.
+
+### Step 1: Add Environment Variable
+
+Add `HONCHO_API_KEY` to the hermes-agent deployment
+(`apps/hermes-agent/deployment-hermes-agent.yaml`):
+
+```yaml
+# ── Honcho Memory Backend ──────────────────────────────────────
+- name: HONCHO_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: hermes-honcho-api-key
+      key: jwt-secret
+```
+
+When Honcho has auth enabled (`AUTH_USE_AUTH: "true"`), the `HONCHO_API_KEY`
+value must be a JWT token **signed with** the server's `AUTH_JWT_SECRET` — not
+the raw secret itself. To generate it:
+
+1. Extract the `AUTH_JWT_SECRET` value from the `honcho` SealedSecret in the
+   `honcho` namespace
+2. Generate a JWT signed with that secret using HS256, with a minimal payload
+   (`sub`, `iat`, `exp`)
+3. Store the resulting JWT as a SealedSecret in the `hermes-agent` namespace
+   (`sealedsecret-hermes-honcho-api-key.yaml`)
+
+If auth is disabled, `HONCHO_API_KEY` can be left blank.
+
+### Step 2: Run the Memory Setup CLI
+
+After ArgoCD syncs the env var, exec into the Hermes pod and run the setup:
+
+```bash
+# Interactive wizard — select "honcho" from the provider list
+kubectl exec -it -n hermes-agent deployment/hermes-agent -- hermes memory setup
+
+# Or direct activation
+kubectl exec -it -n hermes-agent deployment/hermes-agent -- hermes memory setup honcho
+```
+
+For a self-hosted Honcho instance, the wizard will ask for the base URL. Use
+the cluster-internal address:
+
+```
+http://honcho-api.honcho.svc.cluster.local:8000
+```
+
+### Step 2a: Gateway Identity Mapping
+
+The setup wizard detects connected gateway platforms (e.g., Telegram) and asks
+"who talks to this gateway?". For a single-user homelab, pick **"just me"** —
+this sets `pinUserPeer: true`, collapsing all gateway users to the configured
+`peerName`. Picking "me + other people" maps specific runtime IDs via
+`userPeerAliases` instead, which is only needed for multi-user setups.
+
+### Step 3: Verify
+
+> **Note:** `hermes honcho` subcommands are only available after Honcho is
+> activated as the memory provider — Step 2 must complete successfully first.
+
+```bash
+# Check connection status and config
+kubectl exec -it -n hermes-agent deployment/hermes-agent -- hermes honcho status
+```
+
+### Post-Setup Configuration
+
+After setup, these CLI commands tune Honcho's behavior:
+
+| Command | Purpose |
+|---|---|
+| `hermes honcho mode` | Recall mode: `hybrid`, `context`, or `tools` |
+| `hermes honcho strategy` | Session strategy: `per-session`, `per-directory`, `per-repo`, `global` |
+| `hermes honcho tokens` | Token budget for context and dialectic |
+| `hermes honcho peer` | Show/update peer names and reasoning level |
+| `hermes honcho identity` | Seed the AI peer's Honcho identity |
+| `hermes honcho sync` | Sync Honcho config to all existing profiles |
+| `hermes honcho peers` | Show peer identities across all profiles |
+| `hermes honcho sessions` | List known Honcho session mappings |
+| `hermes honcho map` | Map current directory to a Honcho session name |
+| `hermes honcho enable` | Enable Honcho for the active profile |
+| `hermes honcho disable` | Disable Honcho for the active profile |
+
+Default session strategy is `per-directory` — one Honcho session per working
+directory where context accumulates across runs.
+
+### References
+
+- [Honcho Memory](https://hermes-agent.nousresearch.com/docs/user-guide/features/honcho) — Hermes docs
+- [Memory Providers](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory-providers) — full provider list
