@@ -357,6 +357,15 @@ homelab-k8s/
 - **Verify CRD field formats** against the operator documentation or existing
   working examples in the repo before committing. Never guess nesting (e.g.,
   `role: { name, db }` vs `name`/`db` at top level); check the schema
+- **Check for official CLI tools and scripts before hand-rolling solutions** —
+  many projects ship `scripts/`, `bin/`, or CLI commands that handle common
+  tasks (JWT generation, config setup, migrations). Read the project's README
+  and official docs before implementing anything from source code. If the
+  project has a documented tool, use it. Only fall back to manual
+  implementation when the docs are silent and the source code is the only
+  reference. This prevents hours of iterative troubleshooting on problems the
+  project already solved. See
+  `docs/solutions/best-practices/research-official-tools-before-implementing.md`
 
 ### Values and secrets
 - The `kubeseal` command must always be written as a single line — never split
