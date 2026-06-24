@@ -9,13 +9,14 @@ date: 2026-06-23
 
 ## Summary
 
-The Honcho deployment session (`feat/honcho-deployment`) exposed 8 friction
-points across the ce-doc-review, ce-work, verify-implementation, and
-ce-compound skills. The user caught 2 issues that doc-review missed (Valkey
-auth pattern, LiteLLM URL), verify-implementation flagged 2 false positives
-(missing SealedSecret templates that are manual-operator artifacts), and
+The Honcho deployment session (`feat/honcho-deployment`) exposed 10 friction
+points across ce-doc-review, ce-work, verify-implementation, ce-compound,
+and pr-fix-findings skills. The user caught 2 issues that doc-review missed
+(Valkey auth pattern, LiteLLM URL), verify-implementation flagged 2 false
+positives (missing SealedSecret templates that are manual-operator artifacts),
 ce-work failed pre-commit validation on probe timeouts it could have caught
-proactively.
+proactively, and pr-fix-findings missed a post-review correction comment and
+included an already-resolved conversation in its fix list.
 
 This plan documents each finding with root cause analysis and proposed fixes.
 Improvements are ordered by impact-to-effort ratio.
@@ -388,16 +389,142 @@ contradiction.
 | Priority | Finding | Skill | Impact | Effort |
 |----------|---------|-------|--------|--------|
 | 1 | #3 | ce-work | Eliminates commit-fail-fix cycles | Low |
-| 2 | #1 | ce-work | Prevents plan-vs-convention conflicts | Low |
-| 3 | #7 | ce-compound | Fixes skill contract violation | Low |
-| 4 | #2 | ce-work | Catches missing convention artifacts | Low |
-| 5 | #8 | ce-doc-review | Catches conflicts at review time | Medium |
-| 6 | #6 | ce-doc-review | Domain-specific security/networking checks | Medium |
-| 7 | #4 | verify-implementation | Eliminates false-positive critical findings | Medium |
-| 8 | #5 | verify-implementation | Reduces redundant re-verification work | Low |
+| 2 | #9 | pr-fix-findings | Catches post-review corrections automatically | Low |
+| 3 | #10 | pr-fix-findings | Prevents re-including resolved conversations | Low |
+| 4 | #1 | ce-work | Prevents plan-vs-convention conflicts | Low |
+| 5 | #7 | ce-compound | Fixes skill contract violation | Low |
+| 6 | #2 | ce-work | Catches missing convention artifacts | Low |
+| 7 | #8 | ce-doc-review | Catches conflicts at review time | Medium |
+| 8 | #6 | ce-doc-review | Domain-specific security/networking checks | Medium |
+| 9 | #4 | verify-implementation | Eliminates false-positive critical findings | Medium |
+| 10 | #5 | verify-implementation | Reduces redundant re-verification work | Low |
 
-Findings 1-4 are low-effort, high-impact. Findings 5-8 require more
-substantial changes to persona prompts or skill workflows.
+Findings 1-3 and 9-10 are low-effort, high-impact. Findings 4-8 require
+more substantial changes to persona prompts or skill workflows.
+
+---
+
+---
+
+## Finding 9: pr-fix-findings doesn't fetch issue-level comments
+
+**Skill:** pr-fix-findings
+**Severity:** High (missed a corrected finding assessment until user pointed it out)
+**Effort:** Low
+
+### What happened
+
+After the CodeRabbit review, the user posted an issue-level comment correcting
+the assessment of Finding 2 (migration mechanism). The comment explained that
+`docker/entrypoint.sh` exists in the image and should be used — changing the
+fix from "add an init container" to "override the command." When I ran
+`/pr-fix-findings`, I fetched PR review comments (`gh api .../pulls/58/comments`)
+but not issue-level comments (`gh api .../issues/58/comments`). I presented a
+fix list based on stale information. The user had to point out the correction
+manually.
+
+### Root cause
+
+Step 2 of the pr-fix-findings skill says to "Review all open conversations and
+change requests for findings" but doesn't specify fetching issue-level comments.
+GitHub's API separates these:
+
+- `GET /repos/{owner}/{repo}/pulls/{pull_number}/comments` — inline review
+  comments (threaded, on specific lines)
+- `GET /repos/{owner}/{repo}/issues/{issue_number}/comments` — issue-level
+  comments (not threaded, on the PR itself)
+
+The skill only fetched the first type. Issue-level comments (corrections,
+clarifications, updated assessments) were invisible.
+
+### Proposed fix
+
+Add to Step 2 of the pr-fix-findings skill, after fetching review comments:
+
+> **Fetch issue-level comments.** Run `gh api
+> repos/{owner}/{repo}/issues/{pr_number}/comments` to get comments posted
+> directly on the PR (not threaded inline). These may contain corrections,
+> updated assessments, or context that changes the validity of review findings.
+> Check each issue-level comment for references to specific findings (by
+> number, file, or description) and update finding dispositions accordingly.
+
+Specifically, the skill should run:
+
+```bash
+gh api repos/{owner}/{repo}/issues/{pr_number}/comments \
+  --jq '.[] | {id, user: .user.login, body, created_at}'
+```
+
+And compare timestamps against the review submission time to identify comments
+that came after the review.
+
+### Impact
+
+Ensures the fix list reflects the latest state of all findings, including
+corrections posted after the initial review. Prevents the user from having
+to manually point out comments that were already visible on the PR.
+
+---
+
+## Finding 10: pr-fix-findings doesn't check conversation resolution status
+
+**Skill:** pr-fix-findings
+**Severity:** High (included a resolved conversation in the fix list)
+**Effort:** Low
+
+### What happened
+
+The user responded to Finding 5 (startup probe budget) and closed it as
+resolved — it was informational and the user acknowledged it. When I ran
+`/pr-fix-findings` and presented the fix list, I included Finding 5 as
+"needs input" because I didn't check whether the conversation was already
+resolved. The user had to tell me to disregard it.
+
+### Root cause
+
+Step 2 of the skill says to "Check if the finding is already resolved. If
+it is, then it doesn't require remediation." But the implementation didn't
+actually check resolution status. The `gh api .../pulls/58/comments` response
+doesn't include resolution status for threaded comments — that information
+is in the GraphQL API or in the review thread state. The skill didn't account
+for this.
+
+### Proposed fix
+
+Add to Step 2 of the pr-fix-findings skill:
+
+> **Check conversation resolution status.** For each threaded review
+> conversation, check whether it has been resolved. Use:
+>
+> ```bash
+> gh api graphql -f query='
+>   query {
+>     repository(owner: "{owner}", name: "{repo}") {
+>       pullRequest(number: {pr_number}) {
+>         reviewThreads(first: 50) {
+>           nodes {
+>             isResolved
+>             comments(first: 10) {
+>               nodes { body, author { login } }
+>             }
+>           }
+>         }
+>       }
+>     }
+>   }'
+> ```
+>
+> Skip any conversation where `isResolved: true`. Only unresolved
+> conversations require remediation.
+
+If the GraphQL approach is too heavy, a simpler heuristic: check for a reply
+from the PR author that indicates resolution (e.g., "resolved", "dismissed",
+"looks good", "fixed"). But the GraphQL approach is more reliable.
+
+### Impact
+
+Prevents re-including findings the user has already addressed. Reduces noise
+in the fix list and avoids the user having to say "I already closed that one."
 
 ---
 
@@ -412,3 +539,6 @@ substantial changes to persona prompts or skill workflows.
 - Finding 4 (gitignored file detection) requires verify-implementation to
   check the working tree, not just the diff. This is a behavioral change
   to the completeness subagent.
+- Findings 9 and 10 are specific to the pr-fix-findings skill. Both are
+  low-effort (add API calls to Step 2) and high-impact (prevent the user
+  from being the quality gate for already-available information).
