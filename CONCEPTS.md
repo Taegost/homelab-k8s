@@ -68,6 +68,9 @@ Eleven automated checks in `.githooks/pre-commit` that run on every YAML commit.
 ### MU Plugin (Must-Use Plugin)
 A WordPress plugin in `wp-content/mu-plugins/` that loads before regular plugins and cannot be deactivated through the admin UI. Used in this project for the internal loopback rewriter that prevents WordPress self-requests from leaving the cluster.
 
+### Derived Image
+A container image that inherits from an upstream base image and adds application-specific layers (Python packages, system tools, config files). Used when the base image's install tree is immutable at runtime — packages must be baked in at build time. The deployment uses a mutable tag (e.g., `v2026`) with `imagePullPolicy: Always` so rebuilds are picked up automatically; immutable version tags are available for rollback.
+
 ## Relationships
 
 - **SealedSecrets** must decrypt (wave -3) before **Percona MongoDB Operator** or **mariadb-operator** CRDs (wave -2) read them

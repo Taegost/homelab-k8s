@@ -6,9 +6,47 @@ Self-improving AI agent by Nous Research with a built-in web dashboard, OpenAI-c
 
 - **Hermes Agent** — main pod running the gateway process (dashboard + API + webhook)
 - **Hermes Sandbox** — separate pod running sshd for isolated code execution
+- **Honcho** — persistent memory backend (`HONCHO_API_KEY` JWT required; see `apps/honcho/README.md`)
 - **Authentik** — OIDC authentication for the dashboard
 - **LiteLLM** — model inference backend at `litellm.diceninjagaming.com`
 - **NetworkPolicy** — enforces sandbox isolation (no cluster or local network access)
+
+## Derived Docker Image
+
+The hermes-agent container uses a **derived Docker image** — the official Nous
+Research image with additional Python packages baked in. Nous Research documents
+this as the recommended approach for durable package installs:
+
+> "When a tool must be available immediately on every container start with no
+> re-install delay, build a new image that inherits from
+> `nousresearch/hermes-agent` and installs the tool in a layer."
+>
+> — [Hermes Docs: Docker — Durable installs](https://hermes-agent.nousresearch.com/docs/user-guide/docker/#durable-installs--build-a-derived-image)
+
+The reason: the image treats `/opt/hermes` as an immutable install tree at
+runtime. Runtime lazy installs are disabled so supervised gateways and
+`docker exec` commands do not write dependency artifacts back into the read-only
+source tree.
+
+**Custom image repo:** [github.com/Taegost/hermes-agent](https://github.com/Taegost/hermes-agent)
+
+**How it works:** The `Dockerfile` extends the official `nousresearch/hermes-agent`
+image with a `USER root` → `pip install` → `USER hermes` layer, installing
+additional packages like `honcho-ai` into the venv. The resulting image is
+pushed as a mutable tag (`v2026`) so the deployment manifest doesn't need
+updating on rebuilds.
+
+**Image pull policy:** The deployment sets `imagePullPolicy: Always` because the
+`v2026` tag is mutable — it's updated in-place when the derived image is rebuilt.
+On every pod start, the kubelet checks the registry: if the tag points to a new
+digest (new build), it pulls the update; if unchanged, it uses the local cache.
+Temporary registry outages don't block startup — containerd falls back to the
+cached image.
+
+**Rollback:** The Docker repo also tags each build with an immutable version
+(e.g., `v2026.06.19`). If a broken build is pushed to `v2026`, switch the
+Deployment's `image` field to the last-known-good version tag and revert to
+`v2026` once the fix is pushed.
 
 ## Deployment Phases
 
@@ -257,6 +295,7 @@ This prevents the sandbox from reaching cluster-internal services or the local n
 | `WEBHOOK_SECRET` | HMAC webhook verification secret | from sealed secret |
 | `OPENAI_BASE_URL` | LiteLLM endpoint | `https://litellm.diceninjagaming.com/v1` |
 | `OPENAI_API_KEY` | LiteLLM API key | from sealed secret |
+| `HONCHO_API_KEY` | Honcho memory backend JWT | from sealed secret |
 
 ## Ports
 
