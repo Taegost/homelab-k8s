@@ -89,13 +89,13 @@ spec:
           # endpoint. Check that the actual deriver process is running, not just
           # that Python is installed.
           livenessProbe:
-            # pgrep is not in the honcho image (no procps). Check /proc
-            # directly: iterate /proc/*/cmdline for the deriver module.
+            # pgrep is not in the honcho image (no procps). Check PID 1's
+            # cmdline directly for the deriver module.
             exec:
               command:
                 - sh
                 - -c
-                - "grep -rls src.deriver /proc/*/cmdline || exit 1"
+                - "grep -q src.deriver /proc/1/cmdline || exit 1"
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
