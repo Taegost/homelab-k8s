@@ -37,13 +37,16 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
-    # --- LiteLLM proxy (LLM API calls via external HTTPS domain) ---
+    # --- LiteLLM proxy (LLM API calls via Traefik → LiteLLM) ---
     # litellm.diceninjagaming.com resolves to the Traefik MetalLB IP
-    # (192.168.5.202). Restrict egress to that IP only — all LLM calls
-    # route through LiteLLM, no other HTTPS destinations needed.
+    # (192.168.5.202), but pods can't hairpin back to a LoadBalancer IP
+    # on the same node (MetalLB L2 limitation). Instead, allow egress to
+    # the traefik namespace — kube-proxy routes the traffic internally
+    # via ClusterIP, bypassing the MetalLB hairpin entirely.
     - to:
-        - ipBlock:
-            cidr: 192.168.5.202/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
       ports:
         - protocol: TCP
           port: 443
