@@ -1,0 +1,28 @@
+# IngressRoute -- honcho.taegost.com (internal-only)
+#
+# Lives in the honcho namespace alongside its per-app cert (NOT in traefik).
+# default-whitelist middleware restricts access to internal subnets.
+# Cross-namespace middleware reference works because allowCrossNamespace: true
+# is set globally in apps/traefik/values.yaml (not per-IngressRoute).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: honcho
+  namespace: honcho
+  labels:
+    app.kubernetes.io/part-of: honcho
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`honcho.taegost.com`)
+      services:
+        - name: honcho-api
+          namespace: honcho
+          port: 8000
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+  tls:
+    secretName: honcho-taegost-com-tls

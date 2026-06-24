@@ -1,0 +1,54 @@
+# ConfigMap -- honcho-config
+#
+# Non-sensitive Honcho configuration shared by BOTH the API and Deriver
+# deployments. Both pods mount the same ConfigMap via envFrom.
+#
+# DERIVER_ENABLED is intentionally NOT here -- it has different values per
+# deployment (false for API, true for Deriver) and is set in each Deployment
+# manifest's env block instead.
+#
+# Sensitive values (DB_CONNECTION_URI, LLM_OPENAI_API_KEY, AUTH_JWT_SECRET)
+# live in sealedsecret-honcho.yaml and are injected as env vars in each
+# Deployment's env block via secretKeyRef.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: honcho-config
+  namespace: honcho
+data:
+  # --- Auth ---
+  # Enable JWT authentication for the Honcho API. ALWAYS enabled -- security
+  # is a core pillar. Hermes provides its API key via HONCHO_API_KEY env var.
+  AUTH_USE_AUTH: "true"
+
+  # --- Cache ---
+  # Valkey for session caching. Cache state is ephemeral; durable state
+  # lives in Postgres. No authentication -- network-level isolation via
+  # the Valkey NetworkPolicy restricts access to honcho namespace pods.
+  CACHE_ENABLED: "true"
+  CACHE_URL: "redis://honcho-valkey.honcho.svc.cluster.local:6379/0?suppress=true"
+
+  # --- LLM ---
+  # Point at the LiteLLM proxy for OpenAI-compatible access to all upstream models.
+  # Honcho's LLM calls (deriver, dialectic, summary, dream) route through here.
+  # Uses the secure external domain (HTTPS via Traefik) rather than the
+  # cluster-internal HTTP endpoint.
+  LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
+  # Generic model name; LiteLLM routes to the configured upstream.
+  LLM_OPENAI_MODEL: "xiaomi-token/mimo-v2.5"
+
+  # --- Embedding ---
+  # Resolved: openai/text-embedding-3-large via LiteLLM, 3072 dimensions.
+  # These are IMMUTABLE after first deployment -- changing requires a full
+  # database schema migration and re-embedding of all stored documents.
+  EMBEDDING_MODEL_CONFIG__TRANSPORT: "openai"
+  EMBEDDING_MODEL_CONFIG__MODEL: "openai/text-embedding-3-large"
+  EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
+  EMBEDDING_VECTOR_DIMENSIONS: "3072"
+
+  # --- Telemetry ---
+  # Don't phone home -- this is a homelab, not a SaaS deployment.
+  TELEMETRY_ENABLED: "false"
+
+  # --- Metrics ---
+  METRICS_ENABLED: "true"

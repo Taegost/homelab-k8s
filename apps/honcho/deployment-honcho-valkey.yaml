@@ -1,0 +1,87 @@
+# Deployment -- Valkey (Redis-compatible cache)
+#
+# Honcho uses Valkey for session caching. Cache state is ephemeral -- durable
+# state lives in Postgres. Disabling persistence avoids write errors when
+# running non-root without a writable /data volume.
+#
+# No authentication -- network-level isolation via the Valkey NetworkPolicy
+# restricts ingress to pods in the honcho namespace. This matches the plane
+# pattern: apps/plane/deployment-valkey.yaml also runs without auth.
+# allkeys-lru eviction is acceptable for a cache -- no critical data lost.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: honcho-valkey
+  namespace: honcho
+  labels:
+    app.kubernetes.io/part-of: honcho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: honcho-valkey
+  template:
+    metadata:
+      labels:
+        app: honcho-valkey
+        app.kubernetes.io/part-of: honcho
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: valkey
+          image: docker.io/valkey/valkey:7.2.11-alpine
+          command:
+            - valkey-server
+            # Disable persistence -- this is a cache, not a datastore.
+            # RDB snapshots and AOF write to disk; if those fail (disk full,
+            # permissions), Valkey starts rejecting writes. Disable both.
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+            - --maxmemory
+            - 96mb
+            - --maxmemory-policy
+            - allkeys-lru
+          ports:
+            - containerPort: 6379
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "valkey-cli ping"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "valkey-cli ping"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              cpu: 200m
+              memory: 192Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            # Valkey image runs as UID 999. Bypasses the entrypoint's
+            # privilege-drop step -- detects it is already the correct
+            # user and skips chown. ALL capabilities dropped.
+            runAsUser: 999
+            runAsGroup: 999
+            capabilities:
+              drop:
+                - ALL

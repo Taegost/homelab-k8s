@@ -1,0 +1,36 @@
+# NetworkPolicy -- honcho-valkey
+#
+# Restricts ingress to Valkey to ONLY pods in the honcho namespace.
+# Network-level isolation provides defense-in-depth against unauthorized
+# access. No authentication required (matches the plane pattern).
+#
+# Valkey never initiates outbound connections, so no egress policy needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: honcho-valkey
+  namespace: honcho
+spec:
+  podSelector:
+    matchLabels:
+      app: honcho-valkey
+  policyTypes:
+    - Ingress
+  ingress:
+    # --- Only honcho-api and honcho-deriver pods ---
+    # Both namespaceSelector AND podSelector must match (AND semantics).
+    # This restricts access to the two deployments that actually use Valkey.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: honcho
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - honcho-api
+                  - honcho-deriver
+      ports:
+        - protocol: TCP
+          port: 6379
