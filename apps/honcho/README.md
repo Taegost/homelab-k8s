@@ -311,14 +311,13 @@ To generate the JWT:
 AUTH_JWT_SECRET="<value from honcho secret>"
 
 # 2. Generate an admin JWT signed with HS256
-#    Uses Honcho's custom claims (ad, t) — NOT standard sub/iat/exp.
+#    Uses PyJWT to match Honcho's exact encoding (compact JSON, padding).
+#    Payload uses Honcho's custom claims (ad, t) — NOT standard sub/iat/exp.
 python3 -c "
-import json, hmac, hashlib, base64, datetime
-now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'}).encode()).rstrip(b'=').decode()
-payload = base64.urlsafe_b64encode(json.dumps({'ad': True, 't': now}).encode()).rstrip(b'=').decode()
-sig = base64.urlsafe_b64encode(hmac.new('$AUTH_JWT_SECRET'.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest()).rstrip(b'=').decode()
-print(f'{header}.{payload}.{sig}')
+import jwt
+from datetime import datetime, timezone
+t = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+print(jwt.encode({'ad': True, 't': t}, '$AUTH_JWT_SECRET', algorithm='HS256'))
 "
 
 # 3. Create the plaintext secret
