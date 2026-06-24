@@ -30,29 +30,36 @@ If the database is recreated, run this again before the honcho pods start.
 
 ### 2. tiktoken Tokenizer Cache
 
-Honcho imports Python's `tiktoken` library at startup. Tiktoken downloads the
-`o200k_base` BPE merge file (~4 MB) from `openaipublic.blob.core.windows.net`
-(Azure Blob Storage) on first use. The honcho namespace has default-deny egress,
-so this download is blocked by NetworkPolicy.
+Honcho imports Python's `tiktoken` library at startup. Tiktoken downloads BPE
+merge files from `openaipublic.blob.core.windows.net` (Azure Blob Storage) on
+first use. The honcho namespace has default-deny egress, so these downloads are
+blocked by NetworkPolicy. Two tokenizer files are needed:
+
+| Model | File | Size | Cache hash (SHA-1 of URL) |
+|---|---|---|---|
+| `text-embedding-3-small` | `cl100k_base.tiktoken` | ~5 MB | `9b5ad71b2ce5302211f9c61530b329a4922fc6a4` |
+| General LLM tokenization | `o200k_base.tiktoken` | ~4 MB | `fb374d419588a4632f3f557e76b4b70aebbca790` |
 
 A Longhorn RWM PVC (`honcho-tiktoken-cache`) is mounted into both the API and
 deriver deployments at `/home/app/.tiktoken_cache`. The `TIKTOKEN_CACHE_DIR`
 environment variable tells tiktoken to read from this path instead of fetching
-over the network. Pre-download the file using a temporary pod:
+over the network. Pre-download both files using a temporary pod:
 
 ```bash
-# 1. Download the tokenizer file locally
+# 1. Download both tokenizer files locally
+curl -fsSL https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken -o /tmp/cl100k_base.tiktoken
 curl -fsSL https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken -o /tmp/o200k_base.tiktoken
 
-# 2. Verify the download (should be ~4 MB)
-ls -lh /tmp/o200k_base.tiktoken
+# 2. Verify the downloads
+ls -lh /tmp/cl100k_base.tiktoken /tmp/o200k_base.tiktoken
 
 # 3. Create a temporary pod that mounts the PVC
 kubectl run tiktoken-loader -n honcho --image=busybox --restart=Never --overrides='{"spec":{"containers":[{"name":"tiktoken-loader","image":"busybox","command":["sleep","3600"],"volumeMounts":[{"name":"tiktoken-cache","mountPath":"/cache"}]}],"volumes":[{"name":"tiktoken-cache","persistentVolumeClaim":{"claimName":"honcho-tiktoken-cache"}}]}}' && kubectl wait --for=condition=Ready pod/tiktoken-loader -n honcho --timeout=30s
 
-# 4. Copy the file into the PVC via the temporary pod
+# 4. Copy both files into the PVC via the temporary pod
 #    Tiktoken caches files by SHA-1 hash of the download URL, not by the
-#    original filename. The hash for o200k_base is precomputed below.
+#    original filename. Hashes are precomputed in the table above.
+kubectl cp /tmp/cl100k_base.tiktoken honcho/tiktoken-loader:/cache/9b5ad71b2ce5302211f9c61530b329a4922fc6a4
 kubectl cp /tmp/o200k_base.tiktoken honcho/tiktoken-loader:/cache/fb374d419588a4632f3f557e76b4b70aebbca790
 
 # 5. Clean up the temporary pod

@@ -42,7 +42,7 @@ data:
   # These are IMMUTABLE after first deployment -- changing requires a full
   # database schema migration and re-embedding of all stored documents.
   EMBEDDING_MODEL_CONFIG__TRANSPORT: "openai"
-  EMBEDDING_MODEL_CONFIG__MODEL: "openai/text-embedding-3-small"
+  EMBEDDING_MODEL_CONFIG__MODEL: "text-embedding-3-small"
   EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
   EMBEDDING_VECTOR_DIMENSIONS: "1536"
 
