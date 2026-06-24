@@ -1,0 +1,24 @@
+# Longhorn RWM PVC for the tiktoken tokenizer cache.
+#
+# Honcho imports tiktoken at startup, which downloads the o200k_base BPE
+# merge file from openaipublic.blob.core.windows.net. Azure Blob Storage
+# IPs rotate frequently, making ipBlock rules unreliable. Instead, we
+# pre-download the file into this PVC and set TIKTOKEN_CACHE_DIR so
+# tiktoken reads from disk instead of fetching over the network.
+#
+# The file is ~4 MB and static (only changes if OpenAI releases a new
+# tokenizer encoding). See README.md for the manual download procedure.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: honcho-tiktoken-cache
+  namespace: honcho
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 100Mi

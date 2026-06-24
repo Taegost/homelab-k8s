@@ -76,6 +76,9 @@ spec:
             # This IS the deriver -- enable it here (overrides the API's "false").
             - name: DERIVER_ENABLED
               value: "true"
+            # tiktoken tokenizer cache -- see deployment-honcho-api.yaml.
+            - name: TIKTOKEN_CACHE_DIR
+              value: /home/app/.tiktoken_cache
           securityContext:
             # UID/GID 100/100 -- same image as the API (see deployment-honcho-api.yaml).
             runAsUser: 100
@@ -106,3 +109,10 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+          volumeMounts:
+            - name: tiktoken-cache
+              mountPath: /home/app/.tiktoken_cache
+      volumes:
+        - name: tiktoken-cache
+          persistentVolumeClaim:
+            claimName: honcho-tiktoken-cache
