@@ -288,6 +288,21 @@ When Honcho has auth enabled (`AUTH_USE_AUTH: "true"`), the `HONCHO_API_KEY`
 value must be a JWT token **signed with** the server's `AUTH_JWT_SECRET` — not
 the raw secret itself. If auth is disabled, `HONCHO_API_KEY` can be left blank.
 
+Honcho uses **custom JWT claims** ([`JWTParams`](https://github.com/plastic-labs/honcho/blob/main/src/security.py)),
+not standard `sub`/`iat`/`exp` claims:
+
+| Claim | Type | Purpose |
+|---|---|---|
+| `ad` | bool | Admin flag — bypasses all permission checks |
+| `t` | string | Timestamp (ISO 8601) — used for uniqueness, not security |
+| `w` | string | Workspace name (optional) |
+| `p` | string | Peer name (optional) |
+| `s` | string | Session name (optional) |
+
+For Hermes, we need an admin JWT (`ad: true`) which grants full access. Do NOT
+include standard `exp`/`iat` claims — PyJWT validates `exp` as a Unix timestamp
+before Honcho sees the token, causing "Invalid JWT" errors.
+
 To generate the JWT:
 
 ```bash
@@ -295,12 +310,16 @@ To generate the JWT:
 #    (unseal first if needed, or read from the plaintext source)
 AUTH_JWT_SECRET="<value from honcho secret>"
 
-# 2. Generate a JWT signed with HS256
-#    Honcho expects iat/exp as ISO 8601 datetime strings, NOT Unix timestamps.
-HEADER=$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
-PAYLOAD=$(echo -n '{"sub":"hermes","iat":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","exp":"'$(date -u -d "+365 days" +%Y-%m-%dT%H:%M:%SZ)'"}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
-SIGNATURE=$(echo -n "${HEADER}.${PAYLOAD}" | openssl dgst -sha256 -hmac "$AUTH_JWT_SECRET" -binary | base64 -w0 | tr '+/' '-_' | tr -d '=')
-JWT="${HEADER}.${PAYLOAD}.${SIGNATURE}"
+# 2. Generate an admin JWT signed with HS256
+#    Uses Honcho's custom claims (ad, t) — NOT standard sub/iat/exp.
+python3 -c "
+import json, hmac, hashlib, base64, datetime
+now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'}).encode()).rstrip(b'=').decode()
+payload = base64.urlsafe_b64encode(json.dumps({'ad': True, 't': now}).encode()).rstrip(b'=').decode()
+sig = base64.urlsafe_b64encode(hmac.new('$AUTH_JWT_SECRET'.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest()).rstrip(b'=').decode()
+print(f'{header}.{payload}.{sig}')
+"
 
 # 3. Create the plaintext secret
 cat > apps/hermes-agent/secret-hermes-honcho-api-key.yaml <<EOF
@@ -311,27 +330,12 @@ metadata:
   namespace: hermes-agent
 type: Opaque
 stringData:
-  honcho-api-key: "$JWT"
+  honcho-api-key: "<output from step 2>"
 EOF
 
 # 4. Seal and clean up
 kubeseal --format yaml < apps/hermes-agent/secret-hermes-honcho-api-key.yaml > apps/hermes-agent/sealedsecret-hermes-honcho-api-key.yaml
 rm apps/hermes-agent/secret-hermes-honcho-api-key.yaml
-```
-
-Alternative using Python (if openssl is not available):
-
-```bash
-AUTH_JWT_SECRET="<value from honcho secret>"
-python3 -c "
-import json, hmac, hashlib, base64, time, datetime
-now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-exp = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365)).strftime('%Y-%m-%dT%H:%M:%SZ')
-header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'}).encode()).rstrip(b'=').decode()
-payload = base64.urlsafe_b64encode(json.dumps({'sub':'hermes','iat':now,'exp':exp}).encode()).rstrip(b'=').decode()
-sig = base64.urlsafe_b64encode(hmac.new('$AUTH_JWT_SECRET'.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest()).rstrip(b'=').decode()
-print(f'{header}.{payload}.{sig}')
-"
 ```
 
 ### Step 2: Run the Memory Setup CLI
