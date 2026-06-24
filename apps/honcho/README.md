@@ -127,16 +127,51 @@ Add `HONCHO_API_KEY` to the hermes-agent deployment
 
 When Honcho has auth enabled (`AUTH_USE_AUTH: "true"`), the `HONCHO_API_KEY`
 value must be a JWT token **signed with** the server's `AUTH_JWT_SECRET` — not
-the raw secret itself. To generate it:
+the raw secret itself. If auth is disabled, `HONCHO_API_KEY` can be left blank.
 
-1. Extract the `AUTH_JWT_SECRET` value from the `honcho` SealedSecret in the
-   `honcho` namespace
-2. Generate a JWT signed with that secret using HS256, with a minimal payload
-   (`sub`, `iat`, `exp`)
-3. Store the resulting JWT as a SealedSecret in the `hermes-agent` namespace
-   (`sealedsecret-hermes-honcho-api-key.yaml`)
+To generate the JWT:
 
-If auth is disabled, `HONCHO_API_KEY` can be left blank.
+```bash
+# 1. Extract the AUTH_JWT_SECRET from the Honcho SealedSecret
+#    (unseal first if needed, or read from the plaintext source)
+AUTH_JWT_SECRET="<value from honcho secret>"
+
+# 2. Generate a JWT signed with HS256
+#    Requires jq and openssl (or use python3 one-liner below)
+HEADER=$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
+PAYLOAD=$(echo -n '{"sub":"hermes","iat":'$(date +%s)',"exp":'$(date -d "+365 days" +%s)'}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
+SIGNATURE=$(echo -n "${HEADER}.${PAYLOAD}" | openssl dgst -sha256 -hmac "$AUTH_JWT_SECRET" -binary | base64 -w0 | tr '+/' '-_' | tr -d '=')
+JWT="${HEADER}.${PAYLOAD}.${SIGNATURE}"
+
+# 3. Create the plaintext secret
+cat > apps/hermes-agent/secret-hermes-honcho-api-key.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hermes-honcho-api-key
+  namespace: hermes-agent
+type: Opaque
+stringData:
+  honcho-api-key: "$JWT"
+EOF
+
+# 4. Seal and clean up
+kubeseal --format yaml < apps/hermes-agent/secret-hermes-honcho-api-key.yaml > apps/hermes-agent/sealedsecret-hermes-honcho-api-key.yaml
+rm apps/hermes-agent/secret-hermes-honcho-api-key.yaml
+```
+
+Alternative using Python (if openssl is not available):
+
+```bash
+AUTH_JWT_SECRET="<value from honcho secret>"
+python3 -c "
+import json, hmac, hashlib, base64, time
+header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'}).encode()).rstrip(b'=').decode()
+payload = base64.urlsafe_b64encode(json.dumps({'sub':'hermes','iat':int(time.time()),'exp':int(time.time())+31536000}).encode()).rstrip(b'=').decode()
+sig = base64.urlsafe_b64encode(hmac.new('$AUTH_JWT_SECRET'.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest()).rstrip(b'=').decode()
+print(f'{header}.{payload}.{sig}')
+"
+```
 
 ### Step 2: Run the Memory Setup CLI
 

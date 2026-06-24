@@ -115,6 +115,14 @@ spec:
                 secretKeyRef:
                   name: hermes-agent
                   key: litellm-api-key
+            # ── Honcho Memory Backend ──────────────────────────────────────
+            # JWT signed with Honcho's AUTH_JWT_SECRET — see
+            # apps/honcho/README.md for the generation steps.
+            - name: HONCHO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-honcho-api-key
+                  key: honcho-api-key
           securityContext:
             # The hermes-agent image is designed to run as UID 10000 (hermes).
             # s6-overlay handles initialization and privilege dropping.
