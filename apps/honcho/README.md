@@ -303,25 +303,14 @@ For Hermes, we need an admin JWT (`ad: true`) which grants full access. Do NOT
 include standard `exp`/`iat` claims — PyJWT validates `exp` as a Unix timestamp
 before Honcho sees the token, causing "Invalid JWT" errors.
 
-To generate the JWT:
+To generate the JWT, use Honcho's built-in `generate_jwt.py` script:
 
 ```bash
-# 1. Extract the AUTH_JWT_SECRET from the Honcho SealedSecret
-#    (unseal first if needed, or read from the plaintext source)
-AUTH_JWT_SECRET="<value from honcho secret>"
+# 1. Generate an admin JWT using the script inside the running Honcho container
+JWT=$(kubectl exec -n honcho deployment/honcho-api -- python /app/scripts/generate_jwt.py --admin --print-only)
 
-# 2. Generate an admin JWT signed with HS256
-#    Uses PyJWT to match Honcho's exact encoding (compact JSON, padding).
-#    Payload uses Honcho's custom claims (ad, t) — NOT standard sub/iat/exp.
-python3 -c "
-import jwt
-from datetime import datetime, timezone
-t = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-print(jwt.encode({'ad': True, 't': t}, '$AUTH_JWT_SECRET', algorithm='HS256'))
-"
-
-# 3. Create the plaintext secret
-#    Sync-wave -1 ensures the secret decrypts before the Deployment at wave 0.
+# 2. Create the plaintext secret (sync-wave -1 so it decrypts before the
+#    Deployment at wave 0)
 cat > apps/hermes-agent/secret-hermes-honcho-api-key.yaml <<EOF
 apiVersion: v1
 kind: Secret
@@ -332,13 +321,16 @@ metadata:
     argocd.argoproj.io/sync-wave: "-1"
 type: Opaque
 stringData:
-  honcho-api-key: "<output from step 2>"
+  honcho-api-key: "$JWT"
 EOF
 
-# 4. Seal and clean up
+# 3. Seal and clean up
 kubeseal --format yaml < apps/hermes-agent/secret-hermes-honcho-api-key.yaml > apps/hermes-agent/sealedsecret-hermes-honcho-api-key.yaml
 rm apps/hermes-agent/secret-hermes-honcho-api-key.yaml
 ```
+
+The script is available in the container at `/app/scripts/generate_jwt.py`. Run
+it with `--help` for all options (`--admin`, `--expires`, `--workspace`, etc.).
 
 ### Step 2: Run the Memory Setup CLI
 

@@ -31,19 +31,20 @@ or session claims are needed for a service integration like Hermes.
 
 ## Solution
 
-Generate the JWT with only Honcho's custom claims:
+Use Honcho's built-in `generate_jwt.py` script (available in the container at
+`/app/scripts/generate_jwt.py`). Do NOT hand-roll JWTs — PyJWT's JSON
+serialization and Honcho's may differ, causing signature mismatches.
 
-```python
-import json, hmac, hashlib, base64, datetime
+```bash
+# Admin JWT (no expiry)
+kubectl exec -n honcho deployment/honcho-api -- python /app/scripts/generate_jwt.py --admin --print-only
 
-now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-header = base64.urlsafe_b64encode(json.dumps({'alg': 'HS256', 'typ': 'JWT'}).encode()).rstrip(b'=').decode()
-payload = base64.urlsafe_b64encode(json.dumps({'ad': True, 't': now}).encode()).rstrip(b'=').decode()
-sig = base64.urlsafe_b64encode(hmac.new(AUTH_JWT_SECRET.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest()).rstrip(b'=').decode()
-jwt = f'{header}.{payload}.{sig}'
+# Admin JWT with expiry
+kubectl exec -n honcho deployment/honcho-api -- python /app/scripts/generate_jwt.py --admin --expires 1y --print-only
 ```
 
-Do NOT include `sub`, `iat`, `exp`, or any standard JWT claims.
+Do NOT include standard `sub`, `iat`, `exp` claims — Honcho uses custom claim
+names (`ad`, `t`, `w`, `p`, `s`).
 
 ## Verification
 
