@@ -1,5 +1,16 @@
 # Honcho — Manual Runbook
 
+## Architecture
+
+| Component | Image | Purpose |
+|---|---|---|
+| honcho-api | `ghcr.io/plastic-labs/honcho:v3.0.10` | HTTP API on port 8000 |
+| honcho-deriver | `ghcr.io/plastic-labs/honcho:v3.0.10` | Background worker (`src.deriver`) |
+| honcho-valkey | `valkey/valkey:7.2.11-alpine` | Session cache on port 6379 |
+
+Both Honcho containers run as UID/GID 100/100 (Debian `app` user). Valkey
+runs as UID/GID 999. All drop ALL capabilities and deny privilege escalation.
+
 ## Initial Setup (one-time)
 
 After ArgoCD syncs the new PVC, ConfigMap, and deployments, complete these
@@ -105,6 +116,154 @@ The password must match what's in the `honcho-db-credentials` secret.
 
 ---
 
+## Configuration Reference
+
+### ConfigMap (`configmap-honcho.yaml`)
+
+Non-sensitive values shared by both API and Deriver via `envFrom`:
+
+| Variable | Value | Notes |
+|---|---|---|
+| `AUTH_USE_AUTH` | `"true"` | JWT authentication required for API access |
+| `CACHE_ENABLED` | `"true"` | Valkey session cache |
+| `CACHE_URL` | `"redis://honcho-valkey.honcho.svc.cluster.local:6379/0?suppress=true"` | Cluster-internal Valkey address |
+| `LLM_OPENAI_BASE_URL` | `"https://litellm.diceninjagaming.com/v1"` | LiteLLM proxy |
+| `LLM_OPENAI_MODEL` | `"xiaomi-token/mimo-v2.5"` | LiteLLM model name |
+| `EMBEDDING_MODEL_CONFIG__TRANSPORT` | `"openai"` | |
+| `EMBEDDING_MODEL_CONFIG__MODEL` | `"openai/text-embedding-3-small"` | 1536 dimensions — see Embedding Dimension Limitation |
+| `EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL` | `"https://litellm.diceninjagaming.com/v1"` | |
+| `EMBEDDING_VECTOR_DIMENSIONS` | `"1536"` | Must match embedding model output |
+| `TELEMETRY_ENABLED` | `"false"` | |
+| `METRICS_ENABLED` | `"true"` | Prometheus metrics on port 9090 |
+
+### Secrets (SealedSecret `honcho` in `honcho` namespace)
+
+| Secret Key | Env Var | Notes |
+|---|---|---|
+| `database-url` | `DB_CONNECTION_URI` | Full Postgres connection string |
+| `jwt-secret` | `AUTH_JWT_SECRET` | Generate with `openssl rand -hex 32` |
+| `llm-api-key` | `LLM_OPENAI_API_KEY` | LiteLLM API key (prefixed `sk-`) |
+
+### Deployment-Specific Variables
+
+| Variable | API Pod | Deriver Pod |
+|---|---|---|
+| `DERIVER_ENABLED` | `"false"` | `"true"` |
+| `TIKTOKEN_CACHE_DIR` | `/home/app/.tiktoken_cache` | `/home/app/.tiktoken_cache` |
+
+### Dream Consolidation Tuning
+
+The deriver runs "dream" consolidation jobs in the background. These settings
+control when and how aggressively consolidation runs. Add them to the ConfigMap
+if the defaults cause excessive API usage:
+
+| Variable | Default | Recommended | Notes |
+|---|---|---|---|
+| `DREAM_DOCUMENT_THRESHOLD` | `50` | `100` | Documents before first dream triggers |
+| `DREAM_MIN_HOURS_BETWEEN_DREAMS` | `8` | `12`–`16` | Minimum interval between dreams |
+| `DREAM_MAX_TOOL_ITERATIONS` | `20` | `10` | Max LLM calls per dream session |
+| `DERIVER_WORKERS` | `1` | `2` | Threads within the pod (not replicas) |
+
+---
+
+## Resource Limits
+
+### honcho-api
+
+| Resource | Request | Limit |
+|---|---|---|
+| CPU | 100m | 1000m |
+| Memory | 256Mi | 512Mi |
+
+### honcho-deriver
+
+| Resource | Request | Limit |
+|---|---|---|
+| CPU | 100m | 500m |
+| Memory | 256Mi | 512Mi |
+
+### honcho-valkey
+
+| Resource | Request | Limit |
+|---|---|---|
+| CPU | 10m | 200m |
+| Memory | 48Mi | 192Mi |
+
+Valkey maxmemory is capped at 96mb with `allkeys-lru` eviction. No persistence
+(cache-only; Honcho rebuilds state from Postgres on restart).
+
+---
+
+## NetworkPolicy
+
+### honcho-api
+
+| Direction | Source/Destination | Ports |
+|---|---|---|
+| Ingress | `traefik` namespace (Traefik pod) | TCP/8000 |
+| Ingress | `hermes-agent` namespace | TCP/8000 |
+| Egress | `kube-system` (DNS) | UDP+TCP/53 |
+| Egress | `postgres` namespace | TCP/5432 |
+| Egress | `honcho` namespace (Valkey) | TCP/6379 |
+| Egress | External (any) | TCP/443 |
+
+### honcho-deriver
+
+| Direction | Source/Destination | Ports |
+|---|---|---|
+| Egress | `kube-system` (DNS) | UDP+TCP/53 |
+| Egress | `postgres` namespace | TCP/5432 |
+| Egress | `honcho` namespace (Valkey) | TCP/6379 |
+| Egress | External (any) | TCP/443 |
+
+### honcho-valkey
+
+| Direction | Source/Destination | Ports |
+|---|---|---|
+| Ingress | `honcho` namespace | TCP/6379 |
+
+Valkey has no authentication — isolation is network-level only.
+See `apps/honcho/convention-valkey-no-auth.md`.
+
+---
+
+## Sync-Wave Ordering
+
+| Resource | Wave | Namespace | Rationale |
+|---|---|---|---|
+| `honcho-db-credentials` SealedSecret | `-3` | `postgres` | CNPG reads password at role creation |
+| CNPG Database CRD | `-1` | `postgres` | Creates database + role after secret decrypts |
+| `honcho` SealedSecret | `-1` | `honcho` | Must decrypt before Deployments at wave 0 |
+| All other resources | `0` | `honcho` | Default wave |
+
+---
+
+## Verification
+
+After the initial setup steps are complete:
+
+```bash
+# 1. Check all pods are running
+kubectl get pods -n honcho
+
+# 2. Verify API health endpoint
+kubectl exec -n honcho deployment/honcho-api -- curl -sf http://localhost:8000/health
+
+# 3. Verify deriver is running
+kubectl logs -n honcho deployment/honcho-deriver --tail=20
+
+# 4. Verify pgvector extension exists
+kubectl exec -n postgres $(kubectl get pod -n postgres -l role=primary -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d honcho -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+
+# 5. Verify Valkey is responding
+kubectl exec -n honcho deployment/honcho-valkey -- valkey-cli ping
+
+# 6. Verify NetworkPolicy (hermes-agent can reach honcho-api)
+kubectl exec -n hermes-agent deployment/hermes-agent -- curl -sf http://honcho-api.honcho.svc.cluster.local:8000/health
+```
+
+---
+
 ## Hermes Integration
 
 Hermes connects to Honcho for persistent memory and personalization via the
@@ -137,9 +296,9 @@ To generate the JWT:
 AUTH_JWT_SECRET="<value from honcho secret>"
 
 # 2. Generate a JWT signed with HS256
-#    Requires jq and openssl (or use python3 one-liner below)
+#    Honcho expects iat/exp as ISO 8601 datetime strings, NOT Unix timestamps.
 HEADER=$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
-PAYLOAD=$(echo -n '{"sub":"hermes","iat":'$(date +%s)',"exp":'$(date -d "+365 days" +%s)'}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
+PAYLOAD=$(echo -n '{"sub":"hermes","iat":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","exp":"'$(date -u -d "+365 days" +%Y-%m-%dT%H:%M:%SZ)'"}' | base64 -w0 | tr '+/' '-_' | tr -d '=')
 SIGNATURE=$(echo -n "${HEADER}.${PAYLOAD}" | openssl dgst -sha256 -hmac "$AUTH_JWT_SECRET" -binary | base64 -w0 | tr '+/' '-_' | tr -d '=')
 JWT="${HEADER}.${PAYLOAD}.${SIGNATURE}"
 
@@ -165,9 +324,11 @@ Alternative using Python (if openssl is not available):
 ```bash
 AUTH_JWT_SECRET="<value from honcho secret>"
 python3 -c "
-import json, hmac, hashlib, base64, time
+import json, hmac, hashlib, base64, time, datetime
+now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+exp = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365)).strftime('%Y-%m-%dT%H:%M:%SZ')
 header = base64.urlsafe_b64encode(json.dumps({'alg':'HS256','typ':'JWT'}).encode()).rstrip(b'=').decode()
-payload = base64.urlsafe_b64encode(json.dumps({'sub':'hermes','iat':int(time.time()),'exp':int(time.time())+31536000}).encode()).rstrip(b'=').decode()
+payload = base64.urlsafe_b64encode(json.dumps({'sub':'hermes','iat':now,'exp':exp}).encode()).rstrip(b'=').decode()
 sig = base64.urlsafe_b64encode(hmac.new('$AUTH_JWT_SECRET'.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest()).rstrip(b'=').decode()
 print(f'{header}.{payload}.{sig}')
 "
