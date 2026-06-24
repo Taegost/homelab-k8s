@@ -35,6 +35,13 @@ spec:
           image: docker.io/valkey/valkey:7.2.11-alpine
           command:
             - valkey-server
+            # Disable persistence -- this is a cache, not a datastore.
+            # RDB snapshots and AOF write to disk; if those fail (disk full,
+            # permissions), Valkey starts rejecting writes. Disable both.
+            - --save
+            - ""
+            - --appendonly
+            - "no"
             - --maxmemory
             - 96mb
             - --maxmemory-policy

@@ -17,11 +17,20 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # --- Only honcho namespace pods (honcho-api and honcho-deriver) ---
+    # --- Only honcho-api and honcho-deriver pods ---
+    # Both namespaceSelector AND podSelector must match (AND semantics).
+    # This restricts access to the two deployments that actually use Valkey.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: honcho
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - honcho-api
+                  - honcho-deriver
       ports:
         - protocol: TCP
           port: 6379

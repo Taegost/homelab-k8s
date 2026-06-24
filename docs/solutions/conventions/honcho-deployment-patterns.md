@@ -66,6 +66,10 @@ command:
   - --maxmemory-policy
   - allkeys-lru
 data:
+  # suppress=true is a Cashews (Honcho's cache library) parameter that
+  # silences cache connection errors so the app degrades gracefully
+  # instead of crashing when Valkey is unavailable. Not a standard
+  # Redis/Valkey protocol param -- ignored by redis-py/valkey-py.
   CACHE_URL: "redis://honcho-valkey.honcho.svc.cluster.local:6379/0?suppress=true"
 ```
 

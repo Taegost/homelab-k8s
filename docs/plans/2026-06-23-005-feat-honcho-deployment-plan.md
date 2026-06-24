@@ -131,17 +131,8 @@ metadata:
   namespace: postgres
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
-  # When sealing, ensure the SealedSecret has sync-wave in BOTH:
-  #   metadata.annotations AND spec.template.metadata.annotations
-  # This is required for CNPG to decrypt the secret before reconciling
-  # the managed role (wave -3 must decrypt before the role at wave -1).
-spec:
-  template:
-    metadata:
-      annotations:
-        argocd.argoproj.io/sync-wave: "-3"
-      labels:
-        cnpg.io/reload: "true"
+  labels:
+    cnpg.io/reload: "true"
 type: kubernetes.io/basic-auth
 stringData:
   username: honcho
@@ -806,8 +797,8 @@ spec:
 # NetworkPolicy -- honcho-valkey
 #
 # Restricts ingress to Valkey to ONLY pods in the honcho namespace.
-# Valkey has authentication enabled (--requirepass) but limiting ingress
-# at the network level provides defense-in-depth against unauthorized access.
+# Network-level isolation provides defense-in-depth against unauthorized
+# access. No authentication required (matches the plane pattern).
 #
 # Valkey never initiates outbound connections, so no egress policy needed.
 apiVersion: networking.k8s.io/v1
@@ -1626,13 +1617,15 @@ curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
   https://honcho.taegost.com/v3/workspaces/hermes/peers/mike/conclusions | \
   python3 -m json.tool > honcho-conclusions-backup.json
 
-# Alternatively, from inside the cluster (no auth needed for cluster-internal):
+# Alternatively, from inside the cluster (auth still required):
 kubectl exec -n honcho deployment/honcho-api -- \
-  curl -s http://localhost:8000/v3/workspaces/hermes/peers/mike/observations | \
+  curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
+  http://localhost:8000/v3/workspaces/hermes/peers/mike/observations | \
   python3 -m json.tool > honcho-observations-backup.json
 
 kubectl exec -n honcho deployment/honcho-api -- \
-  curl -s http://localhost:8000/v3/workspaces/hermes/peers/mike/conclusions | \
+  curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
+  http://localhost:8000/v3/workspaces/hermes/peers/mike/conclusions | \
   python3 -m json.tool > honcho-conclusions-backup.json
 ```
 
@@ -1686,16 +1679,19 @@ curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
   https://honcho.taegost.com/v3/workspaces/hermes/peers/mike/conclusions | \
   python3 -m json.tool
 
-# Cluster-internal alternatives (no auth needed):
+# Cluster-internal alternatives (auth still required):
 kubectl exec -n honcho deployment/honcho-api -- \
-  curl -s http://localhost:8000/v3/workspaces/hermes/peers | python3 -m json.tool
+  curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
+  http://localhost:8000/v3/workspaces/hermes/peers | python3 -m json.tool
 
 kubectl exec -n honcho deployment/honcho-api -- \
-  curl -s http://localhost:8000/v3/workspaces/hermes/peers/mike/observations | \
+  curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
+  http://localhost:8000/v3/workspaces/hermes/peers/mike/observations | \
   python3 -m json.tool
 
 kubectl exec -n honcho deployment/honcho-api -- \
-  curl -s http://localhost:8000/v3/workspaces/hermes/peers/mike/conclusions | \
+  curl -s -H "Authorization: Bearer YOUR_HONCHO_API_KEY" \
+  http://localhost:8000/v3/workspaces/hermes/peers/mike/conclusions | \
   python3 -m json.tool
 ```
 
