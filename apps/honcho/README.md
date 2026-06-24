@@ -81,7 +81,7 @@ only needs to be repeated if the PVC itself is recreated.
 ## Embedding Dimension Limitation
 
 pgvector's HNSW index has a hard limit of **2000 dimensions** for the `vector`
-type. The current configuration uses `openai/text-embedding-3-small` (1536
+type. The current configuration uses `text-embedding-3-small` (1536
 dimensions), which is within this limit and matches Honcho's default.
 
 If a future model requires more than 2000 dimensions, the options are:
@@ -137,7 +137,7 @@ Non-sensitive values shared by both API and Deriver via `envFrom`:
 | `LLM_OPENAI_BASE_URL` | `"https://litellm.diceninjagaming.com/v1"` | LiteLLM proxy |
 | `LLM_OPENAI_MODEL` | `"xiaomi-token/mimo-v2.5"` | LiteLLM model name |
 | `EMBEDDING_MODEL_CONFIG__TRANSPORT` | `"openai"` | |
-| `EMBEDDING_MODEL_CONFIG__MODEL` | `"openai/text-embedding-3-small"` | 1536 dimensions — see Embedding Dimension Limitation |
+| `EMBEDDING_MODEL_CONFIG__MODEL` | `"text-embedding-3-small"` | 1536 dimensions — see Embedding Dimension Limitation. No `openai/` prefix (breaks tiktoken) |
 | `EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL` | `"https://litellm.diceninjagaming.com/v1"` | |
 | `EMBEDDING_VECTOR_DIMENSIONS` | `"1536"` | Must match embedding model output |
 | `TELEMETRY_ENABLED` | `"false"` | |
@@ -157,6 +157,29 @@ Non-sensitive values shared by both API and Deriver via `envFrom`:
 |---|---|---|
 | `DERIVER_ENABLED` | `"false"` | `"true"` |
 | `TIKTOKEN_CACHE_DIR` | `/home/app/.tiktoken_cache` | `/home/app/.tiktoken_cache` |
+
+### Dialectic Model Config
+
+Honcho's dialectic feature (dream, deduction, induction) has its own model
+config per level, separate from `LLM_OPENAI_MODEL`. The defaults hit OpenAI
+directly with `gpt-5.4-mini` — these overrides route through LiteLLM instead.
+Lower levels use the cost-effective model; higher levels use the flagship.
+
+| Variable | Value |
+|---|---|
+| `DIALECTIC_LEVELS__MINIMAL__MODEL_CONFIG__MODEL` | `xiaomi-token/mimo-v2.5` |
+| `DIALECTIC_LEVELS__MINIMAL__MODEL_CONFIG__OVERRIDES__BASE_URL` | `https://litellm.diceninjagaming.com/v1` |
+| `DIALECTIC_LEVELS__LOW__MODEL_CONFIG__MODEL` | `xiaomi-token/mimo-v2.5` |
+| `DIALECTIC_LEVELS__LOW__MODEL_CONFIG__OVERRIDES__BASE_URL` | `https://litellm.diceninjagaming.com/v1` |
+| `DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__MODEL` | `xiaomi-token/mimo-v2.5-pro` |
+| `DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__OVERRIDES__BASE_URL` | `https://litellm.diceninjagaming.com/v1` |
+| `DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__MODEL` | `xiaomi-token/mimo-v2.5-pro` |
+| `DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__OVERRIDES__BASE_URL` | `https://litellm.diceninjagaming.com/v1` |
+| `DIALECTIC_LEVELS__MAX__MODEL_CONFIG__MODEL` | `xiaomi-token/mimo-v2.5-pro` |
+| `DIALECTIC_LEVELS__MAX__MODEL_CONFIG__OVERRIDES__BASE_URL` | `https://litellm.diceninjagaming.com/v1` |
+
+Dream models are configured separately in the Deriver manifest (not the
+ConfigMap) — see `deployment-honcho-deriver.yaml`.
 
 ### Dream Consolidation Tuning
 
@@ -212,7 +235,7 @@ Valkey maxmemory is capped at 96mb with `allkeys-lru` eviction. No persistence
 | Egress | `kube-system` (DNS) | UDP+TCP/53 |
 | Egress | `postgres` namespace | TCP/5432 |
 | Egress | `honcho` namespace (Valkey) | TCP/6379 |
-| Egress | External (any) | TCP/443 |
+| Egress | `traefik` namespace (LiteLLM via Traefik) | TCP/443 |
 
 ### honcho-deriver
 
@@ -221,7 +244,7 @@ Valkey maxmemory is capped at 96mb with `allkeys-lru` eviction. No persistence
 | Egress | `kube-system` (DNS) | UDP+TCP/53 |
 | Egress | `postgres` namespace | TCP/5432 |
 | Egress | `honcho` namespace (Valkey) | TCP/6379 |
-| Egress | External (any) | TCP/443 |
+| Egress | `traefik` namespace (LiteLLM via Traefik) | TCP/443 |
 
 ### honcho-valkey
 

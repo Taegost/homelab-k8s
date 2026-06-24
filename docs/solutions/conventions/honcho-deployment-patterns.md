@@ -122,21 +122,22 @@ spec:
 
 ---
 
-## 2. LiteLLM External URL Routing (HTTPS, Not Cluster-Internal HTTP)
+## 2. LiteLLM External URL Routing (HTTPS via namespaceSelector, Not IP Block)
 
 ### Guidance
 
 When routing LLM API calls through LiteLLM, use the external HTTPS domain
 (`https://litellm.diceninjagaming.com/v1`) instead of the cluster-internal
-HTTP endpoint (`http://litellm.litellm.svc.cluster.local:4000`).
+HTTP endpoint (`http://litellm.litellm.svc.cluster.local:4000`). This
+preserves TLS encryption for API keys in transit.
 
-**Wrong approach:**
+**Wrong approach** -- cluster-internal HTTP (unencrypted API keys):
 
 ```yaml
 LLM_OPENAI_BASE_URL: "http://litellm.litellm.svc.cluster.local:4000/v1"
 ```
 
-**Right approach:**
+**Right approach** -- external HTTPS domain:
 
 ```yaml
 LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
@@ -144,14 +145,34 @@ LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
 
 ### NetworkPolicy impact
 
-LiteLLM's MetalLB IP is outside any Kubernetes namespace, so egress rules
-cannot use `namespaceSelector`. Allow egress on port 443 without a namespace
-selector:
+`litellm.diceninjagaming.com` resolves to the Traefik MetalLB IP
+(`192.168.5.202`). Pods cannot hairpin back to a LoadBalancer IP on the same
+node — MetalLB L2 mode silently drops this traffic. The fix is to use a
+`namespaceSelector` targeting the `traefik` namespace instead of an `ipBlock`
+for the MetalLB IP. kube-proxy routes the traffic internally via ClusterIP,
+bypassing the hairpin entirely.
+
+**Wrong approach** -- ipBlock for MetalLB IP (hairpin fails):
 
 ```yaml
 egress:
-  # --- LiteLLM proxy (external HTTPS domain, MetalLB IP outside cluster namespaces) ---
-  - ports:
+  - to:
+      - ipBlock:
+            cidr: 192.168.5.202/32
+    ports:
+      - protocol: TCP
+        port: 443
+```
+
+**Right approach** -- namespaceSelector for traefik (hairpin-safe):
+
+```yaml
+egress:
+  - to:
+      - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+    ports:
       - protocol: TCP
         port: 443
 ```
@@ -161,21 +182,25 @@ egress:
 - **HTTPS for LLM API calls.** Cluster-internal HTTP means API keys travel
   unencrypted across the network. External HTTPS routes through Traefik with
   a valid certificate.
+- **MetalLB L2 hairpin.** When a pod connects to a LoadBalancer IP on the same
+  node, the traffic goes out through the node's network interface and back in
+  via MetalLB ARP. This hairpin path bypasses kube-proxy's iptables chains,
+  causing the connection to be refused. A `namespaceSelector` lets kube-proxy
+  route the traffic internally instead.
+- **More restrictive than ipBlock.** A `namespaceSelector` only allows traffic
+  to pods in the target namespace. An `ipBlock` allows traffic to any pod
+  behind that IP, which is broader than necessary.
 - **Consistency.** Other apps (hermes-agent, LibreChat) already use the
   external domain. Mixing internal and external URLs creates two code paths
   to debug.
-- **Firewall friendliness.** Egress to port 443 is universally allowed.
-  Egress to a cluster-internal IP on port 4000 requires explicit allowlisting
-  that varies by NetworkPolicy.
-- **MetalLB limitation.** ExternalName Services cannot resolve to raw IPs
-  within Kubernetes. The external domain is the only reliable way to reach a
-  MetalLB-backed service from inside the cluster via HTTPS.
 
 ### When to Apply
 
-- Any app that calls LiteLLM (or any external API gateway) from inside the cluster
-- When LiteLLM is fronted by Traefik with a valid TLS certificate
+- Any app that calls LiteLLM (or any service behind a MetalLB LoadBalancer)
+  from inside the cluster
 - When the app has a NetworkPolicy that restricts egress
+- When the MetalLB IP is on the same subnet as the cluster nodes (hairpin
+  likely)
 
 ---
 
@@ -221,8 +246,12 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
-    # LiteLLM (external HTTPS)
-    - ports:
+    # LiteLLM (via Traefik, namespaceSelector avoids MetalLB hairpin)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
         - protocol: TCP
           port: 443
     # Valkey (cache)

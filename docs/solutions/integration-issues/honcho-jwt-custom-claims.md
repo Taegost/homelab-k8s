@@ -32,16 +32,23 @@ or session claims are needed for a service integration like Hermes.
 ## Solution
 
 Use Honcho's built-in `generate_jwt.py` script (available in the container at
-`/app/scripts/generate_jwt.py`). Do NOT hand-roll JWTs — PyJWT's JSON
-serialization and Honcho's may differ, causing signature mismatches.
+`/app/scripts/generate_jwt.py`). Run it via `kubectl exec` into the running
+Honcho API pod — the script reads `AUTH_JWT_SECRET` from the pod's environment.
+
+Do NOT hand-roll JWTs — PyJWT's JSON serialization and Honcho's may differ,
+causing signature mismatches.
 
 ```bash
-# Admin JWT (no expiry)
+# Admin JWT (no expiry) — required for Hermes integration (--admin flag)
 kubectl exec -n honcho deployment/honcho-api -- python /app/scripts/generate_jwt.py --admin --print-only
 
 # Admin JWT with expiry
 kubectl exec -n honcho deployment/honcho-api -- python /app/scripts/generate_jwt.py --admin --expires 1y --print-only
 ```
+
+The `--admin` flag is required for service integrations like Hermes — it sets
+`ad: true` which bypasses all permission checks. Without it, the token is
+scoped to a specific workspace/peer/session.
 
 Do NOT include standard `sub`, `iat`, `exp` claims — Honcho uses custom claim
 names (`ad`, `t`, `w`, `p`, `s`).

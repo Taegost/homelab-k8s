@@ -125,13 +125,26 @@ files.
 
 ---
 
+## Gotcha 11: MetalLB L2 hairpin breaks egress to LoadBalancer services
+
+**What we expected:** NetworkPolicy egress rule allowing traffic to the MetalLB
+IP (`192.168.5.202/32:443`) lets Honcho reach LiteLLM via the external domain.
+**What happened:** `ECONNREFUSED` — the pod can't hairpin back to a LoadBalancer
+IP on the same node. MetalLB L2 mode bypasses kube-proxy's iptables chains,
+so the egress rule is never evaluated.
+**Time wasted:** ~20 minutes
+**Solution:** Replace `ipBlock` with `namespaceSelector` targeting the `traefik`
+namespace. kube-proxy routes internally via ClusterIP, bypassing the hairpin.
+
+---
+
 ## Summary stats
 
 | Metric | Value |
 |---|---|
-| Total troubleshooting time | ~3.5 hours |
+| Total troubleshooting time | ~4 hours |
 | Gotchas that could have been avoided by reading docs first | 4 (6, 7, 8, 9) |
-| Gotchas that are genuine Kubernetes/NetworkPolicy edge cases | 4 (3, 4, 5, 10) |
+| Gotchas that are genuine Kubernetes/NetworkPolicy edge cases | 5 (3, 4, 5, 10, 11) |
 | Gotchas that are operator bugs | 1 (1) |
 | Gotchas that are PostgreSQL limitations | 1 (2) |
 
