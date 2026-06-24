@@ -96,6 +96,32 @@ Annotate each resource with `argocd.argoproj.io/sync-wave` in `metadata.annotati
 
 SealedSecrets must have the annotation in BOTH `metadata.annotations` AND `spec.template.metadata.annotations`.
 
+Template for app-level SealedSecrets (wave -1, consumed by Deployments via secretKeyRef):
+
+```yaml
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: <secret-name>
+  namespace: <app-namespace>
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  encryptedData:
+    <key>: <encrypted-value>
+  template:
+    metadata:
+      name: <secret-name>
+      namespace: <app-namespace>
+      annotations:
+        argocd.argoproj.io/sync-wave: "-1"
+    type: Opaque
+```
+
+For infrastructure SealedSecrets (wave -3, consumed by operators like CNPG/mariadb-operator),
+use `"-3"` instead.
+
 ### Step 5: Conventions (from CLAUDE.md)
 
 - Placeholder values: underscores only, no dots or dashes (`your_api_key_here`)

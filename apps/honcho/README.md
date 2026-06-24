@@ -321,12 +321,15 @@ print(jwt.encode({'ad': True, 't': t}, '$AUTH_JWT_SECRET', algorithm='HS256'))
 "
 
 # 3. Create the plaintext secret
+#    Sync-wave -1 ensures the secret decrypts before the Deployment at wave 0.
 cat > apps/hermes-agent/secret-hermes-honcho-api-key.yaml <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
   name: hermes-honcho-api-key
   namespace: hermes-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 type: Opaque
 stringData:
   honcho-api-key: "<output from step 2>"
