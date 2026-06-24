@@ -52,6 +52,14 @@ spec:
             - configMapRef:
                 name: honcho-config
           env:
+            - name: DREAM_DEDUCTION_MODEL_CONFIG__TRANSPORT
+              value: "openai"
+            - name: DREAM_DEDUCTION_MODEL_CONFIG__MODEL
+              value: "xiaomi-token/mimo-v2.5-pro"
+            - name: DREAM_INDUCTION_MODEL_CONFIG__TRANSPORT
+              value: "openai"
+            - name: DREAM_INDUCTION_MODEL_CONFIG__MODEL
+              value: "xiaomi-token/mimo-v2.5-pro"
             - name: DB_CONNECTION_URI
               valueFrom:
                 secretKeyRef:

@@ -35,7 +35,7 @@ data:
   # cluster-internal HTTP endpoint.
   LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
   # Generic model name; LiteLLM routes to the configured upstream.
-  LLM_OPENAI_MODEL: "gpt-4o-mini"
+  LLM_OPENAI_MODEL: "xiaomi-token/mimo-v2.5"
 
   # --- Embedding ---
   # Resolved: openai/text-embedding-3-large via LiteLLM, 3072 dimensions.
