@@ -40,6 +40,27 @@ spec:
         # the SSH client key — OpenSSH rejects group-readable private
         # keys. It also caused /run permission issues that required an
         # emptyDir workaround.
+      initContainers:
+        - name: ssh-key-init
+          image: busybox:1.37.0
+          command:
+            - sh
+            - -c
+            - |
+              install -m 0400 -o 10000 -g 10000 /ssh-secret/id_ed25519 /ssh-keys/id_ed25519
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN]
+          volumeMounts:
+            - name: ssh-client-key
+              mountPath: /ssh-secret
+              readOnly: true
+            - name: ssh-keys-workdir
+              mountPath: /ssh-keys
       containers:
         - name: hermes-agent
           image: taegost/hermes-agent:v2026
@@ -144,7 +165,7 @@ spec:
               mountPath: /run
             - name: data
               mountPath: /opt/data
-            - name: ssh-client-key
+            - name: ssh-keys-workdir
               mountPath: /opt/data/.ssh/id_ed25519
               subPath: id_ed25519
               readOnly: true
@@ -193,6 +214,9 @@ spec:
               - key: id_ed25519
                 path: id_ed25519
             defaultMode: 0400
+        - name: ssh-keys-workdir
+          emptyDir:
+            medium: Memory
         - name: known-hosts
           configMap:
             name: hermes-agent-known-hosts
