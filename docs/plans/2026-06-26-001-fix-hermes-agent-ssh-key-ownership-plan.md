@@ -90,7 +90,7 @@ Replace `ssh-client-key` mount with `ssh-keys-workdir`:
 
 ## Unaffected Components
 
-The `known-hosts` and `ssh-config` ConfigMap mounts are unaffected — ConfigMaps do not have the root-ownership problem that Secrets have. They remain as-is.
+The `known-hosts` and `ssh-config` ConfigMap mounts are unaffected — these files are also mounted as root-owned volumes, but their default modes (0644) remain readable by UID 10000. They would break if tightened to owner-only permissions.
 
 ## Scope Boundary
 
