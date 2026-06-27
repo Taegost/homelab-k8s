@@ -40,6 +40,34 @@ spec:
         # the SSH client key — OpenSSH rejects group-readable private
         # keys. It also caused /run permission issues that required an
         # emptyDir workaround.
+      # initContainer: copies the SSH key from the Secret mount to an
+      # emptyDir with correct ownership. Cannot use fsGroup because
+      # OpenSSH rejects group-readable keys, and s6-overlay breaks with
+      # fsGroup on /run. See deployment-level securityContext comment.
+      initContainers:
+        - name: ssh-key-init
+          image: busybox:1.37.0  # pinned — do not use :latest
+          command:
+            - sh
+            - -c
+            - |
+              # install is atomic (cp+chown+chmod in one call).
+              # CAP_CHOWN + CAP_FOWNER required — BusyBox install does
+              # lchown before chmod (see coreutils/install.c).
+              install -m 0400 -o 10000 -g 10000 /ssh-secret/id_ed25519 /ssh-keys/id_ed25519
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, FOWNER]
+          volumeMounts:
+            - name: ssh-client-key
+              mountPath: /ssh-secret
+              readOnly: true  # defense-in-depth: never write back to the Secret
+            - name: ssh-keys-workdir
+              mountPath: /ssh-keys
       containers:
         - name: hermes-agent
           image: taegost/hermes-agent:v2026
@@ -147,7 +175,7 @@ spec:
               mountPath: /run
             - name: data
               mountPath: /opt/data
-            - name: ssh-client-key
+            - name: ssh-keys-workdir
               mountPath: /opt/data/.ssh/id_ed25519
               subPath: id_ed25519
               readOnly: true
@@ -196,6 +224,11 @@ spec:
               - key: id_ed25519
                 path: id_ed25519
             defaultMode: 0400
+        # In-memory tmpfs — SSH key must not persist to node disk.
+        # Shared between initContainer (writes) and main container (reads).
+        - name: ssh-keys-workdir
+          emptyDir:
+            medium: Memory
         - name: known-hosts
           configMap:
             name: hermes-agent-known-hosts
