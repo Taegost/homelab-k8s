@@ -56,6 +56,9 @@ spec:
             - name: webhook
               containerPort: 8644
           env:
+            # Path that Hermes puts custom scripts and wrappers
+            - name: PYTHONPATH
+              value: "/opt/data/scripts"
             # s6-overlay: allow world-writable /run directory in Kubernetes.
             # Required when running as non-root (UID 10000) because s6-overlay
             # needs a writable /run directory but can't chown it.
