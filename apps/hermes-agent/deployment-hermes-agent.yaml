@@ -70,8 +70,8 @@ spec:
               mountPath: /ssh-keys
       containers:
         - name: hermes-agent
-          image: taegost/hermes-agent:v2026
-          # Always pull on restart — the v2026 tag is mutable (updated in-place
+          image: taegost/hermes-agent:v1
+          # Always pull on restart — the v1 tag is mutable (updated in-place
           # when the derived image is rebuilt). Without this, kubelet caches the
           # image and never picks up newer builds with the same tag.
           imagePullPolicy: Always
