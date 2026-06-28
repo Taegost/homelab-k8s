@@ -36,7 +36,11 @@ spec:
         # key — sshd rejects group-readable private keys.
       containers:
         - name: sandbox
-          image: taegost/hermes-sandbox:v1.0.0
+          image: taegost/hermes-sandbox:v1
+          # Always pull on restart — the v1 tag is mutable (updated in-place
+          # when the derived image is rebuilt). Without this, kubelet caches the
+          # image and never picks up newer builds with the same tag.
+          imagePullPolicy: Always
           ports:
             - name: ssh
               containerPort: 2222
