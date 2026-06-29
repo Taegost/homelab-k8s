@@ -25,8 +25,8 @@ Deploy four services into a new `fastcrw` namespace, managed by ArgoCD:
 | Service | Image | Role | Port |
 |---------|-------|------|------|
 | **fastcrw** | `ghcr.io/us/crw` | REST API server + orchestrator | 3000 (HTTP) |
-| **lightpanda** | `lightpanda/browser:latest` | Primary JS renderer (lightweight, ~64 MB) | 9222 (CDP/WS) |
-| **chrome** | `chromedp/headless-shell:latest` | Fallback JS renderer (full Chromium) | 9222 (CDP/WS) |
+| **lightpanda** | `lightpanda/browser:0.3.3` | Primary JS renderer (lightweight, ~64 MB) | 9222 (CDP/WS) |
+| **chrome** | `chromedp/headless-shell:148.0.7778.97` | Fallback JS renderer (full Chromium) | 9222 (CDP/WS) |
 | **chrome-stealth** | `ghcr.io/browserless/chromium:v2.27.0` | Anti-detection JS renderer (Browserless v2) | 3000 (HTTP/WS) |
 
 External SearXNG at `https://searxng.diceninjagaming.com` provides `/v1/search`
@@ -289,7 +289,7 @@ configmap) because it includes a secret token.
 
 Deployment spec:
 - Image: `ghcr.io/us/crw:latest` (fastCRW publishes `:latest` as the primary
-  tag — no versioned tags available on GHCR per upstream docker-compose)
+  tag on GHCR; no semver tag confirmed at time of planning)
 - Container port: 3000
 - Config volume: ConfigMap mounted at `/app/config.docker.toml` (read-only)
 - Env: `CRW_CONFIG=config.docker.toml`, `RUST_LOG=info`,
@@ -317,7 +317,7 @@ Service: ClusterIP, port 3000 → 3000.
 - `apps/fastcrw/service-lightpanda.yaml` (new)
 
 Deployment spec:
-- Image: `lightpanda/browser:latest` (upstream uses `:latest`)
+- Image: `lightpanda/browser:0.3.3` (pinned semver)
 - Container port: 9222
 - Resources: requests 64Mi/50m, limits 1Gi/500m
 - Node affinity: prefer NOT `memory-tier=small` (weight 100)
@@ -342,7 +342,7 @@ Service: ClusterIP, port 9222 → 9222.
 - `apps/fastcrw/service-chrome.yaml` (new)
 
 Deployment spec:
-- Image: `chromedp/headless-shell:latest`
+- Image: `chromedp/headless-shell:148.0.7778.97` (pinned semver)
 - Container port: 9222
 - Args: `--remote-allow-origins=*`, `--ignore-certificate-errors`,
   `--disable-http2`, `--disable-blink-features=AutomationControlled`
@@ -478,7 +478,7 @@ respectively.
 | LightPanda OOM/segfault on adversarial pages | Medium — breaks the primary JS tier, requests fall through to Chrome | `restart: Always` + `mem_limit: 1Gi` (upstream pattern) |
 | Port 443-only egress blocks HTTP→HTTPS redirects | Low — some sites may not be reachable | Acceptable per policy directive. SearXNG returns HTTPS URLs preferentially. |
 | Browserless v2 SSPL license | Low — internal use only | No third-party service exposure. Document for future reference. |
-| `:latest` tags on lightpanda and chromedp/headless-shell | Medium — breaking changes could deploy silently | Pin versions after first successful deployment. fastCRW upstream publishes `:latest` as primary tag. |
+| `:latest` tag on `ghcr.io/us/crw` | Medium — fastCRW upstream uses `:latest` as primary GHCR tag; no semver tag confirmed | Monitor upstream releases; pin when a stable version tag is published |
 | No persistent storage for fastCRW | Low — crawl jobs are ephemeral by design | Stateless API server; no PVC needed for v1. Change-tracking snapshots would need storage (future work). |
 
 ## Test Scenarios
