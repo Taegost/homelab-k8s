@@ -87,7 +87,7 @@ spec:
             # Maximum output tokens. Not specifying this means the model decides
             # on its own max length, which could be anything.
             - name: HERMES_MAX_TOKENS
-              value: 65536 # Max for Mimo-v2.5-* is 131072
+              value: "65536" # Max for Mimo-v2.5-* is 131072
             # Path that Hermes puts custom scripts and wrappers
             - name: PYTHONPATH
               value: "/opt/data/scripts"
