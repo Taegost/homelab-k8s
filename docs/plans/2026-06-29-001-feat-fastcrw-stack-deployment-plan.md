@@ -57,8 +57,7 @@ All pods in the `fastcrw` namespace are restricted to port 443 egress for
 external traffic. Port 80 (plaintext HTTP) is deliberately blocked.
 
 **Rationale:** Mike's explicit directive — if a site doesn't have TLS, it's not
-worth crawling. This is a policy decision, not an oversight. LightPanda and
-The renderer will navigate HTTPS-only; any HTTP-only site will fail and fastCRW will
+worth crawling. This is a policy decision, not an oversight. LightPanda and Chrome-Stealth will navigate HTTPS-only; any HTTP-only site will fail and fastCRW will
 handle the error gracefully (it already has per-tier timeout/escalation logic).
 
 **Risk:** Some legitimate sites serve content on HTTP-only or redirect HTTP→HTTPS
@@ -228,16 +227,22 @@ sync with prune + selfHeal.
 
 ---
 
-### U3: SealedSecret for Browserless Websocket URL
+### U3: SealedSecrets for fastCRW
 
 **Files:**
-- `apps/fastcrw/sealedsecret-fastcrw-browserless.yaml` (new)
+- `apps/fastcrw/sealedsecret-fastcrw.yaml` (new)
 
-SealedSecret containing a single key `CHROME_WS_URL` with the full Browserless v2
-websocket URL (e.g., `ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?token=...&stealth=true`).
+SealedSecret containing two keys:
+
+1. `CHROME_WS_URL` — the full Browserless v2 websocket URL
+   (e.g. `ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?token=...&stealth=true`).
+2. `API_KEYS` — comma-separated fastCRW API keys for the `[auth]` section
+   (e.g. `fc-key-1234,fc-key-5678`). **These are example values — replace with
+   actual production keys before sealing.**
+
 Sync-wave `-1` in both `metadata.annotations` and `spec.template.metadata.annotations`
 (dual annotation per established convention). The unsealed Secret is referenced by
-the fastCRW Deployment via `secretKeyRef` (as `CRW_RENDERER__CHROME__WS_URL`).
+the fastCRW Deployment via `secretKeyRef`.
 
 **Pattern reference:** `docs/sealed-secrets.md`
 
@@ -273,7 +278,7 @@ lightpanda_timeout_ms = 2500
 chrome_timeout_ms = 30000
 chrome_intercept_resources = true
 chrome_nav_budget_ms = 12000
-chrome_backend = "vanilla"
+chrome_backend = "browserless"
 chrome_context_pool_enabled = true
 
 [renderer.lightpanda]
@@ -291,19 +296,16 @@ query_expand = true
 query_expand_variants = 3
 answer_calibrated = true
 
-[auth]
-api_keys = ["fc-key-1234", "fc-key-5678"]
-
 [document]
 enabled = true
 sandbox = true
-sandbox_memory_bytes = 536870912
+sandbox_memory_bytes = 536870512
 ```
 
 Note: `chrome_pool.size = 4` (reduced from upstream's 8) for homelab resource
-constraints. The stealth override (`ws_url` pointing at chrome-stealth) is set
-via the `CRW_RENDERER__CHROME__WS_URL` env var on the Deployment (not in
-configmap) because it includes a secret token.
+constraints. The stealth override (`ws_url` pointing at chrome-stealth) and the
+`[auth] api_keys` are set via `secretKeyRef` env vars on the Deployment (not in
+the ConfigMap) because they contain secrets.
 
 **Pattern reference:** upstream `config.docker.toml`
 
@@ -324,13 +326,12 @@ Deployment spec:
 - Container port: 3000
 - Config volume: ConfigMap mounted at `/app/config.docker.toml` (read-only) via `subPath: config.docker.toml`
 - Env: `CRW_CONFIG=config.docker.toml`, `RUST_LOG=info`,
-  `CRW_RENDERER__CHROME__WS_URL` (from SealedSecret key `CHROME_WS_URL`)
+  `CRW_RENDERER__CHROME__WS_URL` (from SealedSecret key `CHROME_WS_URL`),
+  `CRW_AUTH__API_KEYS` (from SealedSecret key `API_KEYS`)
 - Resources: requests 64Mi/100m, limits 2Gi/1000m
 - Security: `runAsNonRoot: true`, `runAsUser: 1000`, `readOnlyRootFilesystem: true`,
   `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`
-- **Note:** If fastCRW writes to `/tmp` (sandbox files, temporary downloads),
-  add an `emptyDir` volume mounted at `/tmp` so the read-only root filesystem
-  does not block runtime operation
+- `emptyDir` volume mounted at `/tmp` (sandbox files, temporary downloads)
 - Node affinity: prefer `memory-tier=small` (weight 100)
 - Liveness/readiness: HTTP GET `/health` on port 3000
 
@@ -353,7 +354,11 @@ Service: ClusterIP, port 3000 → 3000.
 Deployment spec:
 - Image: `lightpanda/browser:0.3.3` (pinned semver)
 - Container port: 9222
+- Security: `runAsNonRoot: true`, `readOnlyRootFilesystem: true`,
+  `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`
+  (image runs as `lightpanda` user — UID ~999, no capabilities needed)
 - Resources: requests 64Mi/50m, limits 1Gi/500m
+- `emptyDir` volume mounted at `/tmp` (temporary rendering files)
 - Node affinity: prefer NOT `memory-tier=small` (weight 100)
 - Liveness: TCP socket check on port 9222
 - **Note:** LightPanda can OOM/segfault on adversarial pages. Kubernetes
@@ -379,13 +384,17 @@ Service: ClusterIP, port 9222 → 9222.
 Deployment spec:
 - Image: `ghcr.io/browserless/chromium:v2.27.0` (pinned per upstream)
 - Container port: 3000
+- Security: `runAsNonRoot: true`, `runAsUser: 999`, `readOnlyRootFilesystem: true`,
+  `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`
+  (image runs as `blessuser` — UID 999, no capabilities needed)
 - Env: `CONCURRENT=15`, `MAX_QUEUE_LENGTH=30`, `TIMEOUT=30000`,
   `EXIT_ON_HEALTH_FAILURE=true`
 - Resources: requests 512Mi/100m, limits 3Gi/1000m
+- `emptyDir` volume mounted at `/tmp` (Xvfb lock + browser data dirs)
+- `emptyDir` with `medium: Memory` and `sizeLimit: 2Gi` mounted at `/dev/shm`
+  (Chromium shared memory; default container limit is 64MB and crashes under load)
 - Node affinity: prefer NOT `memory-tier=small` (weight 100)
 - Liveness: TCP socket check on port 3000
-- `emptyDir` with `medium: Memory` and `sizeLimit: 512Mi` mounted at `/tmp`
-  (Kubernetes equivalent of tmpfs for session state)
 
 Service: ClusterIP, port 3000 → 3000.
 
@@ -564,6 +573,6 @@ No out-of-sync drift after initial deploy.
 - LightPanda: `hub.docker.com/r/lightpanda/browser` — CDP port 9222,
   low-memory headless browser
 - Browserless v2: `ghcr.io/browserless/chromium:v2.27.0` — SSPL-3.0,
-  TOKEN auth, CONCURRENT/TIMEOUT env vars
+  websocket token auth (via URL query param), CONCURRENT/TIMEOUT env vars
 - homelab-k8s repo: existing patterns for NetworkPolicy, IngressRoute,
   node affinity, SealedSecret, ArgoCD Application, Certificate resources
