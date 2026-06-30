@@ -16,19 +16,18 @@ Hermes Agent needs a self-hosted web scraping/crawling backend to replace
 dependency on external services (Firecrawl, Tavily). fastCRW is a Rust-native
 Firecrawl/Tavily alternative that provides a REST API (`/v1/scrape`, `/v1/crawl`,
 `/v1/map`, `/v1/search`) backed by a tiered browser rendering system: HTTP →
-LightPanda → Chrome. This stack will serve as the web content extraction layer
+LightPanda → Chrome-Stealth. This stack will serve as the web content extraction layer
 for the homelab AI infrastructure.
 
 ## Scope
 
-Deploy four services into a new `fastcrw` namespace, managed by ArgoCD:
+Deploy three services into a new `fastcrw` namespace, managed by ArgoCD:
 
 | Service | Image | Role | Port |
 |---------|-------|------|------|
-| **fastcrw** | `ghcr.io/us/crw` | REST API server + orchestrator | 3000 (HTTP) |
+| **fastcrw** | `ghcr.io/us/crw:v0.19.0` | REST API server + orchestrator | 3000 (HTTP) |
 | **lightpanda** | `lightpanda/browser:0.3.3` | Primary JS renderer (lightweight, ~64 MB) | 9222 (CDP/WS) |
-| **chrome** | `chromedp/headless-shell:148.0.7778.97` | Fallback JS renderer (full Chromium) | 9222 (CDP/WS) |
-| **chrome-stealth** | `ghcr.io/browserless/chromium:v2.27.0` | Anti-detection JS renderer (Browserless v2) | 3000 (HTTP/WS) |
+| **chrome-stealth** | `ghcr.io/browserless/chromium:v2.27.0` | Fallback JS renderer (anti-detection, Browserless v2) | 3000 (HTTP/WS) |
 
 External SearXNG at `https://searxng.diceninjagaming.com` provides `/v1/search`
 (no bundled sidecar).
@@ -59,7 +58,7 @@ external traffic. Port 80 (plaintext HTTP) is deliberately blocked.
 
 **Rationale:** Mike's explicit directive — if a site doesn't have TLS, it's not
 worth crawling. This is a policy decision, not an oversight. LightPanda and
-Chrome will navigate HTTPS-only; any HTTP-only site will fail and fastCRW will
+The renderer will navigate HTTPS-only; any HTTP-only site will fail and fastCRW will
 handle the error gracefully (it already has per-tier timeout/escalation logic).
 
 **Risk:** Some legitimate sites serve content on HTTP-only or redirect HTTP→HTTPS
@@ -80,36 +79,39 @@ that pod can reach.
 
 - **fastcrw**: `preferredDuringSchedulingIgnoredDuringExecution` with
   `memory-tier` key, `operator: In`, `values: ["small"]`, weight 100.
-- **lightpanda, chrome, chrome-stealth**: same structure but
+- **lightpanda, chrome-stealth**: same structure but
   `operator: NotIn`, `values: ["small"]` (matching the existing convention in
   hermes-agent, open-webui, etc.)
 
 **Rationale:** fastCRW is lightweight (~50 MB idle, Rust binary). Browser pods
 need more memory and should avoid small-memory nodes.
 
-### KTD-5: Chrome-Stealth SealedSecret for BROWSERLESS_TOKEN
+### KTD-5: Chrome-Stealth SealedSecret for `CHROME_WS_URL`
 
-Browserless v2 requires a `TOKEN` environment variable for client authentication.
-This will be created as a SealedSecret in the `fastcrw` namespace at sync-wave
-`-1` (decrypted before Deployments at wave 0).
+The full Browserless v2 websocket URL (including the `token` query parameter)
+will be stored as a SealedSecret in the `fastcrw` namespace at sync-wave
+`-1` (decrypted before Deployments at wave 0). The key is `CHROME_WS_URL`.
 
-**Rationale:** Follows the existing sealed-secrets workflow documented in
+**Rationale:** The token is embedded in the URL rather than passed as a separate
+env var. Follows the existing sealed-secrets workflow documented in
 `docs/sealed-secrets.md`.
 
 ### KTD-6: Config via ConfigMap (config.docker.toml)
 
 fastCRW's `config.docker.toml` will be mounted as a read-only ConfigMap. Key
 overrides from the upstream default:
-- `renderer.lightpanda.ws_url` = `ws://lightpanda:9222/`
-- `renderer.chrome.ws_url` = `ws://chrome:9222/`
-- `renderer.chrome.ws_url` overridden for stealth: `ws://chrome-stealth:3000/chromium?token=...&stealth=true`
+- `renderer.lightpanda.ws_url` = `ws://lightpanda.fastcrw.svc.cluster.local:9222/`
+- `renderer.chrome.ws_url` = `ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?stealth=true`
+  (the `token` query param is injected via the `CRW_RENDERER__CHROME__WS_URL`
+  env var from the SealedSecret so the token is not stored in plaintext)
 - `search.searxng_url` = `https://searxng.diceninjagaming.com`
 - Resource limits tuned for single-user homelab (pool size, timeouts)
 
-**Note on hostnames:** `lightpanda`, `chrome`, and `chrome-stealth` are
-Kubernetes Service names within the `fastcrw` namespace. K8s DNS resolves
-these short names to the corresponding Service ClusterIPs automatically.
-This is the standard in-cluster service discovery pattern — not pod hostnames.
+**Note on hostnames:** `lightpanda.fastcrw.svc.cluster.local` and
+`chrome-stealth.fastcrw.svc.cluster.local` are Kubernetes Service FQDNs within
+the `fastcrw` namespace. K8s DNS resolves these to the corresponding Service
+ClusterIPs automatically. This is the standard in-cluster service discovery
+pattern — not pod hostnames.
 
 **Rationale:** Follows the upstream docker-compose pattern exactly. ConfigMap
 allows ArgoCD to manage config changes declaratively.
@@ -125,23 +127,23 @@ allows ArgoCD to manage config changes declaratively.
                     ┌──────▼───────┐
                     │   fastcrw    │──── /v1/search ────► searxng.diceninjagaming.com
                     │   (API)      │                      (external, :443)
-                    └──┬───┬───┬───┘
-           ┌───────────┘   │   └───────────┐
-           │ :9222/WS      │ :9222/WS      │ :3000/WS
-    ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────────┐
-    │ lightpanda  │ │   chrome    │ │ chrome-stealth  │
-    │  (primary)  │ │  (fallback) │ │  (anti-detect)  │
-    └─────────────┘ └─────────────┘ └─────────────────┘
-           │               │                │
-           └───────────────┼────────────────┘
+                    └──┬───────┬───┘
+           ┌───────────┘       └───────────┐
+           │ :9222/WS          │ :3000/WS
+    ┌──────▼──────┐     ┌──────▼──────────┐
+    │ lightpanda  │     │ chrome-stealth  │
+    │  (primary)  │     │  (fallback)     │
+    └─────────────┘     └─────────────────┘
+           │                    │
+           └────────────────────┘
                            │ :443 only
                            ▼
                      Internet (HTTPS)
 ```
 
 Browser tier escalation: HTTP (fast, no browser) → LightPanda (lightweight JS)
-→ Chrome (full Chromium) → Chrome-Stealth (anti-fingerprint). fastCRW auto-
-detects SPAs and escalates through tiers based on response quality.
+→ Chrome-Stealth (anti-detection). fastCRW auto-detects SPAs and escalates
+through tiers based on response quality.
 
 ## System-Wide Impact
 
@@ -153,9 +155,9 @@ detects SPAs and escalates through tiers based on response quality.
 
 **DNS:** An A record for `fastcrw.taegost.com` must point to the Traefik load-balancer IP. This is external to the cluster (managed at the DNS provider).
 
-**NetworkPolicy surface:** Four new NetworkPolicies in `fastcrw` namespace. These are additive — no existing policies are modified. Default-allow behavior in other namespaces is unchanged.
+**NetworkPolicy surface:** Three new NetworkPolicies in `fastcrw` namespace. These are additive — no existing policies are modified. Default-allow behavior in other namespaces is unchanged.
 
-**Node resources:** Browser pods (LightPanda, Chrome, Chrome-Stealth) request non-small-memory nodes. If all non-small nodes are at capacity, browser pods will remain Pending until node autoscaling or manual capacity adjustment. fastCRW itself (lightweight Rust binary) can schedule on small-memory nodes.
+**Node resources:** Browser pods (LightPanda, Chrome-Stealth) request non-small-memory nodes. If all non-small nodes are at capacity, browser pods will remain Pending until node autoscaling or manual capacity adjustment. fastCRW itself (lightweight Rust binary) can schedule on small-memory nodes.
 
 **Cluster egress:** All `fastcrw` namespace pods are restricted to port 443 external egress. This is a hardening change, not a compatibility break — there are no existing apps in this namespace to disrupt.
 
@@ -226,21 +228,21 @@ sync with prune + selfHeal.
 
 ---
 
-### U3: SealedSecret for Browserless Token
+### U3: SealedSecret for Browserless Websocket URL
 
 **Files:**
-- `apps/fastcrw/sealedsecret-fastcrw-browserless-token.yaml` (new)
+- `apps/fastcrw/sealedsecret-fastcrw-browserless.yaml` (new)
 
-SealedSecret containing a `TOKEN` key (consumed by the chrome-stealth Deployment
-as the `TOKEN` env var). Sync-wave `-1` in both
-`metadata.annotations` and `spec.template.metadata.annotations` (dual annotation
-per established convention). The unsealed Secret will be referenced by the
-chrome-stealth Deployment via `secretKeyRef`.
+SealedSecret containing a single key `CHROME_WS_URL` with the full Browserless v2
+websocket URL (e.g., `ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?token=...&stealth=true`).
+Sync-wave `-1` in both `metadata.annotations` and `spec.template.metadata.annotations`
+(dual annotation per established convention). The unsealed Secret is referenced by
+the fastCRW Deployment via `secretKeyRef` (as `CRW_RENDERER__CHROME__WS_URL`).
 
 **Pattern reference:** `docs/sealed-secrets.md`
 
 **Dependencies:** None (can be created independently, but must be applied
-before the chrome-stealth Deployment).
+before the fastcrw Deployment).
 
 **Verification:** `kubectl get secret -n fastcrw` shows the unsealed secret
 after ArgoCD syncs.
@@ -275,10 +277,10 @@ chrome_backend = "vanilla"
 chrome_context_pool_enabled = true
 
 [renderer.lightpanda]
-ws_url = "ws://lightpanda:9222/"
+ws_url = "ws://lightpanda.fastcrw.svc.cluster.local:9222/"
 
 [renderer.chrome]
-ws_url = "ws://chrome:9222/"
+ws_url = "ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?stealth=true"
 
 [renderer.chrome_pool]
 size = 4
@@ -288,6 +290,9 @@ searxng_url = "https://searxng.diceninjagaming.com"
 query_expand = true
 query_expand_variants = 3
 answer_calibrated = true
+
+[auth]
+api_keys = ["fc-key-1234", "fc-key-5678"]
 
 [document]
 enabled = true
@@ -315,16 +320,11 @@ configmap) because it includes a secret token.
 - `apps/fastcrw/service-fastcrw.yaml` (new)
 
 Deployment spec:
-- Image: `ghcr.io/us/crw:latest` (fastCRW publishes `:latest` as the primary
-  tag on GHCR; no semver tag confirmed at time of planning)
-- **⚠️ Commit blocker:** The repo pre-commit hook rejects `:latest` and implicit
-  untagged images. If no pinned tag exists at implementation time, the human
-  operator must set `HOMELAB_ALLOW_LATEST=1` to bypass — Claude is forbidden
-  from setting this bypass. Monitor upstream releases for a semver tag.
+- Image: `ghcr.io/us/crw:v0.19.0` (pinned semver)
 - Container port: 3000
-- Config volume: ConfigMap mounted at `/app/config.docker.toml` (read-only)
+- Config volume: ConfigMap mounted at `/app/config.docker.toml` (read-only) via `subPath: config.docker.toml`
 - Env: `CRW_CONFIG=config.docker.toml`, `RUST_LOG=info`,
-  `CRW_RENDERER__CHROME__WS_URL` (from SealedSecret for stealth token)
+  `CRW_RENDERER__CHROME__WS_URL` (from SealedSecret key `CHROME_WS_URL`)
 - Resources: requests 64Mi/100m, limits 2Gi/1000m
 - Security: `runAsNonRoot: true`, `runAsUser: 1000`, `readOnlyRootFilesystem: true`,
   `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`
@@ -338,7 +338,7 @@ Service: ClusterIP, port 3000 → 3000.
 
 **Pattern reference:** `apps/hermes-agent/deployment-hermes-agent.yaml`
 
-**Dependencies:** U2 (namespace), U3 (SealedSecret for stealth token), U4 (configmap).
+**Dependencies:** U2 (namespace), U3 (SealedSecret for `CHROME_WS_URL`), U4 (configmap).
 
 **Verification:** `kubectl get pods -n fastcrw` shows fastcrw pod Running + Ready.
 
@@ -370,38 +370,7 @@ Service: ClusterIP, port 9222 → 9222.
 
 ---
 
-### U7: Chrome Deployment + Service
-
-**Files:**
-- `apps/fastcrw/deployment-chrome.yaml` (new)
-- `apps/fastcrw/service-chrome.yaml` (new)
-
-Deployment spec:
-- Image: `chromedp/headless-shell:148.0.7778.97` (pinned semver)
-- Container port: 9222
-- Args: `--remote-allow-origins=*`, `--ignore-certificate-errors`
-  (accepts invalid TLS certs to maximise crawl reach — **accepted risk** for
-  internal scraping use; the renderer only touches public content, not sensitive
-  data), `--disable-http2`, `--disable-blink-features=AutomationControlled`
-- Resources: requests 256Mi/100m, limits 2Gi/1000m
-- `securityContext.supplementalGroups: [0]` or appropriate fsGroup for
-  shared memory
-- **Add** `emptyDir` with `medium: Memory` mounted at `/dev/shm` (Chromium
-  crashes when `/dev/shm` is too small; default container limit is 64MB)
-- Node affinity: prefer NOT `memory-tier=small` (weight 100)
-- Liveness: TCP socket check on port 9222
-
-Service: ClusterIP, port 9222 → 9222.
-
-**Pattern reference:** upstream docker-compose `chrome` service
-
-**Dependencies:** U2.
-
-**Verification:** `kubectl get pods -n fastcrw` shows chrome pod Running.
-
----
-
-### U8: Chrome-Stealth Deployment + Service
+### U7: Chrome-Stealth Deployment + Service
 
 **Files:**
 - `apps/fastcrw/deployment-chrome-stealth.yaml` (new)
@@ -410,8 +379,8 @@ Service: ClusterIP, port 9222 → 9222.
 Deployment spec:
 - Image: `ghcr.io/browserless/chromium:v2.27.0` (pinned per upstream)
 - Container port: 3000
-- Env: `TOKEN` (from SealedSecret), `CONCURRENT=15`, `MAX_QUEUE_LENGTH=30`,
-  `TIMEOUT=30000`, `EXIT_ON_HEALTH_FAILURE=true`
+- Env: `CONCURRENT=15`, `MAX_QUEUE_LENGTH=30`, `TIMEOUT=30000`,
+  `EXIT_ON_HEALTH_FAILURE=true`
 - Resources: requests 512Mi/100m, limits 3Gi/1000m
 - Node affinity: prefer NOT `memory-tier=small` (weight 100)
 - Liveness: TCP socket check on port 3000
@@ -422,13 +391,13 @@ Service: ClusterIP, port 3000 → 3000.
 
 **Pattern reference:** upstream docker-compose `chrome-stealth` service
 
-**Dependencies:** U2, U3 (SealedSecret for TOKEN).
+**Dependencies:** U2.
 
 **Verification:** `kubectl get pods -n fastcrw` shows chrome-stealth pod Running.
 
 ---
 
-### U9: IngressRoute
+### U8: IngressRoute
 
 **Files:**
 - `apps/fastcrw/ingressroute-fastcrw.yaml` (new)
@@ -449,12 +418,11 @@ returns 200.
 
 ---
 
-### U10: NetworkPolicies
+### U9: NetworkPolicies
 
 **Files:**
 - `apps/fastcrw/networkpolicy-fastcrw.yaml` (new)
 - `apps/fastcrw/networkpolicy-lightpanda.yaml` (new)
-- `apps/fastcrw/networkpolicy-chrome.yaml` (new)
 - `apps/fastcrw/networkpolicy-chrome-stealth.yaml` (new)
 
 #### fastcrw NetworkPolicy
@@ -465,31 +433,29 @@ returns 200.
 **Egress:**
 1. DNS (kube-system/kube-dns) → UDP+TCP 53
 2. LightPanda pods in `fastcrw` namespace → port 9222
-3. Chrome pods in `fastcrw` namespace → port 9222
-4. Chrome-Stealth pods in `fastcrw` namespace → port 3000
-5. Internet (0.0.0.0/0 except 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) → port 443 only
+3. Chrome-Stealth pods in `fastcrw` namespace → port 3000
+4. Traefik pods in `traefik` namespace → port 443
+5. Internet (0.0.0.0/0 except 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10) → port 443 only
 
-**Note:** SearXNG is reached via `https://searxng.diceninjagaming.com`. If DNS
-resolves this to a local IP (10.x/172.16.x/192.168.x), the `except` clause
-blocks it. Options: (a) configure `searxng_url` to the internal service endpoint
-`http://searxng.searxng:8080` and add an egress rule to the `searxng`
-namespace, or (b) ensure split-horizon / external DNS resolves to a public IP.
+**Note:** SearXNG is reached via external FQDN `https://searxng.diceninjagaming.com`.
+An explicit egress rule to the `traefik` namespace is included to cover
+split-horizon / internal DNS resolution paths.
 
-#### lightpanda / chrome / chrome-stealth NetworkPolicy (identical structure)
+#### lightpanda / chrome-stealth NetworkPolicy (identical structure)
 
 **Ingress:**
 - From fastcrw pods in `fastcrw` namespace → CDP port (9222 or 3000)
 
 **Egress:**
 1. DNS (kube-system/kube-dns) → UDP+TCP 53
-2. Internet (0.0.0.0/0 except 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) → port 443 only
+2. Internet (0.0.0.0/0 except 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10) → port 443 only
 
 **Pattern reference:** `apps/hermes-agent/networkpolicy-hermes-sandbox.yaml`
 
 **Dependencies:** U2.
 
 **Verification:**
-- `kubectl run -n fastcrw --rm -i --restart=Never debug --image=curlimages/curl -- curl -sf http://lightpanda:9222/json/version`
+- `kubectl run -n fastcrw --rm -i --restart=Never debug --image=curlimages/curl -- curl -sf http://lightpanda.fastcrw.svc.cluster.local:9222/json/version`
   succeeds (internal CDP reachability)
 - `kubectl run -n fastcrw --rm -i --restart=Never debug --image=curlimages/curl -- curl -sfI https://example.com`
   succeeds (HTTPS egress)
@@ -497,8 +463,8 @@ namespace, or (b) ensure split-horizon / external DNS resolves to a public IP.
   fails (HTTP egress blocked — expected)
 
 From a lightpanda pod:
-- Ingress only from fastcrw pods (verify by attempting to reach `lightpanda:9222` from a debug pod in another namespace using `curl` — should time out or fail)
 
+- Ingress only from fastcrw pods (verify by attempting to reach `lightpanda.fastcrw.svc.cluster.local:9222` from a debug pod in another namespace using `curl` — should time out or fail)
 ---
 
 ## Implementation Order
@@ -510,25 +476,23 @@ U4 (configmap) ─────┬                                     │
                                                            ▼
 U5 (fastcrw deploy) ◄── depends on U2, U3, U4 ──────── U3 (for env var)
 U6 (lightpanda deploy) ◄── depends on U2
-U7 (chrome deploy) ◄── depends on U2
-U8 (chrome-stealth deploy) ◄── depends on U2, U3
-U9 (IngressRoute) ◄── depends on U1, U5
-U10 (NetworkPolicies) ◄── depends on U2
+U7 (chrome-stealth deploy) ◄── depends on U2
+U8 (IngressRoute) ◄── depends on U1, U5
+U9 (NetworkPolicies) ◄── depends on U2
 ```
 
-U1, U4 can be done in parallel. U5-U8 can be done in parallel once their
-dependencies are met. U9 and U10 can be done in parallel after U5 and U2
+U1, U4 can be done in parallel. U5-U7 can be done in parallel once their
+dependencies are met. U8 and U9 can be done in parallel after U5 and U2
 respectively.
 
 ## Risks
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| LightPanda OOM/segfault on adversarial pages | Medium — breaks the primary JS tier, requests fall through to Chrome | `restart: Always` + `mem_limit: 1Gi` (upstream pattern) |
+| LightPanda OOM/segfault on adversarial pages | Medium — breaks the primary JS tier, requests fall through to Chrome-Stealth | `restart: Always` + `mem_limit: 1Gi` (upstream pattern) |
 | Port 443-only egress blocks HTTP→HTTPS redirects | Low — some sites may not be reachable | Acceptable per policy directive. SearXNG returns HTTPS URLs preferentially. |
 | Browserless v2 SSPL license | Low — internal use only | No third-party service exposure. Document for future reference. |
-| `:latest` tag on `ghcr.io/us/crw` | High — pre-commit hook blocks `:latest` and implicit untagged images; this will reject the commit | Human operator must set `HOMELAB_ALLOW_LATEST=1` to bypass, or find a pinned tag. Monitor upstream releases. |
-| `--ignore-certificate-errors` on Chrome | Low — disables TLS validation in the fallback renderer | **Accepted risk** for internal scraping: renderer only touches public content, not sensitive data. Required for crawling sites with self-signed or expired certs. |
+| `--ignore-certificate-errors` on Chrome-Stealth | Low — disables TLS validation in the fallback renderer | **Accepted risk** for internal scraping: renderer only touches public content, not sensitive data. Required for crawling sites with self-signed or expired certs. |
 | No persistent storage for fastCRW | Low — crawl jobs are ephemeral by design | Stateless API server; no PVC needed for v1. Change-tracking snapshots would need storage (future work). |
 
 ## Test Scenarios
@@ -560,7 +524,7 @@ Returns search results from SearXNG.
 ### TS-4: Browser tier escalation
 
 Scrape a known SPA (e.g., a React app) — fastCRW should auto-escalate from
-HTTP → LightPanda → Chrome as needed. Verify via `RUST_LOG=info` logs showing
+HTTP → LightPanda → Chrome-Stealth as needed. Verify via `RUST_LOG=info` logs showing
 tier progression.
 
 ### TS-5: NetworkPolicy enforcement
@@ -569,12 +533,12 @@ From a fastcrw pod (via `kubectl run --rm -i --restart=Never debug --image=curli
 
 - `curl -sfI https://example.com` → succeeds
 - `curl -sfI http://example.com` → fails (port 80 blocked)
-- `curl -sf http://lightpanda:9222/json/version` → succeeds (internal CDP)
+- `curl -sf http://lightpanda.fastcrw.svc.cluster.local:9222/json/version` → succeeds (internal CDP)
 - `curl -sf http://kube-apiserver:6443` → fails (cluster CIDR blocked)
 
 From a lightpanda pod:
 
-- Ingress only from fastcrw pods (verify by attempting to reach `lightpanda:9222` from a debug pod in another namespace using `curl` — should time out or fail)
+- Ingress only from fastcrw pods (verify by attempting to reach `lightpanda.fastcrw.svc.cluster.local:9222` from a debug pod in another namespace using `curl` — should time out or fail)
 
 ### TS-6: TLS termination
 
