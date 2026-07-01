@@ -4,7 +4,7 @@ created: 2026-06-29
 type: feat
 origin: standalone (no brainstorm doc)
 depth: standard
-status: draft
+status: completed
 deepened: 2026-06-30
 ---
 

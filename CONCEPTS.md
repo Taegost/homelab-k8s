@@ -65,6 +65,9 @@ A set of markdown files in `docs/solutions/base-images-*.md` that map container 
 ### Pre-Commit Validation Suite
 Eleven automated checks in `.githooks/pre-commit` that run on every YAML commit. Five always-on (sync waves, YAML validity, plaintext secrets, secret templates, :latest tag guard) and six conditional (IngressRoute, Longhorn fsGroup, NetworkPolicy, probe timeout, capability, env injection). The `/homelab-validate` skill runs the same suite manually.
 
+### memory-tier
+A node label (`memory-tier=small`) that signals a node has limited memory. Lightweight workloads prefer small nodes (`operator: In`); heavy workloads avoid them (`operator: NotIn`). Uses `preferredDuringSchedulingIgnoredDuringExecution` — if all nodes carry the label, pods still schedule. Applied to control placement of memory-heavy apps (browsers, databases) vs lightweight services (API servers, agents).
+
 ### MU Plugin (Must-Use Plugin)
 A WordPress plugin in `wp-content/mu-plugins/` that loads before regular plugins and cannot be deactivated through the admin UI. Used in this project for the internal loopback rewriter that prevents WordPress self-requests from leaving the cluster.
 
