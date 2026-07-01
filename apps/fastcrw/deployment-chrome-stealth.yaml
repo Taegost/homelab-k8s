@@ -52,6 +52,10 @@ spec:
             - name: http
               containerPort: 3000
           env:
+            # Browserless v2 defaults to localhost — must bind to 0.0.0.0
+            # for the Kubernetes Service to reach the container.
+            - name: HOST
+              value: "0.0.0.0"
             - name: CONCURRENT
               value: "15"
             - name: MAX_QUEUE_LENGTH

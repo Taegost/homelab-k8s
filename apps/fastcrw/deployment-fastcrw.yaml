@@ -22,8 +22,6 @@ metadata:
   namespace: fastcrw
 spec:
   replicas: 1
-  strategy:
-    type: Recreate  # Single replica, no PVC, but Recreate avoids port conflicts on restart
   selector:
     matchLabels:
       app: fastcrw

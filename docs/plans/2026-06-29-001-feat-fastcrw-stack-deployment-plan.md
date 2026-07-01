@@ -471,6 +471,9 @@ split-horizon / internal DNS resolution paths.
 - `kubectl run -n fastcrw --rm -i --restart=Never debug --image=curlimages/curl -- curl -sfI http://example.com`
   fails (HTTP egress blocked — expected)
 
+From a pod in another namespace (should fail):
+- `kubectl run -n default --rm -i --restart=Never debug --image=curlimages/curl -- curl -sf --connect-timeout 5 http://lightpanda.fastcrw.svc.cluster.local:9222/json/version`
+
 From a lightpanda pod:
 
 - Ingress only from fastcrw pods (verify by attempting to reach `lightpanda.fastcrw.svc.cluster.local:9222` from a debug pod in another namespace using `curl` — should time out or fail)
@@ -543,7 +546,7 @@ From a fastcrw pod (via `kubectl run --rm -i --restart=Never debug --image=curli
 - `curl -sfI https://example.com` → succeeds
 - `curl -sfI http://example.com` → fails (port 80 blocked)
 - `curl -sf http://lightpanda.fastcrw.svc.cluster.local:9222/json/version` → succeeds (internal CDP)
-- `curl -sf http://kube-apiserver:6443` → fails (cluster CIDR blocked)
+- `curl -sfk https://kubernetes.default.svc:6443/healthz` → blocked by NetworkPolicy (cluster CIDR excluded)
 
 From a lightpanda pod:
 

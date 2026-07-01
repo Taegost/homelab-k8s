@@ -266,6 +266,7 @@ For the crawling stack:
 | Chrome-Stealth | 999 | Browserless v2 uses `blessuser` (UID 999) | Chromium sandbox requires this UID |
 
 All three use:
+
 ```yaml
 securityContext:
   runAsNonRoot: true
@@ -293,7 +294,7 @@ data:
   config.docker.toml: |
     [renderer.chrome]
     ws_url = "ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?stealth=true"
-    # Token is injected via CRW_RENDERER__CHROME__WS_URL env var from SealedSecret
+    # WS URL is injected via CRW_RENDERER__CHROME__WS_URL env var from SealedSecret
 ```
 
 ```yaml
@@ -425,7 +426,7 @@ scheduling, no security contexts.
 
 14 manifests across 3 directories:
 
-```
+```text
 apps/fastcrw/
 ├── namespace-fastcrw.yaml
 ├── configmap-fastcrw-config.yaml
