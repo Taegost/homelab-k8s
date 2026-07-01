@@ -73,11 +73,23 @@ spec:
               mountPath: /tmp
             - name: shm
               mountPath: /dev/shm
+          # startupProbe: Chromium with stealth mode can take significant time
+          # to initialize (browser process spawn, anti-detection setup).
+          # Give it up to 5 minutes before the liveness probe kicks in.
+          startupProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             tcpSocket:
               port: 3000
             periodSeconds: 30
             failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 10
           resources:
             requests:
               cpu: 100m

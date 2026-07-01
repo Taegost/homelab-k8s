@@ -64,6 +64,10 @@ spec:
               port: 9222
             periodSeconds: 30
             failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 9222
+            periodSeconds: 10
           resources:
             requests:
               cpu: 50m
