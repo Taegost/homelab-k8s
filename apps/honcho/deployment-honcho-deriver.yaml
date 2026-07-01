@@ -52,11 +52,11 @@ spec:
             - name: DREAM_DEDUCTION_MODEL_CONFIG__TRANSPORT
               value: "openai"
             - name: DREAM_DEDUCTION_MODEL_CONFIG__MODEL
-              value: "@preset/kimi-k26"
+              value: "qwen/qwen3.7-plus"
             - name: DREAM_INDUCTION_MODEL_CONFIG__TRANSPORT
               value: "openai"
             - name: DREAM_INDUCTION_MODEL_CONFIG__MODEL
-              value: "@preset/kimi-k26"
+              value: "qwen/qwen3.7-plus"
             - name: DB_CONNECTION_URI
               valueFrom:
                 secretKeyRef:

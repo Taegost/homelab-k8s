@@ -35,7 +35,7 @@ data:
   # cluster-internal HTTP endpoint.
   LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
   # Generic model name; LiteLLM routes to the configured upstream.
-  LLM_OPENAI_MODEL: "@preset/kimi-k26"
+  LLM_OPENAI_MODEL: "qwen/qwen3.7-plus"
 
   # --- Embedding ---
   # Resolved: openai/text-embedding-3-small via LiteLLM, 1536 dimensions.
@@ -58,9 +58,9 @@ data:
   DIALECTIC_LEVELS__LOW__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
   DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__MODEL: "xiaomi-token/mimo-v2.5-pro"
   DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
-  DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__MODEL: "@preset/kimi-k26"
+  DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__MODEL: "qwen/qwen3.7-plus"
   DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
-  DIALECTIC_LEVELS__MAX__MODEL_CONFIG__MODEL: "@preset/kimi-k26"
+  DIALECTIC_LEVELS__MAX__MODEL_CONFIG__MODEL: "qwen/qwen3.7-plus"
   DIALECTIC_LEVELS__MAX__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
 
   # --- Telemetry ---
