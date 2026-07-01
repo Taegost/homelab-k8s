@@ -60,6 +60,11 @@ spec:
               value: "30000"
             - name: EXIT_ON_HEALTH_FAILURE
               value: "true"
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: fastcrw
+                  key: BROWSERLESS_TOKEN
           securityContext:
             runAsUser: 999
             runAsNonRoot: true
