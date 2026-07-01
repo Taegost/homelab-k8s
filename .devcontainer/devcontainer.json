@@ -41,6 +41,9 @@
   // Run as the non-root 'vscode' user created by the base image.
   "remoteUser": "vscode",
 
+  // Make sure the correct account is used for gh cli
+  "postStartCommand": "git config --global credential.helper \"$(which gh) auth git-credential\"",
+
   // VS Code extensions to install when connecting to this container.
   // These are scoped to working on the image repo itself — Dockerfile
   // editing, YAML, Terraform, and the pipeline definition.
@@ -55,8 +58,6 @@
         "github.vscode-github-actions",
         // Python — for editing dependency files and dev tooling
         "ms-python.python",
-        // Roo - For AI assistance
-        "rooveterinaryinc.roo-cline",
       ],
       "settings": {
         // Use the system bash provided by the container
