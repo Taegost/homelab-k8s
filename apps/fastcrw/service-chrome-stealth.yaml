@@ -1,0 +1,16 @@
+# Service — Chrome-Stealth
+#
+# ClusterIP service exposing Browserless v2's HTTP/WS interface on port 3000.
+# fastCRW connects to this service for anti-detection JS rendering.
+apiVersion: v1
+kind: Service
+metadata:
+  name: chrome-stealth
+  namespace: fastcrw
+spec:
+  selector:
+    app: chrome-stealth
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

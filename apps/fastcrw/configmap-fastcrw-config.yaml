@@ -1,0 +1,58 @@
+# ConfigMap — fastCRW configuration (config.docker.toml)
+#
+# Overrides from the upstream default for the k3s homelab environment:
+# - Renderer URLs point to in-cluster LightPanda and Chrome-Stealth services
+# - SearXNG URL points to the existing external instance
+# - Chrome pool size reduced from 8 to 4 for homelab resource constraints
+# - Rate limiting disabled for single-user homelab use
+#
+# The chrome ws_url intentionally omits the token query parameter —
+# that is injected via CRW_RENDERER__CHROME__WS_URL env var from the
+# SealedSecret so the token is not stored in plaintext.
+#
+# Pattern reference: upstream config.docker.toml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastcrw-config
+  namespace: fastcrw
+data:
+  config.docker.toml: |
+    [server]
+    # Intentionally disabled for single-user homelab use. Re-enable before any
+    # broader exposure — rate_limit_rps > 0 prevents accidental DoS from aggressive
+    # scrapes or misbehaving clients.
+    rate_limit_rps = 0
+
+    [request]
+    deadline_ms_default = 15000
+    auto_extend_deadline_for_ladder = true
+
+    [renderer]
+    http_timeout_ms = 4000
+    lightpanda_timeout_ms = 2500
+    chrome_timeout_ms = 30000
+    chrome_intercept_resources = true
+    chrome_nav_budget_ms = 12000
+    chrome_backend = "browserless"
+    chrome_context_pool_enabled = true
+
+    [renderer.lightpanda]
+    ws_url = "ws://lightpanda.fastcrw.svc.cluster.local:9222/"
+
+    [renderer.chrome]
+    ws_url = "ws://chrome-stealth.fastcrw.svc.cluster.local:3000/chromium?stealth=true"
+
+    [renderer.chrome_pool]
+    size = 4
+
+    [search]
+    searxng_url = "https://searxng.diceninjagaming.com"
+    query_expand = true
+    query_expand_variants = 3
+    answer_calibrated = true
+
+    [document]
+    enabled = true
+    sandbox = true
+    sandbox_memory_bytes = 536870512

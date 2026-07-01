@@ -1,0 +1,61 @@
+# NetworkPolicy — chrome-stealth (fallback JS renderer)
+#
+# Restricts Chrome-Stealth's network access:
+# - Ingress: only from fastcrw pods (port 3000 HTTP/WS)
+# - Egress: DNS + internet HTTPS (443 only, excluding cluster/local CIDRs)
+#
+# Chrome-Stealth navigates HTTPS pages — port 80 is blocked per policy.
+# No access to cluster internals or local network.
+#
+# Pattern reference: apps/hermes-agent/networkpolicy-hermes-sandbox.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chrome-stealth
+  namespace: fastcrw
+spec:
+  podSelector:
+    matchLabels:
+      app: chrome-stealth
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow WS/HTTP connections from fastcrw pods only
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: fastcrw
+          podSelector:
+            matchLabels:
+              app: fastcrw
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # DNS resolution (kube-dns)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Internet HTTPS — port 443 only, excluding cluster and local networks
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - protocol: TCP
+          port: 443

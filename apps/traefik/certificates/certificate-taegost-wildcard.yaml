@@ -1,0 +1,25 @@
+# Certificate — *.taegost.com
+#
+# Issues the wildcard certificate for all services on the taegost.com domain.
+# The secret lands in the traefik namespace so IngressRoute resources in
+# this namespace can reference it directly without cross-namespace lookups.
+#
+# This certificate covers any service exposed at *.taegost.com
+# that uses the shared wildcard rather than a per-app explicit certificate.
+#
+# Pattern reference: apps/traefik/certificates/certificate-dng-root-wildcard.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-taegost-com
+  namespace: traefik
+spec:
+  secretName: wildcard-taegost-com-tls
+  duration: 2160h
+  renewBefore: 720h
+  dnsNames:
+    - "*.taegost.com"
+  issuerRef:
+    name: letsencrypt-taegost-prod
+    kind: ClusterIssuer
+    group: cert-manager.io

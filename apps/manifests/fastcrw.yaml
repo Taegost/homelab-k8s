@@ -1,0 +1,29 @@
+# ArgoCD Application — fastcrw
+#
+# Manages the fastCRW web crawling stack (API server + browser renderers).
+# CreateNamespace=false because the namespace is defined explicitly in
+# apps/fastcrw/namespace-fastcrw.yaml.
+#
+# Pattern reference: apps/manifests/hermes-agent.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fastcrw
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Taegost/homelab-k8s
+    targetRevision: HEAD
+    path: apps/fastcrw
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fastcrw
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

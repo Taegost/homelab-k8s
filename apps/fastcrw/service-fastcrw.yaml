@@ -1,0 +1,16 @@
+# Service — fastCRW
+#
+# ClusterIP service exposing the fastCRW REST API on port 3000.
+# Traefik IngressRoute routes external traffic to this service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastcrw
+  namespace: fastcrw
+spec:
+  selector:
+    app: fastcrw
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
