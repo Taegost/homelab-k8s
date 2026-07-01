@@ -1,0 +1,16 @@
+# Service — LightPanda
+#
+# ClusterIP service exposing LightPanda's CDP interface on port 9222.
+# fastCRW connects to this service for JS rendering.
+apiVersion: v1
+kind: Service
+metadata:
+  name: lightpanda
+  namespace: fastcrw
+spec:
+  selector:
+    app: lightpanda
+  ports:
+    - name: cdp
+      port: 9222
+      targetPort: 9222

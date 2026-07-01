@@ -1,0 +1,13 @@
+# Namespace — fastcrw
+#
+# Dedicated namespace for the fastCRW web crawling stack:
+# - fastcrw (REST API server + orchestrator)
+# - lightpanda (primary JS renderer)
+# - chrome-stealth (fallback JS renderer)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fastcrw
+  labels:
+    app.kubernetes.io/name: fastcrw
+    app.kubernetes.io/managed-by: ArgoCD

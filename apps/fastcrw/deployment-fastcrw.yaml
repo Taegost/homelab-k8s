@@ -1,0 +1,111 @@
+# Deployment — fastCRW (REST API server + crawl orchestrator)
+#
+# Rust-native web scraping backend that provides /v1/scrape, /v1/crawl,
+# /v1/map, /v1/search endpoints. Tiered rendering: HTTP → LightPanda →
+# Chrome-Stealth (auto-escalation based on response quality).
+#
+# Image runs as root by default (no USER in Dockerfile), but upstream
+# docker-compose uses cap_drop ALL + read_only. K8s overrides to UID 1000
+# for defense-in-depth. Port 3000 (> 1024) so no capabilities needed.
+#
+# ConfigMap mounted at /app/config.docker.toml via subPath (read-only).
+# SealedSecret provides CHROME_WS_URL and API_KEYS as env vars.
+#
+# fastCRW is lightweight (~50 MB idle) so it prefers memory-tier=small
+# nodes — opposite of the browser pods which avoid small nodes.
+#
+# Dependencies: U2 (namespace), U3 (SealedSecret), U4 (ConfigMap)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastcrw
+  namespace: fastcrw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastcrw
+  template:
+    metadata:
+      labels:
+        app: fastcrw
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: In
+                    values:
+                      - small
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fastcrw
+          image: ghcr.io/us/crw:v0.19.0
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: CRW_CONFIG
+              value: "config.docker.toml"
+            - name: RUST_LOG
+              value: "info"
+            # Override chrome ws_url from SealedSecret — embeds the token
+            # that is not stored in the ConfigMap (plaintext avoidance).
+            # CRW_RENDERER__CHROME__WS_URL takes precedence over the
+            # [renderer.chrome] ws_url in config.docker.toml.
+            - name: CRW_RENDERER__CHROME__WS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fastcrw
+                  key: CHROME_WS_URL
+            # API keys for [auth] section — comma-separated keys
+            - name: CRW_AUTH__API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: fastcrw
+                  key: API_KEYS
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.docker.toml
+              subPath: config.docker.toml
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: config
+          configMap:
+            name: fastcrw-config
+        - name: tmp
+          emptyDir: {}

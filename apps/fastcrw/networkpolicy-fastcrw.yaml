@@ -1,0 +1,86 @@
+# NetworkPolicy — fastcrw (API server)
+#
+# Restricts the fastCRW pod's network access:
+# - Ingress: only from Traefik pods (port 3000)
+# - Egress: DNS, LightPanda (9222), Chrome-Stealth (3000), Traefik (443),
+#   internet HTTPS (443 only, excluding cluster/local CIDRs)
+#
+# Port 80 (plaintext HTTP) is deliberately blocked per policy directive.
+# SearXNG is reached via external FQDN through Traefik (namespaceSelector).
+#
+# Pattern reference: apps/hermes-agent/networkpolicy-hermes-sandbox.yaml
+# Convention: docs/solutions/runtime-errors/metallb-hairpin-networkpolicy-egress.md
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fastcrw
+  namespace: fastcrw
+spec:
+  podSelector:
+    matchLabels:
+      app: fastcrw
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from Traefik pods (ingress controller)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # DNS resolution (kube-dns)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # LightPanda CDP (in-cluster, same namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: lightpanda
+      ports:
+        - protocol: TCP
+          port: 9222
+    # Chrome-Stealth WS (in-cluster, same namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: chrome-stealth
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Traefik namespace — covers SearXNG via external FQDN
+    # (resolved through Traefik's ClusterIP, avoids MetalLB hairpin)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 443
+    # Internet HTTPS — port 443 only, excluding cluster and local networks
+    # Port 80 (plaintext HTTP) is deliberately blocked
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - protocol: TCP
+          port: 443

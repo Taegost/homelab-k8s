@@ -1,0 +1,30 @@
+# IngressRoute — fastcrw.taegost.com
+#
+# Routes external traffic to the fastCRW REST API service.
+# Uses the *.taegost.com wildcard cert (in traefik namespace).
+# Internal-only — default-whitelist restricts to local subnets.
+#
+# File lives in apps/fastcrw/ for discoverability but deploys to
+# the traefik namespace (wildcard cert pattern per CLAUDE.md).
+#
+# Dependencies: U1 (wildcard cert), U5 (fastcrw service)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: fastcrw
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`fastcrw.taegost.com`) && PathPrefix(`/`)
+      kind: Rule
+      middlewares:
+        - name: default-whitelist
+          namespace: traefik
+      services:
+        - name: fastcrw
+          namespace: fastcrw
+          port: 3000
+  tls:
+    secretName: wildcard-taegost-com-tls

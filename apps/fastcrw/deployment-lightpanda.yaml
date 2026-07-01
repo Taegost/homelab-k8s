@@ -1,0 +1,80 @@
+# Deployment — LightPanda (primary JS renderer)
+#
+# Lightweight headless browser (~64 MB) providing CDP (Chrome DevTools Protocol)
+# on port 9222. fastCRW uses this as the primary JS rendering tier — it handles
+# most SPA and JavaScript-heavy pages before falling back to Chrome-Stealth.
+#
+# Image runs as root by default (no USER in Dockerfile). K8s overrides to
+# UID 1000 for defense-in-depth. Port 9222 (> 1024) so no capabilities needed.
+#
+# Note: LightPanda can OOM/segfault on adversarial pages. The Deployment
+# controller auto-restarts containers (restartPolicy: Always is the default).
+#
+# Dependencies: U2 (namespace)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lightpanda
+  namespace: fastcrw
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lightpanda
+  template:
+    metadata:
+      labels:
+        app: lightpanda
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: lightpanda
+          image: lightpanda/browser:0.3.3
+          ports:
+            - name: cdp
+              containerPort: 9222
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            tcpSocket:
+              port: 9222
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 9222
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: tmp
+          emptyDir: {}

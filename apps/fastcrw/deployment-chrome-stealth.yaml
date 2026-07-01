@@ -1,0 +1,115 @@
+# Deployment — Chrome-Stealth (fallback JS renderer)
+#
+# Browserless v2 Chromium with anti-detection (stealth mode). Used as the
+# fallback JS rendering tier when LightPanda cannot handle a page (e.g.,
+# anti-bot protection, complex SPAs).
+#
+# Image runs as blessuser (UID 999) per Browserless convention.
+# The token for websocket auth is injected via the CHROME_WS_URL env var
+# from the SealedSecret (not hardcoded).
+#
+# /dev/shm must be a tmpfs with 2Gi limit — Chromium's shared memory
+# defaults to 64MB in containers and crashes under load without this.
+#
+# SSPL-3.0 licensed — internal use only, no third-party service exposure.
+#
+# Dependencies: U2 (namespace)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chrome-stealth
+  namespace: fastcrw
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: chrome-stealth
+  template:
+    metadata:
+      labels:
+        app: chrome-stealth
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: memory-tier
+                    operator: NotIn
+                    values:
+                      - small
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: chrome-stealth
+          image: ghcr.io/browserless/chromium:v2.27.0
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            # Browserless v2 defaults to localhost — must bind to 0.0.0.0
+            # for the Kubernetes Service to reach the container.
+            - name: HOST
+              value: "0.0.0.0"
+            - name: CONCURRENT
+              value: "15"
+            - name: MAX_QUEUE_LENGTH
+              value: "30"
+            - name: TIMEOUT
+              value: "30000"
+            - name: EXIT_ON_HEALTH_FAILURE
+              value: "true"
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: fastcrw
+                  key: BROWSERLESS_TOKEN
+          securityContext:
+            runAsUser: 999
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: shm
+              mountPath: /dev/shm
+          # startupProbe: Chromium with stealth mode can take significant time
+          # to initialize (browser process spawn, anti-detection setup).
+          # Give it up to 5 minutes before the liveness probe kicks in.
+          startupProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 3Gi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
