@@ -26,7 +26,7 @@ spec:
                       - small
       containers:
         - name: manyfold
-          image: ghcr.io/manyfold3d/manyfold:0.138.0
+          image: ghcr.io/manyfold3d/manyfold:0.146.0
           ports:
             - containerPort: 3214
           env:
