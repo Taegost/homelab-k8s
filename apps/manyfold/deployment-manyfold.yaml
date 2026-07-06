@@ -67,8 +67,34 @@ spec:
               value: enabled
             - name: HTTPS_ONLY
               value: enabled
+            # Manyfold's Postgres connection usage is driven by four concurrency
+            # settings, not by the `pool=` parameter in a DATABASE_URL. Worst-case
+            # connections = (WEB_CONCURRENCY * RAILS_MAX_THREADS)
+            #                + DEFAULT_WORKER_CONCURRENCY + PERFORMANCE_WORKER_CONCURRENCY
+            #
+            # | Variable                        | Default | What it drives                                   |
+            # |---------------------------------|---------|--------------------------------------------------|
+            # | WEB_CONCURRENCY                 | 4       | Web worker processes                             |
+            # | RAILS_MAX_THREADS               | 16      | Threads per web worker (concurrent requests =    |
+            # |                                 |         | WEB_CONCURRENCY x RAILS_MAX_THREADS)             |
+            # | DEFAULT_WORKER_CONCURRENCY      | 4       | Standard background job threads — runs during a  |
+            # |                                 |         | scan/import of the library                       |
+            # | PERFORMANCE_WORKER_CONCURRENCY  | 1       | Heavy job threads — geometric analysis and file  |
+            # |                                 |         | conversion, high CPU/memory usage                |
+            #
+            # Bulk file updates spike DEFAULT_WORKER_CONCURRENCY and
+            # PERFORMANCE_WORKER_CONCURRENCY (scanning + thumbnail/geometry generation),
+            # on top of whatever web traffic is active — against a shared 100-connection
+            # Postgres budget, this adds up fast.
             - name: WEB_CONCURRENCY
+              value: "4"
+            - name: RAILS_MAX_THREADS
               value: "8"
+            - name: DEFAULT_WORKER_CONCURRENCY
+              value: "4"
+            - name: PERFORMANCE_WORKER_CONCURRENCY
+              value: "1"
+            # OIDC settings
             - name: OIDC_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -83,6 +109,7 @@ spec:
               value: https://authentik.diceninjagaming.com/application/o/manyfold/
             - name: OIDC_NAME
               value: Authentik
+            # E-mail settings
             - name: SMTP_SERVER
               value: smtppro.zoho.com
             - name: SMTP_PORT
