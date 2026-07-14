@@ -69,7 +69,7 @@ spec:
               memory: "4Gi"
           env:
             - name: SONARR__LOG__LEVEL
-              value: "debug"
+              value: "info"
             - name: PUID
               value: "99"
             - name: PGID

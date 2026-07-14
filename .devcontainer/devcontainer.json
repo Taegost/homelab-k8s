@@ -42,7 +42,7 @@
   "remoteUser": "vscode",
 
   // Make sure the correct account is used for gh cli
-  "postStartCommand": "git config --global credential.helper \"$(which gh) auth git-credential\"",
+  "postCreateCommand": "git config --global credential.helper '!gh auth git-credential'",
 
   // VS Code extensions to install when connecting to this container.
   // These are scoped to working on the image repo itself — Dockerfile
