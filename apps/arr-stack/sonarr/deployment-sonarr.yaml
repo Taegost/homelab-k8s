@@ -68,6 +68,8 @@ spec:
               cpu: "1000m"
               memory: "4Gi"
           env:
+            - name: SONARR__LOG__LEVEL
+              value: "debug"
             - name: PUID
               value: "99"
             - name: PGID
