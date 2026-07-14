@@ -41,9 +41,6 @@
   // Run as the non-root 'vscode' user created by the base image.
   "remoteUser": "vscode",
 
-  // Make sure the correct account is used for gh cli
-  "postCreateCommand": "git config --global credential.helper '!gh auth git-credential'",
-
   // VS Code extensions to install when connecting to this container.
   // These are scoped to working on the image repo itself — Dockerfile
   // editing, YAML, Terraform, and the pipeline definition.
@@ -65,7 +62,9 @@
         // Point the Ansible extension at the pipx-installed binary
         "ansible.ansible.path": "/usr/local/bin/ansible",
         // Point the Python extension at the pinned Python version
-        "python.defaultInterpreterPath": "/usr/bin/python3"
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        // Disable the Git credential helper so it doesn't try to use the host's
+        "dev.containers.gitCredentialHelperConfigLocation": "none"
       }
     }
   }
