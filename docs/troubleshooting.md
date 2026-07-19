@@ -703,3 +703,214 @@ block. This is a deny-all policy — it blocks all incoming traffic.
 **Fix:** Add explicit `from` entries for every source that should be allowed.
 Deny-all policies are never warranted in this cluster — remove the policy or
 add the required `from` entries.
+
+---
+
+## Cert-manager
+\nRelated: https://github.com/Taegost/homelab-k8s/issues/64
+
+### Wildcard cert renewal stuck permanently after transient ACME API EOF
+
+**Symptom:** A Certificate shows `READY: True` in `kubectl get certificates`,
+but the underlying `Secret` is expired and services are serving an out-of-date
+certificate. The `Renewal Time` is in the past, the status says `Issuing: True`,
+yet no renewal actually progresses.
+
+**Confirmed case (2026-07-18):** `wildcard-home-diceninjagaming-com` in the
+`traefik` namespace. The certificate's `NotAfter` was `2026-07-18T18:34:15Z`
+(today) and `Renewal Time` was `2026-06-18T18:34:15Z` (30 days ago), yet the
+cert had not been renewed and the underlying `Secret` was expired.
+
+**Diagnosis — work the resource chain top-down:**
+
+```bash
+# 1. Is the cert renewed or expired?
+kubectl get certificate <name> -n <ns> -o jsonpath='{.status}' \
+  | python3 -m json.tool
+
+# 2. What cert is actually being served?
+kubectl get secret <secretName> -n <ns> -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d | openssl x509 -noout -dates -subject
+
+# 3. Walk the chain: Certificate → CertificateRequest → Order → Challenge
+kubectl get certificaterequest -n <ns> \
+  -l cert-manager.io/certificate-name=<cert-name>
+kubectl get order -n <ns> \
+  -l cert-manager.io/certificate-name=<cert-name>
+kubectl describe order <order-name> -n <ns>   # look for State and Authorizations
+kubectl get challenges -n <ns>
+kubectl describe challenge <challenge-name> -n <ns>   # look for State and Reason
+
+# 4. Cert-manager controller logs around the renewal time
+kubectl logs -n cert-manager deployment/cert-manager \
+  --since=720h | grep -iE "<cert-name>|EOF|rate.limit"
+```
+
+**What you expect to see (the smoking gun):**
+
+- `Order` stuck in `pending` state for days/weeks (age = time since it was created)
+- `CertificateRequest` with `Approved: True, Ready: False`
+- `Challenge` with `State: errored`, `Reason` containing something like
+  `unexpected non-ACME API error: Post "...": EOF` — a network-level_EOF
+  during the HTTP call to Let's Encrypt's API, not a validation failure
+- No further log entries from cert-manager about this certificate since the error
+
+**Root cause:** cert-manager classifies a transient ACME API network error
+(EOF, TCP timeout, TLS handshake failure) as a terminal `errored` state on the
+`Challenge`. Once the `Challenge` is errored, the owning `Order` never completes,
+and the owning `CertificateRequest` stays `Ready: False`. The trigger controller
+does not start a fresh issuance while one is already in flight, and it does not
+retry an errored `Challenge` — it only retries on self-check failures (DNS / HTTP
+propagation). The result: an indefinitely-stuck renewal that the controller will
+never auto-resolve.
+
+This is a known cert-manager bug — see
+[cert-manager/cert-manager#8747](https://github.com/cert-manager/cert-manager/issues/8747)
+("ACME challenges can get permanently stuck after a network timeout"). The fix
+in upstream is to not set `Errored` for transient network errors — the workqueue
+should instead let backoff retry. The fix is not in cert-manager v1.20.2.
+
+There is **no controller flag, `ClusterIssuer` field, or `Certificate` field**
+to make cert-manager auto-retry an errored `Challenge`. The behaviour is
+hard-coded in the sync controller.
+
+**Fix — clear the stuck resources so cert-manager creates fresh ones:**
+
+Delete resources in dependency order (Challenge first, then Order, then
+CertificateRequest). The trigger controller will detect the certificate still
+needs issuance and create a fresh `CertificateRequest` → `Order` → `Challenge`
+chain within seconds.
+
+```bash
+# Identify the stuck names first
+kubectl get certificaterequest -n <ns> \
+  -l cert-manager.io/certificate-name=<cert-name>
+kubectl get order -n <ns> \
+  -l cert-manager.io/certificate-name=<cert-name>
+kubectl get challenge -n <ns>
+
+# Delete bottom-up
+kubectl delete challenge <challenge-name> -n <ns>
+kubectl delete order <order-name> -n <ns>
+kubectl delete certificaterequest <cr-name> -n <ns>
+
+# Watch fresh issuance progress
+kubectl get certificate -n <ns> -w
+kubectl logs -n cert-manager deployment/cert-manager --tail=f \
+  | grep -i <cert-name>
+```
+
+Verify the new cert is issued by re-running the `openssl x509 -dates` check
+from step 2 — `NotAfter` should now be ~90 days in the future.
+
+**Why the `SECRET` Age column is misleading:** `kubectl get certificates` shows
+the age of the `Certificate` *resource*, not the age of the `Secret` it points
+at. The Secret can be expired while the Certificate resource keeps its creation
+date. Always check `NotAfter` on the actual secret.
+
+**Prevention:**
+
+- Watch [cert-manager#8747](https://github.com/cert-manager/cert-manager/issues/8747)
+  and upgrade cert-manager when the fix ships (likely v1.21 or v1.22). After the
+  fix, transient EOF / timeout errors flow through the workqueue backoff instead
+  of writing a terminal state.
+- Consider adding a Prometheus alert on
+  `certmanager_certificate_ready_status{reason!="Ready"}` lasting > 1 hour, or
+  on `certmanager_certificate_expiration_timestamp_seconds - time() < 0` — both
+  catch this class of stuck renewal faster than waiting for users to report
+  broken services.
+- Alternatively, a CronJob that deletes `Order` resources in `pending` state
+  older than N hours (e.g. 2h) lets cert-manager re-create them automatically,
+  without needing an upstream fix.
+
+---
+
+## Cert-manager — Certificate Renewal Stuck After ACME API EOF Error (2026-07-18)
+\nRelated: https://github.com/Taegost/homelab-k8s/issues/64
+
+### Issue Description
+
+The `wildcard-home-diceninjagaming-com` certificate in the `traefik` namespace expired on 2026-07-18 at 18:34:15 UTC. The certificate had been stuck in a failed renewal state for 30 days without automatically retrying.
+
+**Symptoms observed:**
+- Certificate showed `READY: True` in kubectl output, but the actual TLS secret contained an expired certificate
+- The `Order` resource was stuck in `pending` state for 30 days
+- A `Challenge` resource was in `errored` state with no recent retry attempts
+- The cert-manager controller logs showed a single ACME API EOF error from June 18, 2026, after which no further renewal attempts occurred
+
+**Root cause investigation revealed:**
+1. On 2026-06-18 at 18:35:51 UTC, cert-manager encountered a network EOF error when calling the Let's Encrypt ACME API endpoint
+2. The error was logged as: `error accepting challenge: Post "https://acme-v02.api.letsencrypt.org/acme/chall/.../SOT87w": EOF`
+3. Despite the `Order` having a 30-day age and the certificate being expired, cert-manager did not automatically retry
+4. Investigation of cert-manager's behavior showed this is a known issue (cert-manager/cert-manager#8747) where transient network errors are incorrectly marked as terminal failures instead of being retried with exponential backoff
+
+### Troubleshooting Steps
+
+**Diagnostic commands used:**
+
+```bash
+# Check certificate status and expiry
+kubectl get certificates -A
+kubectl describe certificate wildcard-home-diceninjagaming-com -n traefik
+kubectl get secret wildcard-home-diceninjagaming-com-tls -n traefik -o jsonpath='{.data.tls\.crt}' | base64 -d | openssl x509 -noout -dates
+
+# Examine the renewal chain (Certificate → CertificateRequest → Order → Challenge)
+kubectl get certificaterequests -n traefik -l cert-manager.io/certificate-name=wildcard-home-diceninjagaming-com
+kubectl get orders -n traefik -l cert-manager.io/certificate-name=wildcard-home-diceninjagaming-com
+kubectl describe order wildcard-home-diceninjagaming-com-1-1110143415 -n traefik
+kubectl get challenges -n traefik
+kubectl describe challenge wildcard-home-diceninjagaming-com-1-1110143415-2203136966 -n traefik
+
+# Review cert-manager controller logs for the error
+kubectl logs -n cert-manager deployment/cert-manager --since=720h | grep -E "home.diceninjagaming|EOF|error accepting"
+
+# Verify other certificates were renewing successfully (to isolate the issue)
+kubectl get certificates -A | grep -v True
+```
+
+**Key findings:**
+- The Certificate resource's `AGE` column (83 days) is misleading—it shows the resource creation date, not when the secret was last renewed
+- The actual TLS secret (`wildcard-home-diceninjagaming-com-tls`) had expired
+- The `Order` resource was 30 days old and stuck in `pending` state
+- The `Challenge` was in `errored` state with a terminal error
+- No retry attempts had occurred since the initial failure on June 18
+
+### Fix Applied
+
+Cleared the stuck Kubernetes resources to force cert-manager to retry:
+
+```bash
+# Delete the errored challenge, pending order, and failed certificate request
+kubectl delete challenge wildcard-home-diceninjagaming-com-1-1110143415-2203136966 -n traefik
+kubectl delete order wildcard-home-diceninjagaming-com-1-1110143415 -n traefik
+kubectl delete certificaterequest wildcard-home-diceninjagaming-com-1 -n traefik
+```
+
+**Result:** Within seconds, cert-manager detected the expired certificate and created a fresh `CertificateRequest` → `Order` → `Challenge` chain. The new certificate was issued successfully and is now valid until October 16, 2026.
+
+### Next Steps and Prevention
+
+**Immediate:**
+- [x] Expired certificate renewed successfully
+- [x] This troubleshooting entry added
+
+**Future actions to prevent recurrence:**
+
+1. **Upgrade cert-manager when the fix ships** (likely v1.21 or v1.22) — see [cert-manager issue #8747](https://github.com/cert-manager/cert-manager/issues/8747). The fix ensures transient network errors retry automatically instead of being marked terminal.
+
+2. **Add monitoring/alerting** to detect stuck certificates early:
+   - Alert on `certmanager_certificate_ready_status{reason!="Ready"}` lasting > 1 hour
+   - Alert on `certmanager_certificate_expiration_timestamp_seconds - time() < 0` (expired certs)
+   - Alert on `Order` resources in `pending` state for > 2 hours
+
+3. **Consider automated cleanup** — a CronJob that deletes stuck `Order` resources older than N hours would let cert-manager retry automatically without manual intervention.
+
+4. **Add to regular health checks** — include certificate expiry monitoring in routine cluster health verification.
+
+### Lessons Learned
+
+- cert-manager's retry logic has a bug where certain transient network errors are treated as terminal failures
+- There is no configuration knob to change this behavior — it requires an upstream code fix
+- The `READY` column in `kubectl get certificates` can be misleading if the underlying secret is expired
+- Always verify actual certificate validity with `openssl x509 -dates`, not just the resource status
+- Working the resource chain (Certificate → CertificateRequest → Order → Challenge) is the fastest path to diagnosis
