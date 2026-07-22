@@ -42,7 +42,7 @@ persistence:
   defaultFsType: ext4
   # Set to node count for full HA — must stay in sync with
   # defaultSettings.defaultReplicaCount above.
-  defaultClassReplicaCount: 3
+  defaultClassReplicaCount: 2
 
 preUpgradeChecker:
   # Disabled because the pre-upgrade checker hook runs before the Longhorn
