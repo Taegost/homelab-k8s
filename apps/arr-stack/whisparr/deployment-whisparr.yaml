@@ -28,7 +28,7 @@ metadata:
   labels:
     app: whisparr
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
