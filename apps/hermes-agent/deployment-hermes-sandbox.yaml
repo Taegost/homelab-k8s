@@ -60,6 +60,9 @@ spec:
                 - SYS_CHROOT
                 - CHOWN
                 - AUDIT_WRITE
+          env:
+            - name: TZ
+              value: "America/New_York"
           volumeMounts:
             # Three mounts from the same PVC — librechat pattern.
             # Each path gets its own persistent storage backed by

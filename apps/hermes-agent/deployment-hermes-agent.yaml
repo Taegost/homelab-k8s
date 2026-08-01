@@ -84,6 +84,8 @@ spec:
             - name: webhook
               containerPort: 8644
           env:
+            - name: TZ
+              value: "America/New_York"
             # Maximum output tokens. Not specifying this means the model decides
             # on its own max length, which could be anything.
             - name: HERMES_MAX_TOKENS
