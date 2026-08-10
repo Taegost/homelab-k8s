@@ -68,4 +68,5 @@ kubectl exec -n hermes-agent deployment/hermes-agent -- bash -c '
 - No changes needed to the ConfigMap or deployment manifests
 
 ### Related
+- Hermes 0.19.0 release notes (if available)
 - SSH backend documentation: https://hermes-agent.nousresearch.com/docs/user-guide/configuration/
