@@ -149,6 +149,8 @@ data:
 
 ConfigMaps use sync-wave -1 so they exist before the Deployments start at wave 0. Secrets (SSH private keys) are mounted via `subPath` so individual keys land at specific paths without overwriting the data volume.
 
+**Note:** This is the Kubernetes-level SSH client config (ConfigMap). There is also an application-level config file (`/opt/data/config.yaml` on the PVC) that tells the Hermes application how to connect to the sandbox. The application config uses different parameter names (e.g., `ssh_host`, `ssh_user` in Hermes 0.19.0+) and must be updated separately when upgrading Hermes versions. See `docs/solutions/runtime-errors/hermes-agent-ssh-config-param-rename.md` for details on the 0.19.0 parameter rename.
+
 ### 4. Sandbox network isolation
 
 The sandbox must reach the internet for package installation but must not access cluster-internal services or the local network.
