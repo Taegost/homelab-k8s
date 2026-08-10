@@ -69,6 +69,10 @@ spec:
               readOnly: true  # defense-in-depth: never write back to the Secret
             - name: ssh-keys-workdir
               mountPath: /ssh-keys
+            - name: known-hosts
+              mountPath: /ssh-keys/known_hosts
+              subPath: known_hosts
+              readOnly: true
       containers:
         - name: hermes-agent
           image: taegost/hermes-agent:v1
