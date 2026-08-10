@@ -189,10 +189,10 @@ spec:
               mountPath: /opt/data/.ssh/known_hosts
               subPath: known_hosts
               readOnly: true
-            - name: ssh-config
-              mountPath: /opt/data/.ssh/config
-              subPath: config
-              readOnly: true
+            # - name: ssh-config
+            #   mountPath: /opt/data/.ssh/config
+            #   subPath: config
+            #   readOnly: true
           startupProbe:
             httpGet:
               path: /health
@@ -238,6 +238,6 @@ spec:
         - name: known-hosts
           configMap:
             name: hermes-agent-known-hosts
-        - name: ssh-config
-          configMap:
-            name: hermes-agent-ssh-config
+        # - name: ssh-config
+        #   configMap:
+        #     name: hermes-agent-ssh-config
