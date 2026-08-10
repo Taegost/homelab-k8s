@@ -47,7 +47,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch   # skip recursive chown if root dir ownership already matches
       containers:
         - name: radarr
-          image: lscr.io/linuxserver/radarr:6.1.1
+          image: lscr.io/linuxserver/radarr:6.3.0
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

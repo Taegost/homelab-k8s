@@ -62,7 +62,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: neutarr
-          image: iampuid0/neutarr:1.6.1
+          image: iampuid0/neutarr:1.11.1
           securityContext:
             # Prevent the container from gaining additional privileges beyond
             # what it starts with. Defense in depth against privilege escalation.
