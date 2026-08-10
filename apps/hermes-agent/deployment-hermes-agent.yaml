@@ -55,7 +55,6 @@ spec:
               # CAP_CHOWN + CAP_FOWNER required — BusyBox install does
               # lchown before chmod (see coreutils/install.c).
               install -m 0400 -o 10000 -g 10000 /ssh-secret/id_ed25519 /ssh-keys/id_ed25519
-              chown 10000:10000 /ssh-keys/known_hosts
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -69,9 +68,6 @@ spec:
               readOnly: true  # defense-in-depth: never write back to the Secret
             - name: ssh-keys-workdir
               mountPath: /ssh-keys
-            - name: known-hosts
-              mountPath: /ssh-keys/known_hosts
-              subPath: known_hosts
       containers:
         - name: hermes-agent
           image: taegost/hermes-agent:v1
