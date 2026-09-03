@@ -34,7 +34,7 @@ spec:
       containers:
         - name: searxng
           # Version uses a <date>-<sha> syntax
-          image: docker.io/searxng/searxng:2026.5.10-df1f24fb7
+          image: docker.io/searxng/searxng:2026.9.3-8f452ee89
           ports:
             - containerPort: 8080
           env:
