@@ -19,18 +19,17 @@ spec:
         - name: wordpress-dng
           port: 80
       middlewares:
-        # The whitelist is temporary until the site is set up, then it will be changed to allow public access
-        - name: default-whitelist
+        - name: default-headers
           namespace: traefik
-    # - match: Host(`diceninjagaming.com`) && (PathPrefix(`/wp-admin`) || Path(`/wp-login.php`))
-    #   kind: Rule
-    #   services:
-    #     - name: wordpress-dng
-    #       port: 80
-    #   middlewares:
-    #     - name: default-headers
-    #       namespace: traefik
-    #     - name: wordpress-dng-authentik
-    #       namespace: wordpress-dng
+    - match: Host(`diceninjagaming.com`) && (PathPrefix(`/wp-admin`) || Path(`/wp-login.php`))
+      kind: Rule
+      services:
+        - name: wordpress-dng
+          port: 80
+      middlewares:
+        - name: default-headers
+          namespace: traefik
+        - name: wordpress-dng-authentik
+          namespace: wordpress-dng
   tls:
     secretName: diceninjagaming-com-tls
