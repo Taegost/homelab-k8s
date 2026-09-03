@@ -48,7 +48,12 @@ data:
 
     [search]
     searxng_url = "https://searxng.diceninjagaming.com"
-    query_expand = true
+    # Query expansion fires query_expand_variants additional SearXNG queries per
+    # search (3x volume). Disabled 2026-09-03: upstream engines (google, ddg)
+    # rate-limited/CAPTCHA'd our egress IP and every extra query accelerates
+    # re-flagging. Re-enable only if engine recovery is confirmed and volume
+    # stays low — see GitHub issue #66.
+    query_expand = false
     query_expand_variants = 3
     answer_calibrated = true
 
