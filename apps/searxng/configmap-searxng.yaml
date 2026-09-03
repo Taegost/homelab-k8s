@@ -8,8 +8,25 @@ metadata:
 data:
   settings.yml: |
     # SearXNG Configuration
-    # Uses the default settings as the base
-    use_default_settings: true
+    # Uses the default settings as the base. Mapping form (not scalar `true`)
+    # so engines can be pruned — see the remove list below.
+    use_default_settings:
+      engines:
+        remove:
+          # Upstream engines blocking our egress IP (home WAN reputation).
+          # Diagnosed 2026-09-03: duckduckgo serves CAPTCHA
+          # (SearxEngineCaptchaException, both replicas), karmasearch returns
+          # HTTP 403 (SearxEngineAccessDeniedException). startpage hard-blocks
+          # bot traffic with no recovery path. google is ALSO blocked but stays
+          # enabled by operator decision — while blocked, SearXNG auto-suspends
+          # it per-pod and it contributes nothing silently. Investigation
+          # tracked in GitHub issue (see docs/solutions entry if added later).
+          # Note: a ConfigMap change requires a manual
+          # `kubectl rollout restart deployment -n searxng searxng` — the
+          # settings.yml subPath mount never hot-reloads, by design in this repo.
+          - duckduckgo
+          - karmasearch
+          - startpage
     general:
       debug: false
       enable_metrics: true
