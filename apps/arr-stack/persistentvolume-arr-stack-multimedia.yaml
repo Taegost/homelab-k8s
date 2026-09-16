@@ -61,6 +61,8 @@ spec:
     # library with mixed-provenance files.
     - forceuid
     - forcegid
+    - nobrl          # Disables byte-range locking requests to the server
+    - cache=none     # Prevents the client from serving stale file attribute data
     - dir_mode=0777
     - file_mode=0777
   csi:
