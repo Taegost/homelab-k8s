@@ -345,6 +345,10 @@ startupProbe:
 
 LightPanda and fastcrw are lightweight and don't need startupProbes.
 
+The same pattern scales to much larger budgets: Bazarr's SMB-I/O-bound Python
+startup scan uses 10s × 180 = 30 min — see
+`docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md`.
+
 ### readinessProbe on All Deployments
 
 Every deployment includes a readinessProbe to prevent traffic routing to

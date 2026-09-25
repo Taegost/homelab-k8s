@@ -128,3 +128,4 @@ Without `fsGroup`, the kubelet does not touch file permissions on the Longhorn v
 - `docs/solutions/base-images-rabbitmq.md` — capability requirements reference
 - `docs/troubleshooting/troubleshooting-plane.md` — detailed Plane troubleshooting runbook
 - `apps/plane/deployment-rabbitmq.yaml` — final working manifest
+- `docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md` — contrast case: when startup slowness is inherent (not a fixable error like the cookie permissions here), a large startupProbe budget IS the fix. Raising thresholds didn't help here because the probe failure had a config root cause

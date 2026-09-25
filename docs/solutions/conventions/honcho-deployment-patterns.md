@@ -347,16 +347,20 @@ The `probe-timeout-check.sh` script enforces minimum timeouts:
 - **Flapping kills pods.** A liveness probe that times out counts as failure.
   Three consecutive failures (the default `failureThreshold`) triggers a
   container restart. Spurious restarts are noisy and mask real problems.
-- **HTTP probes are different.** HTTP probes use a TCP connection with a
-  built-in timeout mechanism. Exec probes rely on `timeoutSeconds` alone.
-  Do not conflate the two.
+- **HTTP probes honor `timeoutSeconds` too.** kubelet applies it to httpGet
+  probes as the HTTP request timeout, and the same 1s default applies —
+  `Client.Timeout exceeded while awaiting headers` at 1s crash-looped a
+  healthy-but-slow Bazarr for weeks. Set an explicit `timeoutSeconds` on HTTP
+  probes whenever the app may answer slowly; see
+  `docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md`.
 
 ### When to Apply
 
 - Any exec probe that runs a CLI command (valkey-cli, pg_isready, mysqladmin,
   mongosh, rabbitmqctl, celery inspect, etc.)
 - Never assume the default 1s timeout is sufficient for exec probes
-- HTTP and TCP probes have different timeout mechanisms and do not need this
+- HTTP probes inherit the same 1s default — set explicit timeouts there too
+  when the app can be slow to answer (mid-startup-scan, under GIL/CPU load)
 
 ---
 
@@ -422,5 +426,6 @@ spec:
 - `apps/honcho/deployment-honcho-deriver.yaml` -- exec probe with explicit timeout
 - `apps/honcho/sealedsecret-honcho.yaml` -- dual sync-wave annotation example
 - `.claude/skills/homelab-validate/scripts/probe-timeout-check.sh` -- exec probe timeout validation
+- `docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md` -- the httpGet case: default 1s timeout killed a healthy-but-slow app
 - `docs/solutions/conventions/sync-wave-ordering.md` -- sync wave reference
 - `docs/solutions/base-images-redis-valkey.md` -- Redis/Valkey security context

@@ -45,7 +45,7 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 | 4 | IngressRoute files | IngressRoute Consistency | Wrong namespace, missing middleware, cert issues |
 | 5 | PVC files | Longhorn fsGroup | Missing fsGroup, fsGroup in wrong location |
 | 8 | NetworkPolicy files | NetworkPolicy Consistency | Missing namespaceSelector, deny-all policies |
-| 9 | Deployment files | Probe Timeout | Default/too-short timeoutSeconds on exec probes |
+| 9 | Deployment files | Probe Timeout | Default/too-short timeoutSeconds on exec probes (exec probes only — httpGet/tcpSocket probes are not covered) |
 | 10 | Deployment files | Capability Check | Missing capabilities for drop-ALL containers |
 | 11 | Deployment files | Env Injection | Containers with no envFrom/env (WARN only) |
 
@@ -80,6 +80,7 @@ ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
 
 - **Sync wave race** (MongoDB): Missing wave annotations caused operator to generate random credentials
 - **Probe timeout kills** (RabbitMQ): Default 1s timeout killed healthy pods every ~180s
+- **httpGet gap** (Bazarr): an httpGet probe with the default 1s timeout crash-looped a healthy pod for weeks — check #9 never saw it because it pre-filters on `exec:` probes. See `docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md`
 - **Capability failures** (nginx): Missing SETGID/SETUID crashed workers on first request
 - **Plaintext secrets**: A single `secret-*.yaml` committed exposes credentials in git history
 
@@ -114,3 +115,4 @@ FAIL: deployment-rabbitmq — exec probe timeoutSeconds not set (default 1s too 
 - `.githooks/pre-commit` — the hook script
 - `.claude/skills/homelab-validate/SKILL.md` — skill definition
 - `docs/solutions/best-practices/security-context-audit-pattern.md` — capability audit workflow
+- `docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md` — incident that exposed check #9's exec-only coverage
