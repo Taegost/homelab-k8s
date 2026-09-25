@@ -506,6 +506,34 @@ Plane CE project management platform initial deployment troubleshooting (June 20
 
 ---
 
+## arr-stack
+
+### Bazarr crash-loops — container dies at exactly ~120s, never reaches Ready
+
+**Symptoms:** Bazarr pod crash-loops (~320 restarts/day), liveness probe
+fails with `context deadline exceeded (Client.Timeout exceeded while
+awaiting headers)` on `/api/system/ping` once the port is bound. Container
+exit code 0 / reason `Completed` (graceful s6 SIGTERM handling masks the
+kubelet kill). CPU pegged at the cgroup limit during startup; memory normal.
+
+**Root cause:** Bazarr's startup library scan runs ~106 Python worker
+threads over the multimedia SMB mount, which commit 8cc4d51 configured
+with `cache=none` (every directory walk = network round trip). The scan
+starves the Python GIL, so the HTTP event loop cannot answer the probe
+within the default 1s timeout. Liveness kills the container at
+`initialDelay 30 + 3 × 30s = ~90s` — always mid-scan; the restart resets
+the scan to zero, so it never finishes. Extra CPU quota doesn't help: only
+one Python thread runs bytecode at a time regardless of cores.
+
+**Fix:** `startupProbe` with a 30-min budget (10s × 180) + explicit
+`timeoutSeconds: 3` on readiness/liveness. While the startupProbe hasn't
+passed, kubelet runs no liveness/readiness probes at all. Full write-up:
+[`docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md`](solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md).
+Same risk class: Sonarr/Radarr/Whisparr share the mount (they survive only
+because .NET answers probes from its thread pool).
+
+---
+
 ## Application Configuration
 
 ### Wrong env var names — app connects with defaults, not configured values
