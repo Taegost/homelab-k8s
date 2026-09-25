@@ -79,17 +79,39 @@ spec:
               mountPath: /multimedia
             - name: backups
               mountPath: /backups
+          # Probe design: Bazarr's startup library scan (subtitle sync over the
+          # multimedia SMB mount, ~106 worker threads) starves the Python GIL so
+          # the HTTP event loop cannot answer requests mid-scan — sometimes for
+          # 10+ minutes with cache=none on the mount. Without a startupProbe the
+          # liveness probe killed the container at exactly 120s (30s delay +
+          # 3 × 30s failures at 1s timeout), restarting the scan from zero:
+          # infinite crash loop. startupProbe suspends liveness/readiness until
+          # it passes, giving the scan 30 min (10s × 180) to finish. After the
+          # first success, normal probes take over and the app serves normally.
+          startupProbe:
+            httpGet:
+              path: /api/system/ping
+              port: 6767
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 180
           readinessProbe:
             httpGet:
               path: /api/system/ping
               port: 6767
+            timeoutSeconds: 3
             initialDelaySeconds: 15
             periodSeconds: 15
             failureThreshold: 3
+          # timeoutSeconds 3 (not the 1s default): under GIL contention the
+          # event loop can take >1s to answer even when healthy — 1s produced
+          # false "awaiting headers" failures.
           livenessProbe:
             httpGet:
               path: /api/system/ping
               port: 6767
+            timeoutSeconds: 3
             initialDelaySeconds: 30
             periodSeconds: 30
             failureThreshold: 3
