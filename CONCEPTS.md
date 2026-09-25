@@ -27,6 +27,9 @@ A Kubernetes pod securityContext field that causes the kubelet to recursively ch
 ### multipathd
 A Linux daemon that claims block devices for multi-path I/O in enterprise SAN environments. Enabled by default on Ubuntu even on single-path hardware. Aggressively claims Longhorn's iSCSI-backed volumes via device-mapper, preventing the CSI driver from mounting them. Must be disabled on all cluster nodes before deploying Longhorn.
 
+### Multimedia PV
+The shared SMB-backed media volume that every *arr app mounts at `/multimedia`, backed by a static PV/PVC pair pointing at the Unraid Multimedia share root. Unlike per-app Longhorn config volumes, one multimedia volume serves the whole arr-stack simultaneously, so its CIFS mount options act globally across apps — `cache=none` makes every directory walk a network round trip and multiplies startup scan cost for every pod mounting it.
+
 ## TLS & Certificates
 
 ### ClusterIssuer
@@ -80,6 +83,7 @@ A container image that inherits from an upstream base image and adds application
 - **CNPG Database** CRDs (wave -1) must exist before application Deployments (wave 0) connect
 - **Longhorn** volumes require **fsGroup** for non-root containers, but **fsGroup** is incompatible with **RabbitMQ**'s Erlang cookie (use init container instead)
 - **multipathd** must be disabled before **Longhorn** can attach iSCSI volumes
+- **Multimedia PV** mount options are global to the whole *arr stack — `cache=none` multiplied startup scan cost for every mounting app, crash-looping the Python app (Bazarr) under its liveness probe budget while the .NET apps merely burned extra startup CPU
 
 ## Flagged Ambiguities
 
