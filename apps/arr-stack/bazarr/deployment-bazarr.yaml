@@ -7,13 +7,13 @@
 # Volumes:
 #   /config     — Longhorn PVC (bazarr-config): app configuration, subtitle
 #                 provider credentials, sync settings, SQLite database.
-#   /multimedia — Shared NFS PVC (multimedia): all four arr-stack media apps
+#   /multimedia — Shared SMB PVC (multimedia): all four arr-stack media apps
 #                 mount this single RWX PVC simultaneously. It binds to the
 #                 static PV arr-stack-multimedia which points directly at the
 #                 Multimedia share root — Bazarr needs this to write subtitle
 #                 files alongside media managed by Sonarr and Radarr.
-#   /backups    — NFS PVC (bazarr-backups): dynamically provisioned on the
-#                 Unraid Backups share via nfs-backups StorageClass. Data lives
+#   /backups    — SMB PVC (bazarr-backups): dynamically provisioned on the
+#                 Unraid Backups share via smb-backups StorageClass. Data lives
 #                 at /mnt/user/Backups/arr-stack/bazarr-backups/ on Unraid.
 #
 # Image versioning: pinned to a specific tag for reproducible deployments.

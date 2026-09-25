@@ -62,7 +62,13 @@ spec:
     - forceuid
     - forcegid
     - nobrl          # Disables byte-range locking requests to the server
-    - cache=none     # Prevents the client from serving stale file attribute data
+    # cache=none disables client-side data caching: every read and write goes
+    # straight to the server (attribute caching is governed separately by
+    # actimeo). Cost: every directory walk becomes a network round trip, which
+    # multiplies startup scan cost for every mounting app — this is what
+    # stretched Bazarr's startup scan past its liveness budget. See
+    # docs/solutions/performance-issues/bazarr-crash-loop-startup-probe-gil-smb.md
+    - cache=none
     - dir_mode=0777
     - file_mode=0777
   csi:
