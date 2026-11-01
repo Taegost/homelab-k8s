@@ -24,11 +24,17 @@ data:
         # so gating happens here, client-side: every var on a SendEnv
         # line is readable by code running in the sandbox — keep this
         # list explicit. Add new vars on their own SendEnv line.
+
+        # Misc
         SendEnv SEARXNG_URL
         SendEnv FIRECRAWL_API_URL
         SendEnv FIRECRAWL_API_KEY
-        SendEnv CANARY_SECRET
         SendEnv GITHUB_TOKEN
+
+        # Canary secret
+        SendEnv CANARY_SECRET
+
+        # Claude Code
         SendEnv ANTHROPIC_BASE_URL
         SendEnv ANTHROPIC_AUTH_TOKEN
         SendEnv CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY
