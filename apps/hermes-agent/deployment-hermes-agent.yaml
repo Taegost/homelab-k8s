@@ -38,15 +38,15 @@ spec:
         # and s6-overlay handles user switching. Setting fsGroup would
         # add group-read permissions to ALL mounted volumes, including
         # the SSH client key — OpenSSH rejects group-readable private
-        # keys. It also caused /run permission issues that required an
-        # emptyDir workaround.
+        # keys.
       # initContainer: copies the SSH key from the Secret mount to an
-      # emptyDir with correct ownership. Cannot use fsGroup because
-      # OpenSSH rejects group-readable keys, and s6-overlay breaks with
-      # fsGroup on /run. See deployment-level securityContext comment.
+      # emptyDir with correct ownership (uid 10000 = hermes, which the
+      # gateway still runs as after s6 drops privileges). Cannot use
+      # fsGroup because OpenSSH rejects group-readable keys. See
+      # pod-level securityContext comment.
       initContainers:
         - name: ssh-key-init
-          image: busybox:1.37.0  # pinned — do not use :latest
+          image: busybox:1.37.0  # pinned — never use a floating tag
           command:
             - sh
             - -c
@@ -70,8 +70,8 @@ spec:
               mountPath: /ssh-keys
       containers:
         - name: hermes-agent
-          image: taegost/hermes-agent:v1
-          # Always pull on restart — the v1 tag is mutable (updated in-place
+          image: taegost/hermes-agent:v2
+          # Always pull on restart — the v2 tag is mutable (updated in-place
           # when the derived image is rebuilt). Without this, kubelet caches the
           # image and never picks up newer builds with the same tag.
           imagePullPolicy: Always
@@ -93,11 +93,6 @@ spec:
             # Path that Hermes puts custom scripts and wrappers
             - name: PYTHONPATH
               value: "/opt/data/scripts"
-            # s6-overlay: allow world-writable /run directory in Kubernetes.
-            # Required when running as non-root (UID 10000) because s6-overlay
-            # needs a writable /run directory but can't chown it.
-            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
-              value: "1"
             - name: HERMES_DASHBOARD
               value: "1"
             - name: HERMES_DASHBOARD_HOST
@@ -165,20 +160,28 @@ spec:
                   name: hermes-honcho-api-key
                   key: honcho-api-key
           securityContext:
-            # The hermes-agent image is designed to run as UID 10000 (hermes).
-            # s6-overlay handles initialization and privilege dropping.
-            # S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES=1 allows
-            # s6-overlay to boot with a world-writable /run directory.
-            runAsUser: 10000
-            runAsGroup: 10000
-            runAsNonRoot: true
+            # v2 image (Hermes ≥ v0.22.x): the container starts as root so
+            # s6-overlay runs as PID 1 — it chowns/repairs /opt/data
+            # (fix-attrs) and then drops the supervised services (gateway,
+            # dashboard) to the hermes user (uid 10000) themselves. The
+            # capability set below is the empirically verified minimum for
+            # that root bootstrap on v2.0.0 (cap-drop ALL + these adds +
+            # no-new-privileges boots and runs all services).
+            runAsUser: 0
+            runAsGroup: 0
+            runAsNonRoot: false
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
+              add:
+                - SETUID        # s6/services drop to uid 10000
+                - SETGID        # ...and gid 10000
+                - CHOWN         # fix-attrs chowns /opt/data to uid 10000
+                - FOWNER        # repairs permissions on existing files
+                - DAC_OVERRIDE  # bootstrap reads/writes uid-10000 files during repair
+                - KILL          # supervisor stops/restarts services
           volumeMounts:
-            - name: run
-              mountPath: /run
             - name: data
               mountPath: /opt/data
             - name: ssh-keys-workdir
@@ -193,22 +196,29 @@ spec:
               mountPath: /opt/data/.ssh/config
               subPath: config
               readOnly: true
+          # Probes target the gateway API server's /health endpoint (8642) —
+          # verified returning 200 on v2.0.0. It is independent of the
+          # dashboard's auth state, so an Authentik outage (or a dashboard
+          # without a registered auth provider) degrades the dashboard to 503
+          # without restarting an otherwise healthy gateway. The dashboard
+          # (9119) also serves /health but reports 503 whenever its auth
+          # backend is unhealthy.
           startupProbe:
             httpGet:
               path: /health
-              port: 9119
+              port: 8642
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
-              port: 9119
+              port: 8642
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 9119
+              port: 8642
             periodSeconds: 10
           resources:
             requests:
@@ -218,8 +228,6 @@ spec:
               cpu: 2000m
               memory: 4Gi
       volumes:
-        - name: run
-          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: hermes-agent-data
