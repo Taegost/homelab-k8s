@@ -26,9 +26,10 @@ data:
     ChallengeResponseAuthentication no
     UsePAM yes
     StrictModes no
-    # Accept env vars sent by the agent's ssh client (SendEnv in
-    # configmap-hermes-agent-ssh-config.yaml). Required for Hermes
-    # to pass its .env through to sandbox sessions.
+    # Accept env vars sent by the agent's ssh client. The client sends
+    # an explicit whitelist (SendEnv lines in
+    # configmap-hermes-agent-ssh-config.yaml) — the server accepts
+    # anything, so gating happens client-side.
     AcceptEnv *
     HostKey /etc/ssh/ssh_host_ed25519_key
     AuthorizedKeysFile /home/hermes/.ssh/authorized_keys

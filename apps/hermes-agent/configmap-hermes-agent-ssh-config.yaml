@@ -19,7 +19,21 @@ data:
         UserKnownHostsFile /opt/data/.ssh/known_hosts
         StrictHostKeyChecking yes
         Port 22
-        # Send env vars to the sandbox. Without this the sandbox's
-        # AcceptEnv (hermes-sandbox-sshd-config ConfigMap) never sees
-        # anything — both halves are required for .env passthrough.
-        SendEnv *
+        # Whitelist of env vars sent to the sandbox. The sandbox's sshd
+        # accepts anything (AcceptEnv * in hermes-sandbox-sshd-config),
+        # so gating happens here, client-side: every var on a SendEnv
+        # line is readable by code running in the sandbox — keep this
+        # list explicit. Add new vars on their own SendEnv line.
+        SendEnv SEARXNG_URL
+        SendEnv FIRECRAWL_API_URL
+        SendEnv FIRECRAWL_API_KEY
+        SendEnv CANARY_SECRET
+        SendEnv GITHUB_TOKEN
+        SendEnv ANTHROPIC_BASE_URL
+        SendEnv ANTHROPIC_AUTH_TOKEN
+        SendEnv CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY
+        SendEnv ANTHROPIC_MODEL
+        SendEnv ANTHROPIC_DEFAULT_OPUS_MODEL
+        SendEnv ANTHROPIC_DEFAULT_SONNET_MODEL
+        SendEnv ANTHROPIC_DEFAULT_HAIKU_MODEL
+        SendEnv CLAUDE_CODE_SUBAGENT_MODEL
