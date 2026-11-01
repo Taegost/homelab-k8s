@@ -13,40 +13,74 @@ Self-improving AI agent by Nous Research with a built-in web dashboard, OpenAI-c
 
 ## Derived Docker Image
 
-The hermes-agent container uses a **derived Docker image** — the official Nous
-Research image with additional Python packages baked in. Nous Research documents
-this as the recommended approach for durable package installs:
-
-> "When a tool must be available immediately on every container start with no
-> re-install delay, build a new image that inherits from
-> `nousresearch/hermes-agent` and installs the tool in a layer."
->
-> — [Hermes Docs: Docker — Durable installs](https://hermes-agent.nousresearch.com/docs/user-guide/docker/#durable-installs--build-a-derived-image)
-
-The reason: the image treats `/opt/hermes` as an immutable install tree at
-runtime. Runtime lazy installs are disabled so supervised gateways and
-`docker exec` commands do not write dependency artifacts back into the read-only
-source tree.
+The hermes-agent container uses a **derived Docker image** — a thin wrapper
+built on the official Nous Research image. As of Hermes v0.22.x (image tag
+`v2`), upstream reworked the image around its package manager ("PM"): the
+container starts as **root with an s6-overlay v3 supervisor as PID 1**, the
+shipped venv at `/opt/hermes/.venv` is sealed (manual mutations are reverted
+by `hermes pm repair`), and third-party tools are no longer baked in — they
+install at runtime as plugins into the persistent data volume.
 
 **Custom image repo:** [github.com/Taegost/hermes-agent](https://github.com/Taegost/hermes-agent)
 
-**How it works:** The `Dockerfile` extends the official `nousresearch/hermes-agent`
-image with a `USER root` → `pip install` → `USER hermes` layer, installing
-additional packages like `honcho-ai` into the venv. The resulting image is
-pushed as a mutable tag (`v2026`) so the deployment manifest doesn't need
-updating on rebuilds.
+**What the wrapper adds** (and nothing else):
+
+- a `/usr/local/bin/uv` symlink to the PM-pinned uv binary — v0.22.x ships it
+  off-PATH at `/opt/hermes/tools/uv-*/uv`
+- the `claude` CLI via npm — `--prefix /usr/local` because npm 12 moved the
+  default global prefix off-PATH, and `--allow-scripts=@anthropic-ai/claude-code`
+  because npm 12 blocks postinstall scripts by default (Claude Code's fetches
+  its platform-native binary in postinstall)
+
+**Runtime model:** root + s6 is required. PID 1 runs as root to chown and
+repair `/opt/data` (fix-attrs) before starting services, which drop to the
+`hermes` user (uid 10000) themselves. The container securityContext grants
+only the capabilities that bootstrap needs — empirically verified against
+v2.0.0; see the manifest comments. `kubectl exec` into the container drops
+to uid 10000 via an exec shim.
+
+**Runtime plugins:** tools like Honcho are NOT in the image. Runtime
+lazy-installs are disabled in Docker images, so install once into the
+persistent volume (survives pod recreation and image updates — one-time per
+deployment):
+
+```bash
+kubectl exec -n hermes-agent deployment/hermes-agent -- hermes plugins install honcho
+```
+
+Requires `HONCHO_API_KEY` (already in the manifest). Run this after the
+first v2 deploy.
 
 **Image pull policy:** The deployment sets `imagePullPolicy: Always` because the
-`v2026` tag is mutable — it's updated in-place when the derived image is rebuilt.
+`v2` tag is mutable — it's updated in-place when the derived image is rebuilt.
 On every pod start, the kubelet checks the registry: if the tag points to a new
 digest (new build), it pulls the update; if unchanged, it uses the local cache.
 Temporary registry outages don't block startup — containerd falls back to the
 cached image.
 
 **Rollback:** The Docker repo also tags each build with an immutable version
-(e.g., `v2026.06.19`). If a broken build is pushed to `v2026`, switch the
+(e.g., `v2.0.0`). If a broken build is pushed to `v2`, switch the
 Deployment's `image` field to the last-known-good version tag and revert to
-`v2026` once the fix is pushed.
+`v2` once the fix is pushed.
+
+**Upgrade notes (v1 → v2):**
+
+- The container now starts as root with s6 — securityContext changed from
+  uid 10000 / non-root to root + a minimal capability set (empirically
+  verified against v2.0.0; see the manifest comments).
+- `S6_YES_I_WANT_A_WORLD_WRITABLE_RUN…` and the `/run` emptyDir are gone —
+  both were workarounds for running s6 as non-root.
+- Probes moved from 9119 (dashboard) to 8642 (gateway API server `/health`) —
+  verified returning 200 on v2.0.0, and independent of dashboard/auth health
+  so an Authentik outage no longer restarts the gateway.
+- Hermes auto-migrates `config.yaml` on the PVC on first boot, writing
+  timestamped backups next to it.
+- One-time post-deploy: `hermes plugins install honcho` (above).
+- **Post-upgrade check:** if OIDC login redirects loop or secure cookies are
+  rejected behind Traefik, the dashboard may need its `trusted_proxies` set
+  (Traefik's pod IP or a bounded pod-CIDR) in `config.yaml` under
+  `dashboard:` — v0.22.x validates `X-Forwarded-*` headers against that list
+  and does not trust another container's address by default.
 
 ## Deployment Phases
 
@@ -366,6 +400,19 @@ full diagnosis walkthrough.
 1. Verify the OIDC client ID in the SealedSecret matches Authentik
 2. Check the Authentik provider redirect URI: `https://hermes.taegost.com/auth/callback`
 3. Verify the Authentik provider has the correct scopes: `openid`, `profile`, `email`, `offline_access`
+
+### Dashboard returns 503 or won't come up
+
+The dashboard fails closed when no auth provider is registered (binding a
+non-loopback host without one is refused at startup), and it reports 503 on
+its `/health` while its provider is unhealthy — e.g. Authentik unreachable
+during OIDC discovery. This deployment registers the self-hosted OIDC
+provider via `HERMES_DASHBOARD_OIDC_ISSUER` + `HERMES_DASHBOARD_OIDC_CLIENT_ID`;
+verify the secret resolves and Authentik is up. Liveness/readiness probes
+target 8642 (gateway API server), so an Authentik outage degrades the
+dashboard without restarting the gateway. If OIDC login itself loops or
+secure cookies are rejected behind Traefik, see the `trusted_proxies` note
+in "Derived Docker Image → Upgrade notes".
 
 ### Dashboard tabs don't load / "Invalid API key" errors in logs
 
