@@ -75,6 +75,8 @@ Hermes 0.19.0 changed the SSH backend configuration schema to require the `ssh_`
 
 The prefix change likely happened to namespace SSH-specific parameters more clearly, avoiding collisions with other configuration sections that might also use generic names like `host` or `port`. Once the parameter names match what the code expects, the SSH backend initializes normally and connects to the sandbox pod using the same host, user, key, and port that were always configured.
 
+Verified still current in Hermes v0.22.5 (checked 2026-11-01 against the live pod's installed code): the SSH backend reads only the `ssh_`-prefixed names from the terminal config block — the backend's config mapping pulls `ssh_host`, `ssh_user`, `ssh_port`, and `ssh_key` directly, and the unprefixed names are not accepted as aliases — and the same `ValueError` is raised when `ssh_host`/`ssh_user` are absent. The fixed config shape above remains correct on v0.22.5.
+
 ## Prevention
 
 - **Check release notes before upgrading Hermes.** Breaking config schema changes are the kind of thing that should appear in release notes, but they are easy to miss. Read the changelog for any version bump, even minor ones.
@@ -85,4 +87,4 @@ The prefix change likely happened to namespace SSH-specific parameters more clea
 ## Related Issues
 
 - [Hermes Agent Troubleshooting — Terminal Tool SSH Configuration Error](../../troubleshooting/hermes.md) — Same issue documented in the troubleshooting guide with verification steps
-- [Deploying SSH-Sandboxed AI Agents to Kubernetes](../conventions/hermes-agent-ssh-sandbox-deployment-pattern.md) — Covers Kubernetes-level SSH sandbox deployment architecture (ConfigMaps, secrets, NetworkPolicy); does not cover application-level config.yaml parameter naming
+- [Deploying SSH-Sandboxed AI Agents to Kubernetes](../conventions/hermes-agent-ssh-sandbox-deployment-pattern.md) — Covers Kubernetes-level SSH sandbox deployment architecture (ConfigMaps, secrets, NetworkPolicy, and the SendEnv/AcceptEnv env-passthrough halves). Its config-layers note distinguishes that Kubernetes-level client config from this application-level config.yaml and defers to this doc for the 0.19.0 parameter rename
