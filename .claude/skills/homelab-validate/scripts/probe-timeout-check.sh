@@ -10,7 +10,7 @@ set -euo pipefail
 echo "=== Probe Timeout Check ==="
 
 # Fast pre-filter: only parse Deployments that contain exec probes
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null | xargs -r grep -l 'exec:' 2>/dev/null || true)
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null | xargs -r grep -l 'exec:' 2>/dev/null || true)
 
 if [ -z "$files" ]; then
   echo "SKIP: no Deployments with exec probes staged"

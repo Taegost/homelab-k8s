@@ -6,7 +6,7 @@ set -euo pipefail
 
 echo "=== Plaintext Secret Guard ==="
 
-staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)secret-[^/]*\.yaml$' 2>/dev/null || true)
+staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)secret-[^/]*\.yaml$' 2>/dev/null || true)
 
 if [ -n "$staged" ]; then
   echo "BLOCKED: plaintext secret(s) staged:"

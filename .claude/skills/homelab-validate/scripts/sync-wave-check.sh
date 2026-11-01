@@ -7,7 +7,7 @@ set -euo pipefail
 
 echo "=== Sync Wave Check ==="
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(yaml|yml)$' || true)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' || true)
 
 if [ -z "$STAGED" ]; then
   echo "PASS: no YAML files staged"
