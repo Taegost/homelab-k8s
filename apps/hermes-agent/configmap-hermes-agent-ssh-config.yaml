@@ -19,3 +19,7 @@ data:
         UserKnownHostsFile /opt/data/.ssh/known_hosts
         StrictHostKeyChecking yes
         Port 22
+        # Send env vars to the sandbox. Without this the sandbox's
+        # AcceptEnv (hermes-sandbox-sshd-config ConfigMap) never sees
+        # anything — both halves are required for .env passthrough.
+        SendEnv *
