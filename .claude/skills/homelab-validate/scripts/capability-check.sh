@@ -10,7 +10,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 KB_DIR="$REPO_ROOT/docs/solutions"
 
 # Fast pre-filter: only parse Deployments that contain security contexts
-files=$(git diff --cached --name-only | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null | xargs -r grep -l 'capabilities:' 2>/dev/null || true)
+files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null | xargs -r grep -l 'capabilities:' 2>/dev/null || true)
 
 if [ -z "$files" ]; then
   echo "SKIP: no Deployments with capability blocks staged"
