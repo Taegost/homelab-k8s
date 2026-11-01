@@ -12,7 +12,12 @@ metadata:
     argocd.argoproj.io/sync-wave: "-1"
 data:
   config: |
-    Host hermes-sandbox
+    # Both forms: the alias (manual ssh hermes-sandbox) and the FQDN that
+    # Hermes itself connects with (ssh_host in /opt/data/config.yaml —
+    # see docs/solutions/runtime-errors/hermes-agent-ssh-config-param-rename.md).
+    # OpenSSH matches Host against the command-line hostname, so an
+    # alias-only pattern skips this entire block for FQDN connections.
+    Host hermes-sandbox hermes-sandbox.hermes-agent.svc.cluster.local
         HostName hermes-sandbox.hermes-agent.svc.cluster.local
         User hermes
         IdentityFile /opt/data/.ssh/id_ed25519
