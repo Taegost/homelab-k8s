@@ -7,7 +7,7 @@ set -euo pipefail
 
 echo "=== NetworkPolicy Check ==="
 
-files=$(git diff --cached --name-only | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: NetworkPolicy" 2>/dev/null || true)
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: NetworkPolicy" 2>/dev/null || true)
 
 if [ -z "$files" ]; then
   echo "PASS: no NetworkPolicy files staged"

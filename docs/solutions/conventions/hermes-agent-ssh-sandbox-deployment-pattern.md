@@ -123,15 +123,23 @@ data:
         UserKnownHostsFile /opt/data/.ssh/known_hosts
         StrictHostKeyChecking yes
         Port 22
+        # One SendEnv line per var — explicit whitelist, not SendEnv *
+        SendEnv SEARXNG_URL
+        SendEnv GITHUB_TOKEN
+        SendEnv ANTHROPIC_BASE_URL
 ```
 
 ```yaml
 # sshd_config — sandbox-side configuration
-# Port 2222 (non-privileged), key-only auth, restricted to hermes user
+# Port 2222 (non-privileged), key-only auth, restricted to hermes user.
+# Named hermes-sandbox-* (not hermes-agent-*): it configures the sandbox
+# pod's sshd. SubPath-mounted over /etc/ssh/sshd_config, so it overrides
+# any sshd_config baked into the sandbox image — this ConfigMap is the
+# runtime source of truth.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: hermes-agent-sshd-config
+  name: hermes-sandbox-sshd-config
   namespace: hermes-agent
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
@@ -143,11 +151,14 @@ data:
     AllowUsers hermes
     PubkeyAuthentication yes
     PasswordAuthentication no
+    AcceptEnv *  # server accepts anything; gating is the client's SendEnv whitelist
     HostKey /etc/ssh/ssh_host_ed25519_key
     AuthorizedKeysFile /home/hermes/.ssh/authorized_keys
 ```
 
 ConfigMaps use sync-wave -1 so they exist before the Deployments start at wave 0. Secrets (SSH private keys) are mounted via `subPath` so individual keys land at specific paths without overwriting the data volume.
+
+Env passthrough to sandbox sessions requires BOTH halves: `SendEnv` in the agent's client config and `AcceptEnv` in the sandbox's sshd config. Either alone silently does nothing — the client sends nothing by default, and the server refuses what it is not told to accept. Prefer an explicit client-side whitelist over `SendEnv *`: the agent pod's environment holds its own secrets (API keys, webhook secrets), and every sent var is readable by any code running in the sandbox. A permissive `AcceptEnv *` server-side is acceptable when the client whitelists, because the sshd has exactly one trusted caller (the agent pod, key-authenticated).
 
 **Note:** This is the Kubernetes-level SSH client config (ConfigMap). There is also an application-level config file (`/opt/data/config.yaml` on the PVC) that tells the Hermes application how to connect to the sandbox. The application config uses different parameter names (e.g., `ssh_host`, `ssh_user` in Hermes 0.19.0+) and must be updated separately when upgrading Hermes versions. See `docs/solutions/runtime-errors/hermes-agent-ssh-config-param-rename.md` for details on the 0.19.0 parameter rename.
 

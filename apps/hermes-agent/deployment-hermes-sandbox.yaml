@@ -133,4 +133,6 @@ spec:
             defaultMode: 0400
         - name: sshd-config
           configMap:
-            name: hermes-agent-sshd-config
+            # Renamed from hermes-agent-sshd-config — this is the sandbox
+            # pod's sshd config, not the agent's.
+            name: hermes-sandbox-sshd-config

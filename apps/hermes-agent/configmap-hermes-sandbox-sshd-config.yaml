@@ -1,0 +1,36 @@
+# ConfigMap — hermes-sandbox-sshd-config
+#
+# sshd configuration for the SANDBOX pod (hermes-agent-sandbox), not the
+# agent pod. This ConfigMap is subPath-mounted over /etc/ssh/sshd_config,
+# so it is the runtime source of truth — it overrides whatever sshd_config
+# is baked into the sandbox image. Configures non-privileged port 2222,
+# key-only authentication, restricts to the hermes user, and accepts
+# client-passed environment variables (the agent's ssh client config sends
+# them via SendEnv — both halves are required for Hermes to pass its .env
+# through to sandbox sessions).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-sandbox-sshd-config
+  namespace: hermes-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  sshd_config: |
+    Port 2222
+    ListenAddress 0.0.0.0
+    PermitRootLogin no
+    AllowUsers hermes
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    ChallengeResponseAuthentication no
+    UsePAM yes
+    StrictModes no
+    # Accept env vars sent by the agent's ssh client. The client sends
+    # an explicit whitelist (SendEnv lines in
+    # configmap-hermes-agent-ssh-config.yaml) — the server accepts
+    # anything, so gating happens client-side.
+    AcceptEnv *
+    HostKey /etc/ssh/ssh_host_ed25519_key
+    AuthorizedKeysFile /home/hermes/.ssh/authorized_keys
+    Subsystem sftp /usr/lib/openssh/sftp-server

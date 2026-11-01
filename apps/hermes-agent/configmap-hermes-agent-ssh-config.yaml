@@ -12,10 +12,39 @@ metadata:
     argocd.argoproj.io/sync-wave: "-1"
 data:
   config: |
-    Host hermes-sandbox
+    # Both forms: the alias (manual ssh hermes-sandbox) and the FQDN that
+    # Hermes itself connects with (ssh_host in /opt/data/config.yaml —
+    # see docs/solutions/runtime-errors/hermes-agent-ssh-config-param-rename.md).
+    # OpenSSH matches Host against the command-line hostname, so an
+    # alias-only pattern skips this entire block for FQDN connections.
+    Host hermes-sandbox hermes-sandbox.hermes-agent.svc.cluster.local
         HostName hermes-sandbox.hermes-agent.svc.cluster.local
         User hermes
         IdentityFile /opt/data/.ssh/id_ed25519
         UserKnownHostsFile /opt/data/.ssh/known_hosts
         StrictHostKeyChecking yes
         Port 22
+        # Whitelist of env vars sent to the sandbox. The sandbox's sshd
+        # accepts anything (AcceptEnv * in hermes-sandbox-sshd-config),
+        # so gating happens here, client-side: every var on a SendEnv
+        # line is readable by code running in the sandbox — keep this
+        # list explicit. Add new vars on their own SendEnv line.
+
+        # Misc
+        SendEnv SEARXNG_URL
+        SendEnv FIRECRAWL_API_URL
+        SendEnv FIRECRAWL_API_KEY
+        SendEnv GITHUB_TOKEN
+
+        # Canary secret
+        SendEnv CANARY_SECRET
+
+        # Claude Code
+        SendEnv ANTHROPIC_BASE_URL
+        SendEnv ANTHROPIC_AUTH_TOKEN
+        SendEnv CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY
+        SendEnv ANTHROPIC_MODEL
+        SendEnv ANTHROPIC_DEFAULT_OPUS_MODEL
+        SendEnv ANTHROPIC_DEFAULT_SONNET_MODEL
+        SendEnv ANTHROPIC_DEFAULT_HAIKU_MODEL
+        SendEnv CLAUDE_CODE_SUBAGENT_MODEL

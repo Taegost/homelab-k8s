@@ -8,7 +8,7 @@ set -euo pipefail
 
 echo "=== Longhorn Security Context Check ==="
 
-longhorn_pvcs=$(git diff --cached --name-only | grep -E '\.(yaml|yml)$' | xargs -r grep -l "storageClassName: longhorn" 2>/dev/null || true)
+longhorn_pvcs=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' | xargs -r grep -l "storageClassName: longhorn" 2>/dev/null || true)
 
 if [ -z "$longhorn_pvcs" ]; then
   echo "PASS: no Longhorn PVCs in this change"
@@ -23,7 +23,7 @@ while read -r pvc_file; do
   claim_name=$(grep "name:" "$pvc_file" | head -1 | awk '{print $2}')
   echo "  PVC: $pvc_file ($claim_name)"
 
-  dep=$(git diff --cached --name-only | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null | xargs -r grep -l "$claim_name" 2>/dev/null || true)
+  dep=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null | xargs -r grep -l "$claim_name" 2>/dev/null || true)
 
   if [ -z "$dep" ]; then
     echo "    WARN: no Deployment found mounting this PVC in staged changes"

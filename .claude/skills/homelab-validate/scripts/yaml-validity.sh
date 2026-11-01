@@ -6,7 +6,7 @@ set -euo pipefail
 echo "=== YAML Validity ==="
 failures=0
 
-files=$(git diff --cached --name-only | grep -E '\.(yaml|yml)$' || true)
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' || true)
 
 if [ -z "$files" ]; then
   echo "PASS: no YAML files staged"

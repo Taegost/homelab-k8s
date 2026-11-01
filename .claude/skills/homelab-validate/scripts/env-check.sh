@@ -7,7 +7,7 @@ set -euo pipefail
 
 echo "=== Env Check ==="
 
-files=$(git diff --cached --name-only | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null || true)
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' | xargs -r grep -l "kind: Deployment" 2>/dev/null || true)
 
 if [ -z "$files" ]; then
   echo "SKIP: no Deployments staged"
