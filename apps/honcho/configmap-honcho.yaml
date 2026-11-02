@@ -34,8 +34,23 @@ data:
   # Uses the secure external domain (HTTPS via Traefik) rather than the
   # cluster-internal HTTP endpoint.
   LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
-  # Generic model name; LiteLLM routes to the configured upstream.
-  LLM_OPENAI_MODEL: "anthropic/smart"
+
+  # --- Default module models ---
+  # Honcho hardcodes gpt-5.4-mini as the default model for every module
+  # without an explicit model config (src/config.py _MODEL_CONFIG_DEFAULT
+  # factories) — a model name our LiteLLM handler does not route. There is
+  # NO global default-model setting: LLMSettings has no MODEL field and
+  # silently ignores unknown LLM_* env vars, so each module needs its own
+  # override. Dialectic levels and dream deduction/induction are overridden
+  # below and in the Deriver manifest; these two cover the remaining
+  # modules that were running the gpt-5.4-mini default.
+  # No OVERRIDES__BASE_URL needed: modules without a base_url override ride
+  # the default OpenAI client, which reads LLM_OPENAI_BASE_URL above
+  # (src/llm/registry.py client_for_model_config).
+  # Deriver extraction (conclusion derivation) — core memory pipeline.
+  DERIVER_MODEL_CONFIG__MODEL: "anthropic/smart"
+  # Session summaries — bulk background work, cost-effective model.
+  SUMMARY_MODEL_CONFIG__MODEL: "anthropic/fast"
 
   # --- Embedding ---
   # Resolved: openai/text-embedding-3-small via LiteLLM, 1536 dimensions.
