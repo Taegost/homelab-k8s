@@ -50,7 +50,7 @@ data:
   # Deriver extraction (conclusion derivation) — core memory pipeline.
   DERIVER_MODEL_CONFIG__MODEL: "anthropic/smart"
   # Session summaries — bulk background work, cost-effective model.
-  SUMMARY_MODEL_CONFIG__MODEL: "anthropic/fast"
+  SUMMARY_MODEL_CONFIG__MODEL: "anthropic/cheap"
 
   # --- Embedding ---
   # Resolved: openai/text-embedding-3-small via LiteLLM, 1536 dimensions.
@@ -67,9 +67,9 @@ data:
   # (minimal, low) use the cost-effective model; higher levels (medium,
   # high, max) use the flagship model for deeper reasoning quality.
   # Dream models are configured separately in the Deriver manifest.
-  DIALECTIC_LEVELS__MINIMAL__MODEL_CONFIG__MODEL: "anthropic/fast"
+  DIALECTIC_LEVELS__MINIMAL__MODEL_CONFIG__MODEL: "anthropic/cheap"
   DIALECTIC_LEVELS__MINIMAL__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
-  DIALECTIC_LEVELS__LOW__MODEL_CONFIG__MODEL: "anthropic/fast"
+  DIALECTIC_LEVELS__LOW__MODEL_CONFIG__MODEL: "anthropic/cheap"
   DIALECTIC_LEVELS__LOW__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
   DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__MODEL: "anthropic/smart"
   DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
