@@ -37,7 +37,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: honcho-api
-          image: ghcr.io/plastic-labs/honcho:v3.0.10
+          image: ghcr.io/plastic-labs/honcho:v3.5.0
           # Use the image's entrypoint script (Docker Compose pattern) which
           # runs provision_db.py before starting FastAPI. This handles:
           #   1. CREATE SCHEMA IF NOT EXISTS

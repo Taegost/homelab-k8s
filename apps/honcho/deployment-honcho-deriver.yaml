@@ -40,7 +40,7 @@ spec:
       containers:
         - name: honcho-deriver
           # Same image as the API -- override CMD to run the deriver worker.
-          image: ghcr.io/plastic-labs/honcho:v3.0.10
+          image: ghcr.io/plastic-labs/honcho:v3.5.0
           # Override the default CMD to run the deriver process instead of
           # the API server. The deriver reads from Postgres and processes
           # memory data in the background.
