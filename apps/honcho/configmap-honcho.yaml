@@ -35,7 +35,7 @@ data:
   # cluster-internal HTTP endpoint.
   LLM_OPENAI_BASE_URL: "https://litellm.diceninjagaming.com/v1"
   # Generic model name; LiteLLM routes to the configured upstream.
-  LLM_OPENAI_MODEL: "qanthropic/smart"
+  LLM_OPENAI_MODEL: "anthropic/smart"
 
   # --- Embedding ---
   # Resolved: openai/text-embedding-3-small via LiteLLM, 1536 dimensions.
@@ -58,9 +58,9 @@ data:
   DIALECTIC_LEVELS__LOW__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
   DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__MODEL: "anthropic/smart"
   DIALECTIC_LEVELS__MEDIUM__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
-  DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__MODEL: "qanthropic/smart"
+  DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__MODEL: "anthropic/smart"
   DIALECTIC_LEVELS__HIGH__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
-  DIALECTIC_LEVELS__MAX__MODEL_CONFIG__MODEL: "qanthropic/smart"
+  DIALECTIC_LEVELS__MAX__MODEL_CONFIG__MODEL: "anthropic/smart"
   DIALECTIC_LEVELS__MAX__MODEL_CONFIG__OVERRIDES__BASE_URL: "https://litellm.diceninjagaming.com/v1"
 
   # --- Telemetry ---
