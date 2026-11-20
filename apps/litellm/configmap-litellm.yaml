@@ -34,12 +34,15 @@ data:
             - cohere
             - gemini
             - groq
+            - nvidia_nim
             - openrouter
           #
-          # nvidia_nim is intentionally excluded — all NIM model IDs contain an
-          # org/model slash that causes handler.py to drop the provider prefix
-          # on the follow-up completion call, producing "LLM Provider NOT
-          # provided". Re-add once resolved: github.com/BerriAI/litellm/issues/23970
+          # nvidia_nim was previously excluded: NIM model IDs contain an
+          # org/model slash that made handler.py drop the provider prefix on
+          # the follow-up completion call ("LLM Provider NOT provided",
+          # github.com/BerriAI/litellm/issues/23970). Fixed in LiteLLM
+          # v1.109.0 (PR #38885 keeps the provider prefix on the agentic
+          # follow-up model); re-added here as part of the v1.110.2 upgrade.
 
     search_tools:
       - search_tool_name: searxng-diceninjagaming
