@@ -2,7 +2,8 @@
 #
 # Restricts the sandbox pod's network access:
 # - Ingress: only port 2222 from the hermes-agent pod (same namespace)
-# - Egress: DNS only + all non-cluster, non-local traffic (open internet)
+# - Egress: DNS, arr-stack namespace (all ports), + all non-cluster,
+#   non-local traffic (open internet)
 #
 # This ensures the sandbox cannot reach cluster-internal services (pods,
 # services, Kubernetes API) or the local network by default. As trust
@@ -44,6 +45,14 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Allow arr-stack services (Sonarr, Radarr, Prowlarr, etc.) — sandbox
+    # may query their APIs. Namespace-scoped: all pods in arr-stack, all
+    # ports. Matches destination pods post-DNAT, so service DNS names
+    # resolve correctly (unlike ipBlock rules for ClusterIPs).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: arr-stack
     # Allow all non-cluster, non-local egress (open internet).
     # Block cluster CIDR (10.0.0.0/8) and local network (192.168.0.0/16).
     # The `except` clause in ipBlock is the standard k8s NetworkPolicy
