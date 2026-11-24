@@ -44,8 +44,15 @@ data:
           # v1.109.0 (PR #38885 keeps the provider prefix on the agentic
           # follow-up model); re-added here as part of the v1.110.2 upgrade.
 
+    general_settings:
+      # Anthropic "dangerous_tool_use" safeguard classifier. Must live under
+      # general_settings — litellm_settings ignores it. Value is the public
+      # model_name as served by this proxy. Sub-call bills the caller's API
+      # key: keys without access to this model skip the check (warning in logs).
+      safeguards_classifier_model: anthropic/cheap
+
     search_tools:
       - search_tool_name: searxng-diceninjagaming
         litellm_params:
           search_provider: searxng
-          api_base: https://searxng.diceninjagaming.com   
+          api_base: https://searxng.diceninjagaming.com
