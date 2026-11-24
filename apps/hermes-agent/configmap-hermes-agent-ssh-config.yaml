@@ -48,3 +48,13 @@ data:
         SendEnv ANTHROPIC_DEFAULT_SONNET_MODEL
         SendEnv ANTHROPIC_DEFAULT_HAIKU_MODEL
         SendEnv CLAUDE_CODE_SUBAGENT_MODEL
+        
+        # Arr Stack
+        SendEnv BAZARR_URL
+        SendEnv BAZARR_API_KEY
+        SendEnv RADARR_URL
+        SendEnv RADARR_API_KEY
+        SendEnv SONARR_URL
+        SendEnv SONARR_API_KEY
+        SendEnv WHISPARR_URL
+        SendEnv WHISPARR_API_KEY
