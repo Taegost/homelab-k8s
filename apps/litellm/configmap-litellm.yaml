@@ -44,8 +44,21 @@ data:
           # v1.109.0 (PR #38885 keeps the provider prefix on the agentic
           # follow-up model); re-added here as part of the v1.110.2 upgrade.
 
+    general_settings:
+      # Classifier for Anthropic "dangerous_tool_use" safeguard requests.
+      # MUST live under general_settings — the code reads it from
+      # proxy_general_settings(), not litellm_settings (verified in
+      # v1.110.2: litellm/llms/anthropic/messages/safeguards.py:272).
+      # Value is the PUBLIC model_name as served by this proxy (router
+      # resolves it via llm_router.acompletion), NOT the underlying
+      # litellm_params.model. The sub-call runs under the caller's API
+      # key: any key/team sending `safeguards` requests must also have
+      # access to this model, else the check is skipped with a warning
+      # (fail-open).
+      safeguards_classifier_model: anthropic/cheap
+
     search_tools:
       - search_tool_name: searxng-diceninjagaming
         litellm_params:
           search_provider: searxng
-          api_base: https://searxng.diceninjagaming.com   
+          api_base: https://searxng.diceninjagaming.com
