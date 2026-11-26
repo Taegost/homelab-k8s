@@ -1,5 +1,5 @@
 ---
-title: "Pre-Commit Validation Suite — 11 Automated Checks"
+title: "Pre-Commit Validation Suite — 12 Automated Checks"
 date: 2026-06-21
 category: tooling-decisions
 module: homelab
@@ -18,7 +18,7 @@ tags:
   - homelab-validate
 ---
 
-# Pre-Commit Validation Suite — 11 Automated Checks
+# Pre-Commit Validation Suite — 12 Automated Checks
 
 ## Context
 
@@ -26,7 +26,7 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 
 ## Guidance
 
-### The 11 checks
+### The 12 checks
 
 **Always-on (run on every YAML commit):**
 
@@ -37,6 +37,7 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 | 3 | Plaintext Secret Guard | Staged `secret-*.yaml` files (should be gitignored) |
 | 6 | Secret Template Verify | Missing dual annotations, bad placeholder format |
 | 7 | :latest Tag Guard | Unpinned image tags |
+| 12 | SMB iocharset | SMB StorageClass/PV missing `iocharset=utf8` in mountOptions (selects SMB manifests by staged content — `smb.csi.k8s.io` — so file naming cannot bypass it) |
 
 **Conditional (run when relevant files are staged):**
 
@@ -67,6 +68,7 @@ ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
 .claude/skills/homelab-validate/scripts/probe-timeout-check.sh
 .claude/skills/homelab-validate/scripts/capability-check.sh
 .claude/skills/homelab-validate/scripts/env-check.sh
+.claude/skills/homelab-validate/scripts/smb-iocharset-check.sh
 ```
 
 ### Bypass variables

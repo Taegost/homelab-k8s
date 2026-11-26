@@ -47,3 +47,4 @@ mountOptions:
   - gid=100
   - dir_mode=0777
   - file_mode=0777
+  - iocharset=utf8

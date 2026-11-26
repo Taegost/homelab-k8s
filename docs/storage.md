@@ -48,3 +48,30 @@ You would want to reduce to weekly (or less) if:
 - **Databases with high write throughput** — trim on an active high-write database can cause latency spikes while the storage layer processes UNMAP commands alongside application writes. For a busy Postgres instance, weekly or monthly is more appropriate. The arr-stack SQLite databases do not have this problem.
 - **Snapshot-heavy volumes** — trim must account for blocks still referenced by older snapshots before releasing them. More snapshots means a more expensive trim operation. If snapshot jobs are added later, re-evaluate the trim frequency on those volumes.
 - **HDD-backed storage** — UNMAP/DISCARD on spinning disks is significantly more expensive than on SSDs due to seek times. Weekly at most on HDDs.
+
+## SMB mounts
+
+Every SMB persistent volume mounts with `iocharset=utf8`. The option is set at
+its definition site — the `smb-backups` StorageClass `mountOptions` for
+dynamically provisioned volumes, `spec.mountOptions` on each static PV — and
+the `smb-iocharset-check.sh` pre-commit check blocks commits that add or modify
+an SMB StorageClass/PV without it.
+
+### Picking up new SMB mount options on git-managed static PVs
+
+Mount options are baked in when the kubelet stages the volume on a node; they
+do not change while a mount is staged. To apply new options to a static PV:
+
+1. Merge the manifest change — ArgoCD syncs it to the live PV object.
+2. Reboot the node during routine maintenance. A reboot clears every staged
+   mount on that node; pods restage afterward, reading the PV's current
+   `mountOptions`.
+3. Verify from inside a consuming pod:
+
+   ```bash
+   kubectl exec -n <namespace> deploy/<app> -- grep cifs /proc/mounts
+   ```
+
+Dynamically provisioned volumes pick up new mount options only when they are
+reprovisioned — their options are baked at CSI `NodeStageVolume` time and
+StorageClass changes do not propagate to existing PVs.
