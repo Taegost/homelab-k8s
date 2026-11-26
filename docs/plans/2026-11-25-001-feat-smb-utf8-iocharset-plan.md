@@ -160,15 +160,21 @@ The operator directed that every SMB persistent volume must mount with `iocharse
 **Approach:** Merge U1 and confirm ArgoCD synced the StorageClass and both static PVs (read-only check below). From that point, each node that reboots — routine maintenance or otherwise — restages every SMB mount it hosts using the PV's current mountOptions. After all nodes have rebooted once, verify from inside each consuming workload. A pod that rescheduled onto a not-yet-rebooted node in the window shows old options until that node reboots; the final verification catches it.
 
 ```bash
-# 1. After ArgoCD sync — both static PVs must list iocharset=utf8 (read-only).
+# 1. After ArgoCD sync — the StorageClass and both static PVs must list
+#    iocharset=utf8 (read-only).
+kubectl get storageclass smb-backups -o jsonpath='{.metadata.name}{"  "}{.mountOptions}{"\n"}'
 kubectl get pv arr-stack-multimedia manyfold-libraries -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.spec.mountOptions}{"\n"}{end}'
 
 # 2. Reboot nodes during routine maintenance (operator-driven; the cadence is
 #    the maintenance window's, not this plan's).
 
 # 3. After all nodes have rebooted once — every line must print iocharset=utf8.
-#    If a container lacks grep, swap in 'cat /proc/mounts'.
-for d in bazarr radarr sonarr whisparr; do echo "== $d"; kubectl exec -n arr-stack deploy/$d -- grep cifs /proc/mounts | grep -o 'iocharset=[a-z0-9]*' | sort -u; done
+#    Select the /multimedia mount by mount point (field 2) before extracting
+#    iocharset: these pods also mount a dynamic smb-backups volume at /backups,
+#    and the plain grep union could let utf8 from /backups mask a stale option
+#    on the static /multimedia mount. If a container lacks grep, swap in
+#    'cat /proc/mounts'.
+for d in bazarr radarr sonarr whisparr; do echo "== $d"; kubectl exec -n arr-stack deploy/$d -- sh -c "grep cifs /proc/mounts | awk '\$2 == \"/multimedia\"'" | grep -o 'iocharset=[a-z0-9]*' | sort -u; done
 echo "== manyfold"; kubectl exec -n manyfold deploy/manyfold -- grep cifs /proc/mounts | grep -o 'iocharset=[a-z0-9]*' | sort -u
 ```
 

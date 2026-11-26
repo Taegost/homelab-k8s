@@ -128,13 +128,14 @@ The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/
 The same suite can be invoked manually: `/homelab-validate`
 
 The IngressRoute, Longhorn fsGroup, NetworkPolicy, probe timeout, capability,
-env injection, and SMB iocharset checks run conditionally — they only fire when
-`ingressroute`, `persistentvolumeclaim`, `networkpolicy`, `deployment`,
-`storageclass`, or `persistentvolume` files are staged. The
-other five checks (sync waves, YAML validity, plaintext secrets, secret
-templates, :latest tag guard) run on every commit that touches `.yaml` or `.yml`
-files. A "SKIP" for conditional checks on unrelated commits is expected and not
-a failure.
+and env injection checks run conditionally — they only fire when
+`ingressroute`, `persistentvolumeclaim`, `networkpolicy`, or `deployment`
+files are staged. The other six checks (sync waves, YAML validity, plaintext
+secrets, secret templates, :latest tag guard, SMB iocharset) run on every commit
+that touches `.yaml` or `.yml` files. The SMB iocharset check selects SMB
+manifests by staged (index) content (`smb.csi.k8s.io`), so file naming cannot
+bypass it. A "SKIP" for conditional checks on unrelated commits is expected and
+not a failure.
 
 ### Sync wave reference
 

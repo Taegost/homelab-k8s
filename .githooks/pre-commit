@@ -122,15 +122,10 @@ else
   echo "[11/12] Env injection check — SKIP (no Deployments changed)"
 fi
 
-# 12. SMB iocharset check (only if StorageClass or PV files changed)
-if echo "$STAGED" | grep -qE 'storageclass|persistentvolume'; then
-  echo ""
-  echo "[12/12] SMB iocharset check..."
-  bash "$SCRIPTS/smb-iocharset-check.sh" || FAILED=1
-else
-  echo ""
-  echo "[12/12] SMB iocharset check — SKIP (no StorageClass/PV files changed)"
-fi
+# 12. SMB iocharset check (script selects SMB manifests by staged content)
+echo ""
+echo "[12/12] SMB iocharset check..."
+bash "$SCRIPTS/smb-iocharset-check.sh" || FAILED=1
 
 echo ""
 if [ "$FAILED" -eq 0 ]; then

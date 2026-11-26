@@ -5,10 +5,9 @@ date: 2026-11-25
 problem_type: convention
 component: tooling
 severity: medium
-track: knowledge
 applies_when:
   - Adding or editing any SMB-backed StorageClass, static PersistentVolume, or PVC in this repo
-  - Choosing where mount options live: StorageClass top-level mountOptions vs PV spec.mountOptions
+  - "Choosing where mount options live: StorageClass top-level mountOptions vs PV spec.mountOptions"
   - Deciding how to change mount options on already-provisioned volumes without fighting ArgoCD self-heal
   - Writing pre-commit checks that must validate Kubernetes field paths, not just grep for strings
   - Setting expectations for when existing PV mounts pick up new mount options (node reboot restage)
@@ -85,7 +84,7 @@ The Kubernetes API does not validate mount options (https://kubernetes.io/docs/c
 
 ### Enforcement: pre-commit check that validates kind-correct placement
 
-A new conditional pre-commit check, `smb-iocharset-check.sh` (check 12 of the homelab-validate suite), blocks any commit staging an SMB StorageClass (`provisioner: smb.csi.k8s.io`) or SMB PV (`csi.driver: smb.csi.k8s.io`) that lacks `iocharset=utf8`. Non-SMB storage manifests are never flagged.
+A new pre-commit check, `smb-iocharset-check.sh` (check 12 of the homelab-validate suite, running on every YAML commit — it selects SMB manifests by staged content), blocks any commit staging an SMB StorageClass (`provisioner: smb.csi.k8s.io`) or SMB PV (`csi.driver: smb.csi.k8s.io`) that lacks `iocharset=utf8`. Non-SMB storage manifests are never flagged.
 
 Key implementation lesson: **grep-based sibling checks cannot validate kind-correct field placement.** A grep for `iocharset=utf8` anywhere in the file would pass a StorageClass with the option nested under `spec` — exactly the silent no-op above. The check instead parses each staged YAML file per document (PyYAML `safe_load_all`, the same dependency as `networkpolicy-check.sh`) and enforces placement by kind. Both misplacements fail with messages explaining the silent no-op:
 
@@ -181,18 +180,23 @@ The second static PV, `apps/arr-stack/persistentvolume-arr-stack-multimedia.yaml
 ### The migration flow (the whole thing)
 
 ```bash
-# 1. Commit manifest changes; ArgoCD syncs (read-only check that sync landed):
+# 1. Commit manifest changes; ArgoCD syncs (read-only check that sync landed —
+#    StorageClass and both static PVs must list iocharset=utf8):
+kubectl get storageclass smb-backups -o jsonpath='{.metadata.name}{"  "}{.mountOptions}{"\n"}'
 kubectl get pv arr-stack-multimedia manyfold-libraries \
   -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.spec.mountOptions}{"\n"}{end}'
 
 # 2. Reboot nodes during routine maintenance — full unstage, pods restage
 #    with the PV's current mountOptions.
 
-# 3. Verify read-only, per consuming workload. If a container lacks grep,
-#    swap in 'cat /proc/mounts'.
+# 3. Verify read-only, per consuming workload. Select the /multimedia mount by
+#    mount point (field 2) before extracting iocharset: arr workloads also
+#    mount a dynamic smb-backups volume at /backups, and the plain grep union
+#    could let utf8 from /backups mask a stale option on the static /multimedia
+#    mount. If a container lacks grep, swap in 'cat /proc/mounts'.
 for d in bazarr radarr sonarr whisparr; do
   echo "== $d"
-  kubectl exec -n arr-stack deploy/$d -- grep cifs /proc/mounts | grep -o 'iocharset=[a-z0-9]*' | sort -u
+  kubectl exec -n arr-stack deploy/$d -- sh -c "grep cifs /proc/mounts | awk '\$2 == \"/multimedia\"'" | grep -o 'iocharset=[a-z0-9]*' | sort -u
 done
 echo "== manyfold"
 kubectl exec -n manyfold deploy/manyfold -- grep cifs /proc/mounts | grep -o 'iocharset=[a-z0-9]*' | sort -u
@@ -202,7 +206,7 @@ A pod rescheduled onto a not-yet-rebooted node shows old options until that node
 
 ### The check, wired into the suite
 
-`check 12` of `.claude/skills/homelab-validate/scripts/smb-iocharset-check.sh`. Prefilter greps staged YAML for `smb.csi.k8s.io` (covers both the StorageClass `provisioner:` line and the PV `csi.driver:` line); matching files are parsed per document with `yaml.safe_load_all` for kind-correct placement validation. Conditional check: it reports SKIP on commits touching no SMB storage manifests.
+`check 12` of `.claude/skills/homelab-validate/scripts/smb-iocharset-check.sh`. Runs on every commit touching `.yaml`/`.yml` files. Prefilter greps staged (index) content — read via `git show ":<path>"`, not working-tree files — for `smb.csi.k8s.io` (covers both the StorageClass `provisioner:` line and the PV `csi.driver:` line); matching files are parsed per document with `yaml.safe_load_all` for kind-correct placement validation. Content-based selection means file naming cannot bypass the check; commits touching no SMB manifests exit PASS immediately.
 
 Verification performed this session:
 

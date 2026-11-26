@@ -178,7 +178,7 @@ Checks main containers only (`spec.containers`), not init containers — init co
 
 **Script:** `scripts/smb-iocharset-check.sh`
 
-This check runs only when StorageClass or PersistentVolume files are staged (staged filenames matching `storageclass` or `persistentvolume`). On other commits it exits 0 with SKIP.
+This check runs on every commit touching `.yaml` or `.yml` files. It reads staged (index) content via `git show ":<path>"` and greps it for `smb.csi.k8s.io`; when no SMB manifest is staged it exits PASS immediately, so file naming cannot bypass it.
 
 Catches SMB storage manifests that mount without `iocharset=utf8`:
 

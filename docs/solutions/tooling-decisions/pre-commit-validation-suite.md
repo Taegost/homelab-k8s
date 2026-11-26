@@ -37,6 +37,7 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 | 3 | Plaintext Secret Guard | Staged `secret-*.yaml` files (should be gitignored) |
 | 6 | Secret Template Verify | Missing dual annotations, bad placeholder format |
 | 7 | :latest Tag Guard | Unpinned image tags |
+| 12 | SMB iocharset | SMB StorageClass/PV missing `iocharset=utf8` in mountOptions (selects SMB manifests by staged content — `smb.csi.k8s.io` — so file naming cannot bypass it) |
 
 **Conditional (run when relevant files are staged):**
 
@@ -48,7 +49,6 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 | 9 | Deployment files | Probe Timeout | Default/too-short timeoutSeconds on exec probes (exec probes only — httpGet/tcpSocket probes are not covered) |
 | 10 | Deployment files | Capability Check | Missing capabilities for drop-ALL containers |
 | 11 | Deployment files | Env Injection | Containers with no envFrom/env (WARN only) |
-| 12 | StorageClass/PV files | SMB iocharset | SMB StorageClass/PV missing `iocharset=utf8` in mountOptions |
 
 ### Installation
 
