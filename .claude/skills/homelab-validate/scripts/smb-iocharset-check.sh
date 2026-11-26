@@ -20,26 +20,35 @@ echo "=== SMB iocharset Check ==="
 # placement are validated per document below. Reads INDEX content via
 # `git show ":<path>"`, so selection cannot be bypassed by filename or
 # affected by unstaged working-tree edits.
-staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(yaml|yml)$' || true)
-files=""
-while IFS= read -r f; do
-  [ -z "$f" ] && continue
-  if git show ":$f" 2>/dev/null | grep -q "smb.csi.k8s.io"; then
-    files+="$f"$'\n'
+#
+# Paths are NUL-delimited (`-z` + `grep -z`) and held in a bash array: plain
+# `--name-only` output QUOTES non-ASCII filenames (e.g. "caf\303\251.yaml"),
+# and the trailing quote breaks the `\.(yaml|yml)$` anchor, silently skipping
+# the file. NUL is the only separator git guarantees cannot appear in a path,
+# and a scalar string cannot hold NUL separators — hence array.
+files=()
+while IFS= read -r -d '' f; do
+  # grep -F, NOT -q: -q exits on first match and closes the pipe early, so
+  # git show takes SIGPIPE on large blobs — under pipefail that reads as a
+  # pipeline failure and the matched file is dropped. Plain grep consumes the
+  # whole blob; -F keeps the driver string literal so its dots cannot match
+  # arbitrary characters.
+  if git show ":$f" 2>/dev/null | grep -F "smb.csi.k8s.io" >/dev/null; then
+    files+=("$f")
   fi
-done <<< "$staged"
+done < <(git diff --cached --name-only -z --diff-filter=ACMR | grep -zE '\.(yaml|yml)$' || true)
 
-if [ -z "$files" ]; then
+if [ ${#files[@]} -eq 0 ]; then
   echo "PASS: no SMB storage manifests in this change"
   exit 0
 fi
 
 failures=0
 
-# Process substitution (<(...)) avoids the pipeline subshell — failures++
-# must survive the loop to be checked after it completes.
-while read -r f; do
-  [ -z "$f" ] && continue
+# Iterate the prefilter array directly — no subshell, so failures++ below
+# survives the loop; the ${#files[@]} guard above means the array is
+# non-empty here (empty-array expansion under `set -u` never runs).
+for f in "${files[@]}"; do
   echo "  $f"
 
   # Pipe the staged blob into python (reads stdin). rc captures placement
@@ -50,7 +59,19 @@ while read -r f; do
   result=$(git show ":$f" | python3 -c "
 import sys, yaml
 
-docs = list(yaml.safe_load_all(sys.stdin))
+docs = []
+# Flatten kind: List bundles first — a List wrapping an SMB manifest would
+# otherwise be skipped by the per-kind checks below. Empty docs (blank YAML
+# segments) are dropped, and an empty/missing items list yields nothing.
+# No backticks in these comments: they sit inside bash double quotes, and
+# bash command-substitutes backticks before python ever sees the code.
+for doc in yaml.safe_load_all(sys.stdin):
+    if not doc:
+        continue
+    if doc.get('kind') == 'List':
+        docs.extend(item for item in (doc.get('items') or []) if item)
+    else:
+        docs.append(doc)
 
 errors = []
 for doc in docs:
@@ -92,7 +113,7 @@ else:
   if [ "$rc" -ne 0 ]; then
     failures=$((failures + 1))
   fi
-done < <(echo "$files")
+done
 
 if [ "$failures" -gt 0 ]; then
   echo ""
