@@ -1,5 +1,5 @@
 ---
-title: "Pre-Commit Validation Suite — 11 Automated Checks"
+title: "Pre-Commit Validation Suite — 12 Automated Checks"
 date: 2026-06-21
 category: tooling-decisions
 module: homelab
@@ -18,7 +18,7 @@ tags:
   - homelab-validate
 ---
 
-# Pre-Commit Validation Suite — 11 Automated Checks
+# Pre-Commit Validation Suite — 12 Automated Checks
 
 ## Context
 
@@ -26,7 +26,7 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 
 ## Guidance
 
-### The 11 checks
+### The 12 checks
 
 **Always-on (run on every YAML commit):**
 
@@ -48,6 +48,7 @@ This is a GitOps repo where ArgoCD reconciles everything from committed YAML. A 
 | 9 | Deployment files | Probe Timeout | Default/too-short timeoutSeconds on exec probes (exec probes only — httpGet/tcpSocket probes are not covered) |
 | 10 | Deployment files | Capability Check | Missing capabilities for drop-ALL containers |
 | 11 | Deployment files | Env Injection | Containers with no envFrom/env (WARN only) |
+| 12 | StorageClass/PV files | SMB iocharset | SMB StorageClass/PV missing `iocharset=utf8` in mountOptions |
 
 ### Installation
 
@@ -67,6 +68,7 @@ ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
 .claude/skills/homelab-validate/scripts/probe-timeout-check.sh
 .claude/skills/homelab-validate/scripts/capability-check.sh
 .claude/skills/homelab-validate/scripts/env-check.sh
+.claude/skills/homelab-validate/scripts/smb-iocharset-check.sh
 ```
 
 ### Bypass variables

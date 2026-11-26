@@ -19,11 +19,12 @@ Scripts live in `scripts/` — run them from the repo root:
 .claude/skills/homelab-validate/scripts/probe-timeout-check.sh
 .claude/skills/homelab-validate/scripts/capability-check.sh
 .claude/skills/homelab-validate/scripts/env-check.sh
+.claude/skills/homelab-validate/scripts/smb-iocharset-check.sh
 ```
 
 ---
 
-## 1. Sync Wave Check
+## Sync Wave Check
 
 **Script:** `scripts/sync-wave-check.sh`
 
@@ -52,7 +53,7 @@ For each file listed, decide:
 
 ---
 
-## 2. YAML Validity
+## YAML Validity
 
 **Script:** `scripts/yaml-validity.sh`
 
@@ -60,7 +61,7 @@ Validates YAML syntax for every staged `.yaml` or `.yml` file using `python3 -c 
 
 ---
 
-## 3. Plaintext Secret Guard
+## Plaintext Secret Guard
 
 **Script:** `scripts/plaintext-secret-guard.sh`
 
@@ -68,7 +69,7 @@ Plaintext `secret-*.yaml` is gitignored. If any are staged, unstage immediately.
 
 ---
 
-## 4. IngressRoute Consistency
+## IngressRoute Consistency
 
 **Script:** `scripts/ingressroute-check.sh`
 
@@ -84,17 +85,17 @@ Override only when the user explicitly directs otherwise for a specific route.
 
 ---
 
-## 5. Plaintext Secret Template Verification
+## Plaintext Secret Template Verification
 
 **Script:** `scripts/secret-template-verify.sh [directory]`
 
 **MANDATORY** — run against all `secret-*.yaml` files before signing off on work. These files are gitignored, so the script scans the filesystem directly (not `git diff --cached`).
 
 Verifies:
-1. `sync-wave` present in `metadata.annotations`
-2. `sync-wave` present in `spec.template.metadata.annotations` (propagates to sealed output)
-3. Placeholder values use underscores only (no dots or dashes)
-4. Required fields (`name`, `namespace`) present
+- `sync-wave` present in `metadata.annotations`
+- `sync-wave` present in `spec.template.metadata.annotations` (propagates to sealed output)
+- Placeholder values use underscores only (no dots or dashes)
+- Required fields (`name`, `namespace`) present
 
 ### SealedSecret creation rule
 
@@ -102,7 +103,7 @@ Verifies:
 
 ---
 
-## 6. Longhorn PVC fsGroup Check
+## Longhorn PVC fsGroup Check
 
 **Script:** `scripts/longhorn-fsgroup-check.sh`
 
@@ -110,20 +111,20 @@ Verifies:
 
 ---
 
-## 7. NetworkPolicy Verification
+## NetworkPolicy Verification
 
 **Script:** `scripts/networkpolicy-check.sh`
 
 Two hard rules, both enforced as failures:
 
-1. Every `from` entry with `podSelector` MUST also have `namespaceSelector` — even if the target pods are in the same namespace. Explicit is safer than implicit.
-2. No deny-all policies — every `Ingress` policy MUST have at least one `from` block.
+- Every `from` entry with `podSelector` MUST also have `namespaceSelector` — even if the target pods are in the same namespace. Explicit is safer than implicit.
+- No deny-all policies — every `Ingress` policy MUST have at least one `from` block.
 
 The script uses YAML-aware parsing (`yaml.safe_load_all()`). Grep-based heuristics won't work — every NetworkPolicy has `spec.podSelector` (policy's own target pods) which would false-match `from[].podSelector`.
 
 ---
 
-## 8. Probe Timeout Check
+## Probe Timeout Check
 
 **Script:** `scripts/probe-timeout-check.sh`
 
@@ -141,7 +142,7 @@ Only checks `livenessProbe`, `readinessProbe`, and `startupProbe` with `exec` fi
 
 ---
 
-## 9. Capability Check
+## Capability Check
 
 **Script:** `scripts/capability-check.sh`
 
@@ -161,7 +162,7 @@ Adding a new image type only requires adding a KB entry — the script picks it 
 
 ---
 
-## 10. Env Injection Check
+## Env Injection Check
 
 **Script:** `scripts/env-check.sh`
 
@@ -170,3 +171,18 @@ This check runs only when Deployment files are staged. On other commits it exits
 Warns when Deployments have no `envFrom` or `env` blocks. All findings are WARN — this check never blocks commits. It catches accidental omissions (e.g., a new Deployment created without copying the namespace-standard envFrom block).
 
 Checks main containers only (`spec.containers`), not init containers — init containers legitimately have no env injection.
+
+---
+
+## SMB iocharset Check
+
+**Script:** `scripts/smb-iocharset-check.sh`
+
+This check runs only when StorageClass or PersistentVolume files are staged (staged filenames matching `storageclass` or `persistentvolume`). On other commits it exits 0 with SKIP.
+
+Catches SMB storage manifests that mount without `iocharset=utf8`:
+
+- StorageClass with `provisioner: smb.csi.k8s.io` — the option must be in the TOP-LEVEL `mountOptions` list. StorageClass has no spec field; an option nested under `spec.mountOptions` silently does nothing.
+- PersistentVolume with `spec.csi.driver: smb.csi.k8s.io` — the option must be in `spec.mountOptions`. A top-level `mountOptions` on a PV is silently ignored.
+
+Enforcement is kind-aware: each placement rule is checked against the matching kind only. Non-SMB storage manifests (NFS, Longhorn, local-path) are never flagged.

@@ -123,12 +123,14 @@ The hook runs these checks (scripts at `.claude/skills/homelab-validate/scripts/
 | Probe timeout | `probe-timeout-check.sh` | Exec probes with default/too-short `timeoutSeconds` on known-slow CLIs |
 | Capabilities | `capability-check.sh` | Missing capabilities for images that drop ALL (reads from KB) |
 | Env injection | `env-check.sh` | Deployments missing `envFrom`/`env` blocks (WARN only) |
+| SMB iocharset | `smb-iocharset-check.sh` | SMB StorageClass/PV missing `iocharset=utf8` in mountOptions |
 
 The same suite can be invoked manually: `/homelab-validate`
 
 The IngressRoute, Longhorn fsGroup, NetworkPolicy, probe timeout, capability,
-and env injection checks run conditionally — they only fire when `ingressroute`,
-`persistentvolumeclaim`, `networkpolicy`, or `deployment` files are staged. The
+env injection, and SMB iocharset checks run conditionally — they only fire when
+`ingressroute`, `persistentvolumeclaim`, `networkpolicy`, `deployment`,
+`storageclass`, or `persistentvolume` files are staged. The
 other five checks (sync waves, YAML validity, plaintext secrets, secret
 templates, :latest tag guard) run on every commit that touches `.yaml` or `.yml`
 files. A "SKIP" for conditional checks on unrelated commits is expected and not
@@ -543,6 +545,9 @@ Do not assume it matches any other app in the stack.
 - Provides dynamic SMB provisioning — no manual PVs required
 - SMB server: Unraid NAS (`firebird.lan`)
 - Credentials in `apps/smb-csi/sealedsecret-smb-creds.yaml`
+- Repo standard: every SMB mount (StorageClass `mountOptions` and static PV
+  `spec.mountOptions`) sets `iocharset=utf8` — enforced by the
+  `smb-iocharset-check.sh` pre-commit check
 
 ### NFS CSI Driver (`csi-driver-nfs`)
 - Installed via Helm through ArgoCD, managed by `apps/manifests/nfs-csi.yaml`
